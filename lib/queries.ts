@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { customFieldDefs, orgMembers, programs, projects, tasks, users } from "@/db/schema";
+import { attachments, customFieldDefs, orgMembers, programs, projects, tasks, users } from "@/db/schema";
 
 /** Org members available to assign as a program owner / project lead. */
 export async function getOrgMembers(orgId: string) {
@@ -63,4 +63,22 @@ export async function getTaskCustomFieldDefs(programId: string) {
     .from(customFieldDefs)
     .where(and(eq(customFieldDefs.programId, programId), eq(customFieldDefs.entityType, "task")))
     .orderBy(customFieldDefs.sortOrder);
+}
+
+/**
+ * Fetches an attachment (including its file bytes) only if it belongs to
+ * the given org, walking attachment -> task -> project -> program -> org.
+ * Used by the download route, which only has the attachment id to go on.
+ */
+export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
+  const [row] = await db
+    .select({ attachment: attachments })
+    .from(attachments)
+    .innerJoin(tasks, eq(attachments.taskId, tasks.id))
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(and(eq(attachments.id, attachmentId), eq(programs.orgId, orgId)))
+    .limit(1);
+
+  return row?.attachment ?? null;
 }

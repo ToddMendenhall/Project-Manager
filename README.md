@@ -5,9 +5,10 @@ A generalized, cloud-based project management system built around a
 domain-specific attributes are added per-organization via custom fields, not
 hardcoded into the schema.
 
-This is phase 1: data model, migrations, seed data, and authentication with
-organization scoping. Program/Project/Task CRUD screens, additional views
-(board/calendar), and collaboration features come in later phases.
+This is phase 1: data model, auth with org scoping, Program/Project/Task
+CRUD, a sortable/filterable List view, and comments/attachments on tasks.
+Additional views (board/calendar), automations, and dashboards come in
+later phases.
 
 ## Stack
 
@@ -25,8 +26,12 @@ organization scoping. Program/Project/Task CRUD screens, additional views
 - **Task** — unit of work, belongs to a project, can have subtasks (`parentTaskId`)
 - **CustomFieldDef** — per-program field definitions (text/number/date/boolean/select)
 - Task-level custom values live in `tasks.customFields` (jsonb), keyed by the field's `key`
-- **Comment**, **Attachment** — attached to tasks
-- **ActivityLog** — append-only audit trail per org
+- **Comment**, **Attachment** — attached to tasks. Attachment bytes are
+  stored directly in Postgres (`bytea`), capped at 4MB per file, so the app
+  runs with no extra object-storage account to provision. A later phase can
+  swap this for S3 / Vercel Blob without changing the rest of the schema.
+- **ActivityLog** — append-only audit trail per org (schema only — nothing
+  writes to it yet)
 
 See `db/schema.ts` for the full definition.
 
@@ -50,7 +55,8 @@ See `db/schema.ts` for the full definition.
    ```
 
 4. (Optional) Seed sample data — creates a sample organization, admin user
-   (`admin@example.com` / `password123`), program, project, and task:
+   (`admin@example.com` / `password123`), program, project, task, and a
+   comment on that task:
 
    ```bash
    npm run db:seed

@@ -9,6 +9,7 @@ import {
   integer,
   uniqueIndex,
   index,
+  customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
@@ -20,6 +21,19 @@ import { relations } from "drizzle-orm";
  * through customFieldDefs + the tasks.customFields jsonb column, never by
  * adding columns here.
  */
+
+/**
+ * Attachment bytes live directly in Postgres (bytea) rather than an
+ * external object store — phase 1 keeps the app self-contained with no
+ * extra cloud storage account to provision. Capped at a few MB per file
+ * (enforced at the upload route); a later phase can swap this for S3 /
+ * Vercel Blob without changing anything else about the attachments table.
+ */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export const memberRoleEnum = pgEnum("member_role", ["admin", "member"]);
 export const statusEnum = pgEnum("status", [
@@ -198,7 +212,7 @@ export const attachments = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     fileName: varchar("file_name", { length: 255 }).notNull(),
-    url: text("url").notNull(),
+    data: bytea("data").notNull(),
     contentType: varchar("content_type", { length: 100 }),
     sizeBytes: integer("size_bytes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
