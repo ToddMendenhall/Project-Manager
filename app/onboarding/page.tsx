@@ -1,5 +1,6 @@
-import { auth, signOut } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { getPrimaryOrgMembership } from "@/lib/org";
+import { SignOutButton } from "@/components/sign-out-button";
 import { redirect } from "next/navigation";
 
 export default async function OnboardingPage() {
@@ -20,16 +21,7 @@ export default async function OnboardingPage() {
         Your account isn't a member of any organization. Ask an admin to invite you, or sign out and
         create a new organization.
       </p>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-      >
-        <button type="submit" className="rounded bg-gray-900 px-4 py-2 text-white">
-          Sign out
-        </button>
-      </form>
+      <SignOutButton className="rounded bg-gray-900 px-4 py-2 text-white" />
     </main>
   );
 }
