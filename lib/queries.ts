@@ -1,7 +1,7 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { orgMembers, programs, projects, users } from "@/db/schema";
+import { customFieldDefs, orgMembers, programs, projects, tasks, users } from "@/db/schema";
 
 /** Org members available to assign as a program owner / project lead. */
 export async function getOrgMembers(orgId: string) {
@@ -40,4 +40,27 @@ export async function getProjectForProgram(projectId: string, programId: string,
     .limit(1);
 
   return project ?? null;
+}
+
+/** Fetches a task only if it belongs to the given project (which must itself belong to the program/org). */
+export async function getTaskForProject(taskId: string, projectId: string, programId: string, orgId: string) {
+  const project = await getProjectForProgram(projectId, programId, orgId);
+  if (!project) return null;
+
+  const [task] = await db
+    .select()
+    .from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)))
+    .limit(1);
+
+  return task ?? null;
+}
+
+/** Task-level custom field definitions for a program, in display order. */
+export async function getTaskCustomFieldDefs(programId: string) {
+  return db
+    .select()
+    .from(customFieldDefs)
+    .where(and(eq(customFieldDefs.programId, programId), eq(customFieldDefs.entityType, "task")))
+    .orderBy(customFieldDefs.sortOrder);
 }

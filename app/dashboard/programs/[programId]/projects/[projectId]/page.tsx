@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { programs, projects } from "@/db/schema";
+import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
@@ -25,10 +25,15 @@ export default async function ProjectDetailPage({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
     with: {
       lead: true,
-      tasks: { orderBy: (task, { desc }) => [desc(task.createdAt)] },
+      tasks: { orderBy: (task, { desc }) => [desc(task.createdAt)], limit: 5 },
     },
   });
   if (!project) notFound();
+
+  const [{ value: taskCount }] = await db
+    .select({ value: count() })
+    .from(tasks)
+    .where(eq(tasks.projectId, projectId));
 
   return (
     <div className="flex flex-col gap-8">
@@ -86,16 +91,41 @@ export default async function ProjectDetailPage({
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Tasks</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Tasks ({taskCount})</h2>
+          <div className="flex items-center gap-4">
+            {taskCount > 0 && (
+              <Link
+                href={`/dashboard/programs/${programId}/projects/${project.id}/tasks`}
+                className="text-sm underline"
+              >
+                View all &rarr;
+              </Link>
+            )}
+            <Link
+              href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/new`}
+              className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white"
+            >
+              New Task
+            </Link>
+          </div>
+        </div>
         {project.tasks.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            No tasks yet. Task CRUD screens are the next phase 1 step.
-          </p>
+          <p className="text-sm text-gray-500">No tasks yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {project.tasks.map((task) => (
-              <li key={task.id} className="rounded border border-gray-200 bg-white p-3 text-sm">
-                {task.title}
+              <li key={task.id}>
+                <Link
+                  href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/${task.id}`}
+                  className="flex items-center justify-between rounded border border-gray-200 bg-white p-3 text-sm hover:border-gray-400"
+                >
+                  <span>{task.title}</span>
+                  <span className="flex gap-2">
+                    <PriorityBadge priority={task.priority} />
+                    <StatusBadge status={task.status} />
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>

@@ -1,0 +1,124 @@
+"use server";
+
+import { z } from "zod";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { tasks } from "@/db/schema";
+import { requireOrgContext } from "@/lib/org";
+import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForProject } from "@/lib/queries";
+import { parseCustomFieldValues } from "@/lib/custom-fields";
+
+// Tasks are the day-to-day work items — unlike Program/Project structure,
+// any org member (not just admins) can create, edit, or delete them.
+
+const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
+
+const taskSchema = z.object({
+  title: z.string().trim().min(1, "Title is required").max(500),
+  description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
+  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
+  priority: z.enum(["low", "medium", "high", "urgent"]),
+  assigneeId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  dueDate: z.preprocess(emptyToUndefined, z.string().optional()),
+});
+
+function parseTaskForm(formData: FormData) {
+  return taskSchema.parse({
+    title: formData.get("title"),
+    description: formData.get("description"),
+    status: formData.get("status"),
+    priority: formData.get("priority"),
+    assigneeId: formData.get("assigneeId"),
+    dueDate: formData.get("dueDate"),
+  });
+}
+
+const basePath = (programId: string, projectId: string) =>
+  `/dashboard/programs/${programId}/projects/${projectId}`;
+
+export async function createTask(programId: string, projectId: string, formData: FormData) {
+  const ctx = await requireOrgContext();
+
+  const project = await getProjectForProgram(projectId, programId, ctx.org.id);
+  if (!project) {
+    throw new Error("Project not found");
+  }
+
+  const data = parseTaskForm(formData);
+  const fieldDefs = await getTaskCustomFieldDefs(programId);
+  const customFields = parseCustomFieldValues(fieldDefs, formData);
+
+  const [task] = await db
+    .insert(tasks)
+    .values({
+      projectId: project.id,
+      title: data.title,
+      description: data.description ?? null,
+      status: data.status,
+      priority: data.priority,
+      assigneeId: data.assigneeId ?? null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      completedAt: data.status === "completed" ? new Date() : null,
+      customFields,
+    })
+    .returning();
+
+  revalidatePath(basePath(programId, projectId));
+  redirect(`${basePath(programId, projectId)}/tasks/${task.id}`);
+}
+
+export async function updateTask(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  formData: FormData,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  const data = parseTaskForm(formData);
+  const fieldDefs = await getTaskCustomFieldDefs(programId);
+  const customFields = parseCustomFieldValues(fieldDefs, formData);
+
+  const justCompleted = data.status === "completed" && existing.status !== "completed";
+  const unCompleted = data.status !== "completed" && existing.status === "completed";
+
+  await db
+    .update(tasks)
+    .set({
+      title: data.title,
+      description: data.description ?? null,
+      status: data.status,
+      priority: data.priority,
+      assigneeId: data.assigneeId ?? null,
+      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+      customFields,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(basePath(programId, projectId));
+  revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
+  redirect(`${basePath(programId, projectId)}/tasks/${taskId}`);
+}
+
+export async function deleteTask(programId: string, projectId: string, taskId: string) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  await db.delete(tasks).where(eq(tasks.id, taskId));
+
+  revalidatePath(basePath(programId, projectId));
+  redirect(`${basePath(programId, projectId)}/tasks`);
+}
