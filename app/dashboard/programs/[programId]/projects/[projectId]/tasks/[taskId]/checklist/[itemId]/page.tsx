@@ -4,11 +4,12 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { checklistItems, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
-import { PriorityBadge, StatusBadge } from "@/components/status-badge";
+import { getOrgMembers } from "@/lib/queries";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { CommentSection } from "@/components/comments/comment-section";
 import { AttachmentSection } from "@/components/attachments/attachment-section";
-import { deleteChecklistItem } from "../actions";
+import { ChecklistItemForm } from "@/components/tasks/checklist-item-form";
+import { deleteChecklistItem, updateChecklistItem } from "../actions";
 import { createChecklistItemComment, deleteChecklistItemComment } from "./comment-actions";
 import { deleteChecklistItemAttachment } from "./attachment-actions";
 
@@ -46,6 +47,7 @@ export default async function ChecklistItemDetailPage({
   });
   if (!item) notFound();
 
+  const members = await getOrgMembers(ctx.org.id);
   const taskPath = `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}`;
 
   return (
@@ -56,44 +58,17 @@ export default async function ChecklistItemDetailPage({
         </Link>
       </div>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{item.title}</h1>
-            <StatusBadge status={item.status} />
-            <PriorityBadge priority={item.priority} />
-          </div>
-          {item.description && <p className="mt-2 max-w-2xl text-sm text-gray-600">{item.description}</p>}
-          <dl className="mt-3 flex flex-wrap gap-6 text-xs text-gray-500">
-            {item.assignee && (
-              <div>
-                <dt className="font-medium text-gray-400">Assignee</dt>
-                <dd>{item.assignee.name}</dd>
-              </div>
-            )}
-            {item.dueDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Due</dt>
-                <dd>{new Date(item.dueDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {item.completedAt && (
-              <div>
-                <dt className="font-medium text-gray-400">Completed</dt>
-                <dd>{new Date(item.completedAt).toLocaleDateString()}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href={`${taskPath}/checklist/${item.id}/edit`} className="text-sm underline">
-            Edit
-          </Link>
-          <ConfirmDeleteButton
-            action={deleteChecklistItem.bind(null, programId, projectId, taskId, item.id)}
-            confirmMessage={`Delete "${item.title}"? This cannot be undone.`}
-          />
-        </div>
+      <div className="flex items-start justify-between gap-6">
+        <ChecklistItemForm
+          action={updateChecklistItem.bind(null, programId, projectId, taskId, item.id)}
+          item={item}
+          orgMembers={members}
+          submitLabel="Save changes"
+        />
+        <ConfirmDeleteButton
+          action={deleteChecklistItem.bind(null, programId, projectId, taskId, item.id)}
+          confirmMessage={`Delete "${item.title}"? This cannot be undone.`}
+        />
       </div>
 
       <AttachmentSection

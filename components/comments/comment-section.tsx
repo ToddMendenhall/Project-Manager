@@ -1,3 +1,7 @@
+"use client";
+
+import { useRef, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 
 type CommentWithAuthor = {
@@ -8,7 +12,15 @@ type CommentWithAuthor = {
   author: { name: string };
 };
 
-/** Renders a task's or checklist item's comment list + add-comment form. Both callers bind their own create/delete actions to the right parent id. */
+/**
+ * Renders a task's or checklist item's comment list + add-comment form.
+ * Both callers bind their own create/delete actions to the right parent id.
+ *
+ * The add-comment form submits via a plain onSubmit handler rather than a
+ * native <form action={...}>, because the checklist item detail page also
+ * has a second real form (the item's own edit form) — a past Next.js bug
+ * corrupted FormData when two native form actions coexisted on one page.
+ */
 export function CommentSection({
   comments,
   createAction,
@@ -22,6 +34,20 @@ export function CommentSection({
   currentUserId: string;
   isAdmin: boolean;
 }) {
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      await createAction(formData);
+      formRef.current?.reset();
+      router.refresh();
+    });
+  }
+
   return (
     <div>
       <h2 className="mb-3 text-lg font-semibold">Comments ({comments.length})</h2>
@@ -48,15 +74,19 @@ export function CommentSection({
           ))}
         </ul>
       )}
-      <form action={createAction} className="flex flex-col gap-2">
+      <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-2">
         <textarea
           name="body"
           required
           placeholder="Add a comment..."
           className="min-h-[80px] rounded border border-gray-300 px-3 py-2 text-sm"
         />
-        <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
-          Comment
+        <button
+          type="submit"
+          disabled={isPending}
+          className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+        >
+          {isPending ? "Posting..." : "Comment"}
         </button>
       </form>
     </div>
