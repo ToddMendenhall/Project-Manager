@@ -8,7 +8,10 @@ import { organizations, users, orgMembers } from "@/db/schema";
 const registerSchema = z.object({
   orgName: z.string().min(2).max(255),
   name: z.string().min(1).max(255),
-  email: z.string().email(),
+  email: z
+    .string()
+    .email()
+    .transform((v) => v.trim().toLowerCase()),
   password: z.string().min(8),
 });
 
