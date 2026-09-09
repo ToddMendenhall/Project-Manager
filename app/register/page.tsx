@@ -34,7 +34,7 @@ export default function RegisterPage() {
 
     let result: Awaited<ReturnType<typeof signIn>> | undefined;
     try {
-      result = await signIn("credentials", { email, password, redirect: false });
+      result = await signIn("credentials", { email, password, redirect: false, callbackUrl: "/dashboard" });
     } catch {
       // handled by the fallback check below
     }

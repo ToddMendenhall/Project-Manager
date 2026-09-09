@@ -34,6 +34,11 @@ function LoginForm() {
         email,
         password,
         redirect: false,
+        // Without this, next-auth defaults the callback target to the
+        // current page (this login page) — a *successful* sign-in would
+        // then also return a url pointing back at /login, making it
+        // indistinguishable from a failed one.
+        callbackUrl,
       });
     } catch {
       // signIn() can throw instead of resolving with `error` if something
@@ -44,10 +49,10 @@ function LoginForm() {
 
     setSubmitting(false);
 
-    // NextAuth can respond 200 with no `error` param and still have failed —
-    // it points `url` back at the sign-in page rather than the callback
-    // target in that case, so checking result.ok/result.error alone isn't
-    // enough.
+    // NextAuth can respond 200 with no `error` param and still have
+    // failed — it redirects back to the sign-in page rather than the
+    // requested callbackUrl in that case, so checking result.ok/error
+    // alone isn't enough.
     const signedIn = result?.ok && result.url && !new URL(result.url).pathname.startsWith("/login");
 
     if (!signedIn) {
