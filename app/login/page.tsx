@@ -28,16 +28,24 @@ function LoginForm() {
     setSubmitting(true);
     setError(null);
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    let result: Awaited<ReturnType<typeof signIn>> | undefined;
+    try {
+      result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+    } catch {
+      // signIn() can throw instead of resolving with `error` if something
+      // fails server-side before authorize() returns cleanly (e.g. a
+      // database error) — treat that the same as a failed sign-in rather
+      // than silently falling through to the redirect below.
+    }
 
     setSubmitting(false);
 
-    if (result?.error) {
-      setError("Invalid email or password.");
+    if (!result || result.error || !result.ok) {
+      setError("Couldn't sign in. Check your email/password, or try again in a moment.");
       return;
     }
 

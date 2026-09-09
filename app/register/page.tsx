@@ -32,10 +32,15 @@ export default function RegisterPage() {
       return;
     }
 
-    const result = await signIn("credentials", { email, password, redirect: false });
+    let result: Awaited<ReturnType<typeof signIn>> | undefined;
+    try {
+      result = await signIn("credentials", { email, password, redirect: false });
+    } catch {
+      // handled by the fallback check below
+    }
     setSubmitting(false);
 
-    if (result?.error) {
+    if (!result || result.error || !result.ok) {
       setError("Account created, but sign-in failed. Try signing in manually.");
       router.push("/login");
       return;
