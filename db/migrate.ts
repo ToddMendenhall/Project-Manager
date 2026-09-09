@@ -8,7 +8,7 @@ async function main() {
     throw new Error("DATABASE_URL is not set");
   }
 
-  const migrationClient = postgres(process.env.DATABASE_URL, { max: 1 });
+  const migrationClient = postgres(process.env.DATABASE_URL, { max: 1, prepare: false });
   const db = drizzle(migrationClient);
 
   console.log("Running migrations...");
