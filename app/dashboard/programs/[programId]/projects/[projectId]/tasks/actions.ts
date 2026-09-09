@@ -109,6 +109,39 @@ export async function updateTask(
   redirect(`${basePath(programId, projectId)}/tasks/${taskId}`);
 }
 
+const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
+
+/** Lightweight status-only update, used by the Board view's drag-and-drop. */
+export async function updateTaskStatus(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  status: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  const parsedStatus = statusEnum.parse(status);
+  const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
+  const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
+
+  await db
+    .update(tasks)
+    .set({
+      status: parsedStatus,
+      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(basePath(programId, projectId));
+  revalidatePath(`${basePath(programId, projectId)}/board`);
+}
+
 export async function deleteTask(programId: string, projectId: string, taskId: string) {
   const ctx = await requireOrgContext();
 

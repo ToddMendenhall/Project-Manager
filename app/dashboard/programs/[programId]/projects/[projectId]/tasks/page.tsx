@@ -8,6 +8,7 @@ import { getOrgMembers } from "@/lib/queries";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "@/lib/fields";
 import { selectClass } from "@/components/form-controls";
+import { ViewTabs } from "@/components/tasks/view-tabs";
 
 const SORTABLE_COLUMNS = {
   title: tasks.title,
@@ -97,6 +98,8 @@ export default async function TaskListPage({
           New Task
         </Link>
       </div>
+
+      <ViewTabs basePath={`/dashboard/programs/${programId}/projects/${projectId}`} active="list" />
 
       <form method="get" className="flex flex-wrap items-end gap-4">
         <label className="flex flex-col gap-1 text-sm">
