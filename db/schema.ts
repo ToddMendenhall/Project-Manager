@@ -9,10 +9,11 @@ import {
   integer,
   uniqueIndex,
   index,
+  check,
   customType,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 /**
  * Generic Program -> Project -> Task hierarchy.
@@ -159,6 +160,36 @@ export const tasks = pgTable(
   }),
 );
 
+/**
+ * A checklist within a task — each line item carries the same fields as a
+ * task itself (assignee, priority, due date, comments, attachments) rather
+ * than being a plain checkbox, so it can be assigned and tracked on its own.
+ * Checking the box just sets status to "completed" (see toggleChecklistItem);
+ * the full status/priority/assignee/due date remain editable on the item's
+ * own detail page.
+ */
+export const checklistItems = pgTable(
+  "checklist_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    title: varchar("title", { length: 500 }).notNull(),
+    description: text("description"),
+    status: statusEnum("status").notNull().default("not_started"),
+    priority: priorityEnum("priority").notNull().default("medium"),
+    assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    dueDate: timestamp("due_date", { withTimezone: true, mode: "date" }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    taskIdx: index("checklist_items_task_idx").on(table.taskId),
+  }),
+);
+
 export const customFieldDefs = pgTable(
   "custom_field_defs",
   {
@@ -183,13 +214,17 @@ export const customFieldDefs = pgTable(
   }),
 );
 
+// Comments and attachments can belong to either a task or a checklist item
+// (never both, never neither) — taskId/checklistItemId are both nullable,
+// with a check constraint enforcing exactly one parent is set.
 export const comments = pgTable(
   "comments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    taskId: uuid("task_id")
-      .notNull()
-      .references(() => tasks.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id, {
+      onDelete: "cascade",
+    }),
     authorId: uuid("author_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -198,6 +233,11 @@ export const comments = pgTable(
   },
   (table) => ({
     taskIdx: index("comments_task_idx").on(table.taskId),
+    checklistItemIdx: index("comments_checklist_item_idx").on(table.checklistItemId),
+    exactlyOneParent: check(
+      "comments_exactly_one_parent",
+      sql`(${table.taskId} is not null) <> (${table.checklistItemId} is not null)`,
+    ),
   }),
 );
 
@@ -205,9 +245,10 @@ export const attachments = pgTable(
   "attachments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    taskId: uuid("task_id")
-      .notNull()
-      .references(() => tasks.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+    checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id, {
+      onDelete: "cascade",
+    }),
     uploadedById: uuid("uploaded_by_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -219,6 +260,11 @@ export const attachments = pgTable(
   },
   (table) => ({
     taskIdx: index("attachments_task_idx").on(table.taskId),
+    checklistItemIdx: index("attachments_checklist_item_idx").on(table.checklistItemId),
+    exactlyOneParent: check(
+      "attachments_exactly_one_parent",
+      sql`(${table.taskId} is not null) <> (${table.checklistItemId} is not null)`,
+    ),
   }),
 );
 
@@ -280,17 +326,33 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     relationName: "subtasks",
   }),
   subtasks: many(tasks, { relationName: "subtasks" }),
+  checklistItems: many(checklistItems),
+  comments: many(comments),
+  attachments: many(attachments),
+}));
+
+export const checklistItemsRelations = relations(checklistItems, ({ one, many }) => ({
+  task: one(tasks, { fields: [checklistItems.taskId], references: [tasks.id] }),
+  assignee: one(users, { fields: [checklistItems.assigneeId], references: [users.id] }),
   comments: many(comments),
   attachments: many(attachments),
 }));
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   task: one(tasks, { fields: [comments.taskId], references: [tasks.id] }),
+  checklistItem: one(checklistItems, {
+    fields: [comments.checklistItemId],
+    references: [checklistItems.id],
+  }),
   author: one(users, { fields: [comments.authorId], references: [users.id] }),
 }));
 
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   task: one(tasks, { fields: [attachments.taskId], references: [tasks.id] }),
+  checklistItem: one(checklistItems, {
+    fields: [attachments.checklistItemId],
+    references: [checklistItems.id],
+  }),
   uploadedBy: one(users, { fields: [attachments.uploadedById], references: [users.id] }),
 }));
 
@@ -309,6 +371,8 @@ export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 export type Task = typeof tasks.$inferSelect;
 export type NewTask = typeof tasks.$inferInsert;
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type NewChecklistItem = typeof checklistItems.$inferInsert;
 export type CustomFieldDef = typeof customFieldDefs.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;

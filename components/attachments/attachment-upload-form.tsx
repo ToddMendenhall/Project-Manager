@@ -4,15 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MAX_ATTACHMENT_SIZE_BYTES, formatBytes } from "@/lib/attachments";
 
-export function AttachmentUploadForm({
-  programId,
-  projectId,
-  taskId,
-}: {
-  programId: string;
-  projectId: string;
-  taskId: string;
-}) {
+export function AttachmentUploadForm({ uploadUrl }: { uploadUrl: string }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [uploading, setUploading] = useState(false);
@@ -35,10 +27,7 @@ export function AttachmentUploadForm({
     const formData = new FormData();
     formData.set("file", file);
 
-    const res = await fetch(
-      `/api/programs/${programId}/projects/${projectId}/tasks/${taskId}/attachments`,
-      { method: "POST", body: formData },
-    );
+    const res = await fetch(uploadUrl, { method: "POST", body: formData });
 
     setUploading(false);
 

@@ -5,10 +5,11 @@ import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getTaskCustomFieldDefs } from "@/lib/queries";
-import { formatBytes } from "@/lib/attachments";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
-import { AttachmentUploadForm } from "@/components/attachments/attachment-upload-form";
+import { CommentSection } from "@/components/comments/comment-section";
+import { AttachmentSection } from "@/components/attachments/attachment-section";
+import { ChecklistWidget } from "@/components/tasks/checklist-widget";
 import { deleteTask } from "../actions";
 import { createComment, deleteComment } from "./comment-actions";
 import { deleteAttachment } from "./attachment-actions";
@@ -30,6 +31,10 @@ export default async function TaskDetailPage({
     where: and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)),
     with: {
       assignee: true,
+      checklistItems: {
+        with: { assignee: true },
+        orderBy: (item, { asc }) => [asc(item.createdAt)],
+      },
       comments: {
         with: { author: true },
         orderBy: (comment, { asc }) => [asc(comment.createdAt)],
@@ -113,81 +118,28 @@ export default async function TaskDetailPage({
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Attachments ({task.attachments.length})</h2>
-        <div className="mb-4">
-          <AttachmentUploadForm programId={programId} projectId={projectId} taskId={task.id} />
-        </div>
-        {task.attachments.length === 0 ? (
-          <p className="text-sm text-gray-500">No attachments yet.</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {task.attachments.map((attachment) => (
-              <li
-                key={attachment.id}
-                className="flex items-center justify-between rounded border border-gray-200 bg-white p-3 text-sm"
-              >
-                <div>
-                  <a
-                    href={`/api/attachments/${attachment.id}`}
-                    className="font-medium text-gray-900 hover:underline"
-                  >
-                    {attachment.fileName}
-                  </a>
-                  <p className="text-xs text-gray-400">
-                    {attachment.sizeBytes != null && `${formatBytes(attachment.sizeBytes)} · `}
-                    {attachment.uploadedBy.name} &middot; {new Date(attachment.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                {(attachment.uploadedById === ctx.user.id || ctx.role === "admin") && (
-                  <ConfirmDeleteButton
-                    action={deleteAttachment.bind(null, programId, projectId, task.id, attachment.id)}
-                    confirmMessage={`Delete "${attachment.fileName}"?`}
-                  />
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <ChecklistWidget
+        programId={programId}
+        projectId={projectId}
+        taskId={task.id}
+        initialItems={task.checklistItems}
+      />
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold">Comments ({task.comments.length})</h2>
-        {task.comments.length === 0 ? (
-          <p className="mb-4 text-sm text-gray-500">No comments yet.</p>
-        ) : (
-          <ul className="mb-4 flex flex-col gap-3">
-            {task.comments.map((comment) => (
-              <li key={comment.id} className="rounded border border-gray-200 bg-white p-3 text-sm">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900">{comment.author.name}</p>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString()}</span>
-                    {(comment.authorId === ctx.user.id || ctx.role === "admin") && (
-                      <ConfirmDeleteButton
-                        action={deleteComment.bind(null, programId, projectId, task.id, comment.id)}
-                        confirmMessage="Delete this comment?"
-                      />
-                    )}
-                  </div>
-                </div>
-                <p className="mt-1 whitespace-pre-wrap text-gray-600">{comment.body}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form action={createComment.bind(null, programId, projectId, task.id)} className="flex flex-col gap-2">
-          <textarea
-            name="body"
-            required
-            placeholder="Add a comment..."
-            className="min-h-[80px] rounded border border-gray-300 px-3 py-2 text-sm"
-          />
-          <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
-            Comment
-          </button>
-        </form>
-      </div>
+      <AttachmentSection
+        attachments={task.attachments}
+        uploadUrl={`/api/programs/${programId}/projects/${projectId}/tasks/${task.id}/attachments`}
+        deleteAction={deleteAttachment.bind(null, programId, projectId, task.id)}
+        currentUserId={ctx.user.id}
+        isAdmin={ctx.role === "admin"}
+      />
+
+      <CommentSection
+        comments={task.comments}
+        createAction={createComment.bind(null, programId, projectId, task.id)}
+        deleteAction={deleteComment.bind(null, programId, projectId, task.id)}
+        currentUserId={ctx.user.id}
+        isAdmin={ctx.role === "admin"}
+      />
     </div>
   );
 }

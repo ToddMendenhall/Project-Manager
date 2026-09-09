@@ -7,8 +7,8 @@ hardcoded into the schema.
 
 This is phase 1: data model, auth with org scoping, Program/Project/Task
 CRUD, a sortable/filterable List view, and comments/attachments on tasks.
-Additional views (board/calendar), automations, and dashboards come in
-later phases.
+Phase 2 adds a Board view, a Calendar view, and per-task checklists.
+Dashboards/reporting and automations come in later phases.
 
 ## Stack
 
@@ -24,12 +24,18 @@ later phases.
 - **Program** — long-lived initiative, belongs to an organization
 - **Project** — bounded engagement, belongs to a program
 - **Task** — unit of work, belongs to a project, can have subtasks (`parentTaskId`)
+- **ChecklistItem** — a checklist line within a task. Carries the same
+  fields as a task itself (status, priority, assignee, due date) rather
+  than being a plain checkbox, so each item can be assigned and tracked on
+  its own; checking it off just sets its status to `completed`.
 - **CustomFieldDef** — per-program field definitions (text/number/date/boolean/select)
 - Task-level custom values live in `tasks.customFields` (jsonb), keyed by the field's `key`
-- **Comment**, **Attachment** — attached to tasks. Attachment bytes are
-  stored directly in Postgres (`bytea`), capped at 4MB per file, so the app
-  runs with no extra object-storage account to provision. A later phase can
-  swap this for S3 / Vercel Blob without changing the rest of the schema.
+- **Comment**, **Attachment** — attached to either a task or a checklist
+  item (never both — enforced by a check constraint on each table).
+  Attachment bytes are stored directly in Postgres (`bytea`), capped at
+  4MB per file, so the app runs with no extra object-storage account to
+  provision. A later phase can swap this for S3 / Vercel Blob without
+  changing the rest of the schema.
 - **ActivityLog** — append-only audit trail per org (schema only — nothing
   writes to it yet)
 

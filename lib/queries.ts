@@ -1,7 +1,16 @@
 import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { attachments, customFieldDefs, orgMembers, programs, projects, tasks, users } from "@/db/schema";
+import {
+  attachments,
+  checklistItems,
+  customFieldDefs,
+  orgMembers,
+  programs,
+  projects,
+  tasks,
+  users,
+} from "@/db/schema";
 
 /** Org members available to assign as a program owner / project lead. */
 export async function getOrgMembers(orgId: string) {
@@ -56,6 +65,26 @@ export async function getTaskForProject(taskId: string, projectId: string, progr
   return task ?? null;
 }
 
+/** Fetches a checklist item only if it belongs to the given task (which must itself belong to the project/program/org). */
+export async function getChecklistItemForTask(
+  itemId: string,
+  taskId: string,
+  projectId: string,
+  programId: string,
+  orgId: string,
+) {
+  const task = await getTaskForProject(taskId, projectId, programId, orgId);
+  if (!task) return null;
+
+  const [item] = await db
+    .select()
+    .from(checklistItems)
+    .where(and(eq(checklistItems.id, itemId), eq(checklistItems.taskId, taskId)))
+    .limit(1);
+
+  return item ?? null;
+}
+
 /** Task-level custom field definitions for a program, in display order. */
 export async function getTaskCustomFieldDefs(programId: string) {
   return db
@@ -67,18 +96,38 @@ export async function getTaskCustomFieldDefs(programId: string) {
 
 /**
  * Fetches an attachment (including its file bytes) only if it belongs to
- * the given org, walking attachment -> task -> project -> program -> org.
- * Used by the download route, which only has the attachment id to go on.
+ * the given org. An attachment hangs off either a task or a checklist item
+ * (never both — see the exactly-one-parent check constraint), so whichever
+ * parent is set is walked up to org, task -> project -> program -> org or
+ * checklist item -> task -> project -> program -> org. Used by the download
+ * route, which only has the attachment id to go on.
  */
 export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
-  const [row] = await db
-    .select({ attachment: attachments })
-    .from(attachments)
-    .innerJoin(tasks, eq(attachments.taskId, tasks.id))
-    .innerJoin(projects, eq(tasks.projectId, projects.id))
-    .innerJoin(programs, eq(projects.programId, programs.id))
-    .where(and(eq(attachments.id, attachmentId), eq(programs.orgId, orgId)))
-    .limit(1);
+  const [attachment] = await db.select().from(attachments).where(eq(attachments.id, attachmentId)).limit(1);
+  if (!attachment) return null;
 
-  return row?.attachment ?? null;
+  if (attachment.taskId) {
+    const task = await db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(eq(tasks.id, attachment.taskId), eq(programs.orgId, orgId)))
+      .limit(1);
+    return task.length > 0 ? attachment : null;
+  }
+
+  if (attachment.checklistItemId) {
+    const item = await db
+      .select({ id: checklistItems.id })
+      .from(checklistItems)
+      .innerJoin(tasks, eq(checklistItems.taskId, tasks.id))
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(eq(checklistItems.id, attachment.checklistItemId), eq(programs.orgId, orgId)))
+      .limit(1);
+    return item.length > 0 ? attachment : null;
+  }
+
+  return null;
 }
