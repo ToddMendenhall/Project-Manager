@@ -40,7 +40,9 @@ export default function RegisterPage() {
     }
     setSubmitting(false);
 
-    if (!result || result.error || !result.ok) {
+    const signedIn = result?.ok && result.url && !new URL(result.url).pathname.startsWith("/login");
+
+    if (!signedIn) {
       setError("Account created, but sign-in failed. Try signing in manually.");
       router.push("/login");
       return;

@@ -44,7 +44,13 @@ function LoginForm() {
 
     setSubmitting(false);
 
-    if (!result || result.error || !result.ok) {
+    // NextAuth can respond 200 with no `error` param and still have failed —
+    // it points `url` back at the sign-in page rather than the callback
+    // target in that case, so checking result.ok/result.error alone isn't
+    // enough.
+    const signedIn = result?.ok && result.url && !new URL(result.url).pathname.startsWith("/login");
+
+    if (!signedIn) {
       setError("Couldn't sign in. Check your email/password, or try again in a moment.");
       return;
     }
