@@ -10,7 +10,7 @@ export default async function ProgramsPage() {
 
   const orgPrograms = await db.query.programs.findMany({
     where: eq(programs.orgId, ctx.org.id),
-    with: { projects: true, owner: true },
+    with: { projects: true, owner: true, portfolio: true },
     orderBy: (program, { desc }) => [desc(program.createdAt)],
   });
 
@@ -46,6 +46,7 @@ export default async function ProgramsPage() {
                   <p className="mt-1 text-sm text-gray-500">{program.description}</p>
                 )}
                 <p className="mt-2 text-xs text-gray-400">
+                  {program.portfolio && `${program.portfolio.name} · `}
                   {program.projects.length} project{program.projects.length === 1 ? "" : "s"}
                   {program.owner && ` · Owner: ${program.owner.name}`}
                 </p>

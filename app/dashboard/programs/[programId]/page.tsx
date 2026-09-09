@@ -20,6 +20,7 @@ export default async function ProgramDetailPage({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
       owner: true,
+      portfolio: true,
       projects: {
         orderBy: (project, { desc }) => [desc(project.createdAt)],
         with: { lead: true, tasks: true },
@@ -32,9 +33,18 @@ export default async function ProgramDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <Link href="/dashboard/programs" className="text-sm text-gray-500 underline">
-          &larr; All Programs
-        </Link>
+        {program.portfolio ? (
+          <Link
+            href={`/dashboard/portfolios/${program.portfolio.id}`}
+            className="text-sm text-gray-500 underline"
+          >
+            &larr; {program.portfolio.name}
+          </Link>
+        ) : (
+          <Link href="/dashboard/programs" className="text-sm text-gray-500 underline">
+            &larr; All Programs
+          </Link>
+        )}
       </div>
 
       <div className="flex items-start justify-between">

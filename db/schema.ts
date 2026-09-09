@@ -88,8 +88,15 @@ export const orgMembers = pgTable(
   }),
 );
 
-export const programs = pgTable(
-  "programs",
+/**
+ * Optional grouping above Program — a portfolio can contain multiple
+ * programs, but a program doesn't need one (portfolioId is nullable).
+ * Deleting a portfolio un-groups its programs (set null) rather than
+ * deleting them; portfolios are organizational grouping, not ownership
+ * of the work underneath.
+ */
+export const portfolios = pgTable(
+  "portfolios",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     orgId: uuid("org_id")
@@ -105,7 +112,30 @@ export const programs = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
+    orgIdx: index("portfolios_org_idx").on(table.orgId),
+  }),
+);
+
+export const programs = pgTable(
+  "programs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    portfolioId: uuid("portfolio_id").references(() => portfolios.id, { onDelete: "set null" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    description: text("description"),
+    status: statusEnum("status").notNull().default("not_started"),
+    ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
+    startDate: timestamp("start_date", { withTimezone: true, mode: "date" }),
+    targetEndDate: timestamp("target_end_date", { withTimezone: true, mode: "date" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
     orgIdx: index("programs_org_idx").on(table.orgId),
+    portfolioIdx: index("programs_portfolio_idx").on(table.portfolioId),
   }),
 );
 
@@ -292,6 +322,13 @@ export const activityLog = pgTable(
 
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   members: many(orgMembers),
+  portfolios: many(portfolios),
+  programs: many(programs),
+}));
+
+export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
+  organization: one(organizations, { fields: [portfolios.orgId], references: [organizations.id] }),
+  owner: one(users, { fields: [portfolios.ownerId], references: [users.id] }),
   programs: many(programs),
 }));
 
@@ -306,6 +343,7 @@ export const orgMembersRelations = relations(orgMembers, ({ one }) => ({
 
 export const programsRelations = relations(programs, ({ one, many }) => ({
   organization: one(organizations, { fields: [programs.orgId], references: [organizations.id] }),
+  portfolio: one(portfolios, { fields: [programs.portfolioId], references: [portfolios.id] }),
   owner: one(users, { fields: [programs.ownerId], references: [users.id] }),
   projects: many(projects),
   customFieldDefs: many(customFieldDefs),
@@ -362,6 +400,8 @@ export const customFieldDefsRelations = relations(customFieldDefs, ({ one }) => 
 
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
+export type Portfolio = typeof portfolios.$inferSelect;
+export type NewPortfolio = typeof portfolios.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OrgMember = typeof orgMembers.$inferSelect;

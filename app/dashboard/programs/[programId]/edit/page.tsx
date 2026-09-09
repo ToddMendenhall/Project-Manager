@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
-import { getOrgMembers, getProgramForOrg } from "@/lib/queries";
+import { getOrgMembers, getOrgPortfolios, getProgramForOrg } from "@/lib/queries";
 import { ProgramForm } from "@/components/programs/program-form";
 import { updateProgram } from "../../actions";
 
@@ -16,7 +16,10 @@ export default async function EditProgramPage({
   const program = await getProgramForOrg(programId, ctx.org.id);
   if (!program) notFound();
 
-  const members = await getOrgMembers(ctx.org.id);
+  const [members, portfolios] = await Promise.all([
+    getOrgMembers(ctx.org.id),
+    getOrgPortfolios(ctx.org.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -25,6 +28,7 @@ export default async function EditProgramPage({
         action={updateProgram.bind(null, program.id)}
         program={program}
         orgMembers={members}
+        portfolios={portfolios}
         submitLabel="Save changes"
       />
     </div>

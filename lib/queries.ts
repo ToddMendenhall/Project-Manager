@@ -6,6 +6,7 @@ import {
   checklistItems,
   customFieldDefs,
   orgMembers,
+  portfolios,
   programs,
   projects,
   tasks,
@@ -24,6 +25,22 @@ export async function getOrgMembers(orgId: string) {
     .innerJoin(users, eq(orgMembers.userId, users.id))
     .where(eq(orgMembers.orgId, orgId))
     .orderBy(users.name);
+}
+
+/** Org's portfolios, for a program's portfolio picker. */
+export async function getOrgPortfolios(orgId: string) {
+  return db.select().from(portfolios).where(eq(portfolios.orgId, orgId)).orderBy(portfolios.name);
+}
+
+/** Fetches a portfolio only if it belongs to the given org — prevents cross-org access. */
+export async function getPortfolioForOrg(portfolioId: string, orgId: string) {
+  const [portfolio] = await db
+    .select()
+    .from(portfolios)
+    .where(and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, orgId)))
+    .limit(1);
+
+  return portfolio ?? null;
 }
 
 /** Fetches a program only if it belongs to the given org — prevents cross-org access. */

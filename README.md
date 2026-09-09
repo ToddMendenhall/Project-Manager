@@ -1,9 +1,9 @@
 # Project Manager
 
 A generalized, cloud-based project management system built around a
-**Program → Project → Task** hierarchy. Not tied to any specific industry —
-domain-specific attributes are added per-organization via custom fields, not
-hardcoded into the schema.
+**Portfolio → Program → Project → Task** hierarchy. Not tied to any specific
+industry — domain-specific attributes are added per-organization via custom
+fields, not hardcoded into the schema.
 
 This is phase 1: data model, auth with org scoping, Program/Project/Task
 CRUD, a sortable/filterable List view, and comments/attachments on tasks.
@@ -21,7 +21,11 @@ Dashboards/reporting and automations come in later phases.
 
 - **Organization** — tenant boundary
 - **User** / **OrgMember** — users belong to organizations with a role (`admin` | `member`)
-- **Program** — long-lived initiative, belongs to an organization
+- **Portfolio** — optional grouping above Program, belongs to an organization.
+  A program's `portfolioId` is nullable — programs don't have to belong to
+  one — and deleting a portfolio un-groups its programs (sets `portfolioId`
+  to null) rather than deleting them.
+- **Program** — long-lived initiative, belongs to an organization, optionally to a portfolio
 - **Project** — bounded engagement, belongs to a program
 - **Task** — unit of work, belongs to a project, can have subtasks (`parentTaskId`)
 - **ChecklistItem** — a checklist line within a task. Carries the same

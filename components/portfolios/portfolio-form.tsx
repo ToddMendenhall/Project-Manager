@@ -1,6 +1,6 @@
 import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { STATUS_OPTIONS } from "@/lib/fields";
-import type { Portfolio, Program } from "@/db/schema";
+import type { Portfolio } from "@/db/schema";
 
 type OrgMember = { id: string; name: string; email: string };
 
@@ -10,45 +10,27 @@ function dateValue(d: Date | string | null | undefined) {
   return date.toISOString().slice(0, 10);
 }
 
-export function ProgramForm({
+export function PortfolioForm({
   action,
-  program,
+  portfolio,
   orgMembers,
-  portfolios,
-  initialPortfolioId,
   submitLabel,
 }: {
   action: (formData: FormData) => void | Promise<void>;
-  program?: Program;
+  portfolio?: Portfolio;
   orgMembers: OrgMember[];
-  portfolios: Portfolio[];
-  initialPortfolioId?: string;
   submitLabel: string;
 }) {
   return (
     <form action={action} className="flex max-w-xl flex-col gap-4">
       <Field label="Name">
-        <input name="name" required defaultValue={program?.name} className={inputClass} />
+        <input name="name" required defaultValue={portfolio?.name} className={inputClass} />
       </Field>
       <Field label="Description">
-        <textarea name="description" defaultValue={program?.description ?? ""} className={textareaClass} />
-      </Field>
-      <Field label="Portfolio" hint="Optional — groups this program under a portfolio.">
-        <select
-          name="portfolioId"
-          defaultValue={program?.portfolioId ?? initialPortfolioId ?? ""}
-          className={selectClass}
-        >
-          <option value="">No portfolio</option>
-          {portfolios.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <textarea name="description" defaultValue={portfolio?.description ?? ""} className={textareaClass} />
       </Field>
       <Field label="Status">
-        <select name="status" defaultValue={program?.status ?? "not_started"} className={selectClass}>
+        <select name="status" defaultValue={portfolio?.status ?? "not_started"} className={selectClass}>
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
@@ -57,7 +39,7 @@ export function ProgramForm({
         </select>
       </Field>
       <Field label="Owner">
-        <select name="ownerId" defaultValue={program?.ownerId ?? ""} className={selectClass}>
+        <select name="ownerId" defaultValue={portfolio?.ownerId ?? ""} className={selectClass}>
           <option value="">Unassigned</option>
           {orgMembers.map((m) => (
             <option key={m.id} value={m.id}>
@@ -71,7 +53,7 @@ export function ProgramForm({
           <input
             type="date"
             name="startDate"
-            defaultValue={dateValue(program?.startDate)}
+            defaultValue={dateValue(portfolio?.startDate)}
             className={inputClass}
           />
         </Field>
@@ -79,7 +61,7 @@ export function ProgramForm({
           <input
             type="date"
             name="targetEndDate"
-            defaultValue={dateValue(program?.targetEndDate)}
+            defaultValue={dateValue(portfolio?.targetEndDate)}
             className={inputClass}
           />
         </Field>

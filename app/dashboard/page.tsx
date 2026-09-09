@@ -1,24 +1,27 @@
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { programs } from "@/db/schema";
+import { portfolios, programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
 
 export default async function DashboardPage() {
   const ctx = await requireOrgContext();
 
-  const orgPrograms = await db.query.programs.findMany({
-    where: eq(programs.orgId, ctx.org.id),
-    with: {
-      projects: {
-        with: {
-          tasks: true,
+  const [orgPortfolioCount, orgPrograms] = await Promise.all([
+    db.$count(portfolios, eq(portfolios.orgId, ctx.org.id)),
+    db.query.programs.findMany({
+      where: eq(programs.orgId, ctx.org.id),
+      with: {
+        projects: {
+          with: {
+            tasks: true,
+          },
         },
       },
-    },
-    orderBy: (program, { desc }) => [desc(program.createdAt)],
-  });
+      orderBy: (program, { desc }) => [desc(program.createdAt)],
+    }),
+  ]);
 
   const totalProjects = orgPrograms.reduce((sum, p) => sum + p.projects.length, 0);
   const totalTasks = orgPrograms.reduce(
@@ -29,7 +32,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard label="Portfolios" value={orgPortfolioCount} />
         <StatCard label="Programs" value={orgPrograms.length} />
         <StatCard label="Projects" value={totalProjects} />
         <StatCard label="Tasks" value={totalTasks} />
