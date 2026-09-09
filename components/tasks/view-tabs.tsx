@@ -1,9 +1,16 @@
 import Link from "next/link";
 
-export function ViewTabs({ basePath, active }: { basePath: string; active: "list" | "board" }) {
+export function ViewTabs({
+  basePath,
+  active,
+}: {
+  basePath: string;
+  active: "list" | "board" | "calendar";
+}) {
   const tabs = [
     { key: "list" as const, label: "List", href: `${basePath}/tasks` },
     { key: "board" as const, label: "Board", href: `${basePath}/board` },
+    { key: "calendar" as const, label: "Calendar", href: `${basePath}/calendar` },
   ];
 
   return (
