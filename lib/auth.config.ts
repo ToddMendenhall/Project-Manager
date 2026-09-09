@@ -8,6 +8,11 @@ import type { NextAuthConfig } from "next-auth";
  * Node.js runtime (API routes, server components).
  */
 export const authConfig = {
+  // Needed here too, not just in lib/auth.ts — middleware.ts builds its own
+  // NextAuth() instance directly from this config, and without trustHost
+  // Auth.js rejects the request's Host header (Vercel's deployment domain)
+  // as untrusted, breaking session handling on every request.
+  trustHost: true,
   pages: {
     signIn: "/login",
   },
