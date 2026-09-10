@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembersDetailed } from "@/lib/queries";
 import { MembersTable } from "@/components/members/members-table";
-import { updateMemberRole, deleteMember } from "./actions";
+import { updateMemberRole, deleteMember, resetMemberPassword } from "./actions";
 
 export default async function MembersPage() {
   const ctx = await requireOrgContext();
@@ -28,6 +28,7 @@ export default async function MembersPage() {
         currentUserId={ctx.user.id}
         onRoleChange={updateMemberRole}
         onDelete={deleteMember}
+        onResetPassword={resetMemberPassword}
       />
     </div>
   );

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Field, inputClass, selectClass } from "@/components/form-controls";
+import { PasswordField } from "@/components/members/password-field";
+import { PasswordReveal } from "@/components/members/password-reveal";
 import type { ActionResult } from "@/app/dashboard/members/actions";
 
 export function MemberForm({
@@ -12,24 +14,46 @@ export function MemberForm({
   action: (formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
 }) {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [created, setCreated] = useState<{ name: string; email: string; password: string } | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
     const formData = new FormData(e.currentTarget);
+    const name = String(formData.get("name") ?? "");
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
 
     startTransition(async () => {
       const result = await action(formData);
       if (result.ok) {
-        router.push("/dashboard/members");
-        router.refresh();
+        setCreated({ name, email, password });
       } else {
         setError(result.error);
       }
     });
+  }
+
+  if (created) {
+    return (
+      <div className="flex max-w-md flex-col gap-4 rounded border border-amber-300 bg-amber-50 p-4">
+        <div>
+          <p className="font-medium text-amber-900">Account created for {created.name}</p>
+          <p className="text-sm text-amber-800">{created.email}</p>
+        </div>
+        <div>
+          <p className="mb-1 text-xs font-medium text-amber-900">
+            Password — copy it now, it won&apos;t be shown again:
+          </p>
+          <PasswordReveal password={created.password} />
+        </div>
+        <Link href="/dashboard/members" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
+          Done
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -44,7 +68,7 @@ export function MemberForm({
         label="Password"
         hint="At least 8 characters. There's no email invite yet — share this with them directly."
       >
-        <input type="password" name="password" required minLength={8} className={inputClass} />
+        <PasswordField name="password" required minLength={8} className={inputClass} />
       </Field>
       <Field label="Role">
         <select name="role" defaultValue="member" className={selectClass}>

@@ -2,6 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
 import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
@@ -22,8 +23,21 @@ import { requireAdmin, requireOrgContext } from "@/lib/org";
 // back as plain return data instead.
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
+export type ResetPasswordResult = { ok: true; password: string } | { ok: false; error: string };
 
 const roleSchema = z.enum(["admin", "member"]);
+
+// Excludes visually ambiguous characters (0/O, 1/l/I) so a generated
+// password is easier to transcribe by hand if it needs to be.
+const PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+
+function generatePassword(length = 16) {
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += PASSWORD_CHARS[randomInt(PASSWORD_CHARS.length)];
+  }
+  return password;
+}
 
 const createMemberSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
@@ -113,6 +127,25 @@ export async function updateMemberRole(userId: string, role: string): Promise<Ac
 
   revalidatePath("/dashboard/members");
   return { ok: true };
+}
+
+/** Generates a brand-new password for a member and returns it once — the admin hands it off directly, same as at creation. */
+export async function resetMemberPassword(userId: string): Promise<ResetPasswordResult> {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const membership = await getMembership(userId, ctx.org.id);
+  if (!membership) {
+    return { ok: false, error: "Member not found." };
+  }
+
+  const password = generatePassword();
+  const passwordHash = await bcrypt.hash(password, 10);
+
+  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+
+  revalidatePath("/dashboard/members");
+  return { ok: true, password };
 }
 
 export async function deleteMember(userId: string): Promise<ActionResult> {
