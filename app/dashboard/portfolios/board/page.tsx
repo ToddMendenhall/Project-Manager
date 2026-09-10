@@ -6,7 +6,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { BoardView } from "@/components/views/board-view";
-import { updatePortfolioStatus } from "../actions";
+import { updatePortfolioOrder } from "../actions";
 
 export default async function PortfoliosBoardPage() {
   const ctx = await requireOrgContext();
@@ -14,7 +14,7 @@ export default async function PortfoliosBoardPage() {
   const orgPortfolios = await db.query.portfolios.findMany({
     where: eq(portfolios.orgId, ctx.org.id),
     with: { owner: true },
-    orderBy: (portfolio, { desc }) => [desc(portfolio.createdAt)],
+    orderBy: (portfolio, { asc }) => [asc(portfolio.sortOrder)],
   });
 
   return (
@@ -46,6 +46,7 @@ export default async function PortfoliosBoardPage() {
           items={orgPortfolios.map((portfolio) => ({
             id: portfolio.id,
             status: portfolio.status,
+            sortOrder: portfolio.sortOrder,
             card: (
               <>
                 <Link href={`/dashboard/portfolios/${portfolio.id}`} className="font-medium text-gray-900 hover:underline">
@@ -61,7 +62,7 @@ export default async function PortfoliosBoardPage() {
             ),
           }))}
           readOnly={ctx.role !== "admin"}
-          onStatusChange={updatePortfolioStatus}
+          onReorder={updatePortfolioOrder}
         />
       )}
     </div>

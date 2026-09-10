@@ -7,7 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { BoardView } from "@/components/views/board-view";
-import { updateProgramStatus } from "../../../programs/actions";
+import { updateProgramOrder } from "../../../programs/actions";
 
 export default async function PortfolioBoardPage({ params }: { params: Promise<{ portfolioId: string }> }) {
   const { portfolioId } = await params;
@@ -18,7 +18,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
     with: {
       programs: {
         with: { owner: true },
-        orderBy: (program, { desc }) => [desc(program.createdAt)],
+        orderBy: (program, { asc }) => [asc(program.sortOrder)],
       },
     },
   });
@@ -58,6 +58,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
           items={portfolio.programs.map((program) => ({
             id: program.id,
             status: program.status,
+            sortOrder: program.sortOrder,
             card: (
               <>
                 <Link href={`/dashboard/programs/${program.id}`} className="font-medium text-gray-900 hover:underline">
@@ -73,7 +74,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
             ),
           }))}
           readOnly={ctx.role !== "admin"}
-          onStatusChange={updateProgramStatus}
+          onReorder={updateProgramOrder}
         />
       )}
     </div>

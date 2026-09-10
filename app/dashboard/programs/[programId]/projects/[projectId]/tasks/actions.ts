@@ -65,6 +65,7 @@ export async function createTask(programId: string, projectId: string, formData:
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       completedAt: data.status === "completed" ? new Date() : null,
       customFields,
+      sortOrder: Date.now(),
     })
     .returning();
 
@@ -137,6 +138,40 @@ export async function updateTaskStatus(
     .update(tasks)
     .set({
       status: parsedStatus,
+      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(basePath(programId, projectId));
+  revalidatePath(`${basePath(programId, projectId)}/board`);
+}
+
+/** Lightweight status+order update, used by the Board view's drag-and-drop (vs. updateTaskStatus's status-only List view editor). */
+export async function updateTaskOrder(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  status: string,
+  sortOrder: number,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  const parsedStatus = statusEnum.parse(status);
+  const parsedSortOrder = z.number().finite().parse(sortOrder);
+  const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
+  const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
+
+  await db
+    .update(tasks)
+    .set({
+      status: parsedStatus,
+      sortOrder: parsedSortOrder,
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       updatedAt: new Date(),
     })

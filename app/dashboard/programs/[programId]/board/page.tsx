@@ -8,7 +8,7 @@ import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge } from "@/components/status-badge";
-import { updateProjectStatus } from "../projects/actions";
+import { updateProjectOrder } from "../projects/actions";
 
 export default async function ProgramBoardPage({ params }: { params: Promise<{ programId: string }> }) {
   const { programId } = await params;
@@ -19,7 +19,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
     with: {
       projects: {
         with: { lead: true },
-        orderBy: (project, { desc }) => [desc(project.createdAt)],
+        orderBy: (project, { asc }) => [asc(project.sortOrder)],
       },
     },
   });
@@ -56,6 +56,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
           items={program.projects.map((project) => ({
             id: project.id,
             status: project.status,
+            sortOrder: project.sortOrder,
             card: (
               <>
                 <Link href={`${basePath}/projects/${project.id}`} className="font-medium text-gray-900 hover:underline">
@@ -72,7 +73,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
             ),
           }))}
           readOnly={ctx.role !== "admin"}
-          onStatusChange={updateProjectStatus.bind(null, programId)}
+          onReorder={updateProjectOrder.bind(null, programId)}
         />
       )}
     </div>

@@ -7,7 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge } from "@/components/status-badge";
-import { updateTaskStatus } from "../tasks/actions";
+import { updateTaskOrder } from "../tasks/actions";
 
 export default async function TaskBoardPage({
   params,
@@ -22,7 +22,7 @@ export default async function TaskBoardPage({
     with: {
       tasks: {
         with: { assignee: true },
-        orderBy: (task, { desc }) => [desc(task.createdAt)],
+        orderBy: (task, { asc }) => [asc(task.sortOrder)],
       },
     },
   });
@@ -54,6 +54,7 @@ export default async function TaskBoardPage({
           items={project.tasks.map((task) => ({
             id: task.id,
             status: task.status,
+            sortOrder: task.sortOrder,
             card: (
               <>
                 <Link href={`${basePath}/tasks/${task.id}`} className="font-medium text-gray-900 hover:underline">
@@ -69,7 +70,7 @@ export default async function TaskBoardPage({
               </>
             ),
           }))}
-          onStatusChange={updateTaskStatus.bind(null, programId, projectId)}
+          onReorder={updateTaskOrder.bind(null, programId, projectId)}
         />
       )}
     </div>

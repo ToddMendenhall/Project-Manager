@@ -36,6 +36,13 @@
       "when": 1789052148473,
       "tag": "0004_yielding_raza",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789065972349,
+      "tag": "0005_shallow_thundra",
+      "breakpoints": true
     }
   ]
 }

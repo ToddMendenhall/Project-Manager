@@ -47,6 +47,7 @@ export async function createPortfolio(formData: FormData) {
       ownerId: data.ownerId ?? null,
       startDate: data.startDate ? new Date(data.startDate) : null,
       targetEndDate: data.targetEndDate ? new Date(data.targetEndDate) : null,
+      sortOrder: Date.now(),
     })
     .returning();
 
@@ -103,8 +104,8 @@ export async function deletePortfolio(portfolioId: string) {
 
 const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
-/** Lightweight status-only update, used by the Board view's drag-and-drop. */
-export async function updatePortfolioStatus(portfolioId: string, status: string) {
+/** Lightweight status+order update, used by the Board view's drag-and-drop. */
+export async function updatePortfolioOrder(portfolioId: string, status: string, sortOrder: number) {
   const ctx = await requireOrgContext();
   requireAdmin(ctx);
 
@@ -114,10 +115,11 @@ export async function updatePortfolioStatus(portfolioId: string, status: string)
   }
 
   const parsedStatus = statusEnum.parse(status);
+  const parsedSortOrder = z.number().finite().parse(sortOrder);
 
   await db
     .update(portfolios)
-    .set({ status: parsedStatus, updatedAt: new Date() })
+    .set({ status: parsedStatus, sortOrder: parsedSortOrder, updatedAt: new Date() })
     .where(eq(portfolios.id, portfolioId));
 
   revalidatePath("/dashboard/portfolios");

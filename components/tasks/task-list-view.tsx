@@ -39,7 +39,7 @@ type TaskRow = {
   checklistItems: ChecklistItemRow[];
 };
 
-const ROW_GRID = "grid grid-cols-[20px_130px_minmax(200px,1fr)_160px_140px_110px] items-center gap-2";
+const ROW_GRID = "grid grid-cols-[20px_minmax(200px,1fr)_130px_160px_140px_110px] items-center gap-2";
 
 function isOverdue(dueDate: Date | string | null, status: string) {
   if (!dueDate || status === "completed" || status === "cancelled") return false;
@@ -320,8 +320,8 @@ export function TaskListView({
                     className={`${ROW_GRID} border-b border-gray-200 px-3 py-2 text-xs font-medium uppercase text-gray-500`}
                   >
                     <span />
-                    <span>Status</span>
                     <span>Name</span>
+                    <span>Status</span>
                     <span>Assignee</span>
                     <span>Due date</span>
                     <span>Priority</span>
@@ -343,7 +343,6 @@ export function TaskListView({
                           >
                             {isExpanded ? "▾" : "▸"}
                           </button>
-                          <StatusSelect value={task.status} onChange={(v) => handleTaskStatusChange(task, v)} />
                           <div className="flex min-w-0 items-center gap-2">
                             <Link
                               href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}`}
@@ -357,6 +356,7 @@ export function TaskListView({
                               </span>
                             )}
                           </div>
+                          <StatusSelect value={task.status} onChange={(v) => handleTaskStatusChange(task, v)} />
                           <AssigneeSelect
                             value={task.assignee?.id ?? ""}
                             orgMembers={orgMembers}
@@ -377,16 +377,16 @@ export function TaskListView({
                               className={`${ROW_GRID} border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-sm last:border-0`}
                             >
                               <span />
-                              <StatusSelect
-                                value={item.status}
-                                onChange={(v) => handleItemStatusChange(task, item, v)}
-                              />
                               <Link
                                 href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`}
                                 className="truncate pl-4 text-gray-700 hover:underline"
                               >
                                 {item.title}
                               </Link>
+                              <StatusSelect
+                                value={item.status}
+                                onChange={(v) => handleItemStatusChange(task, item, v)}
+                              />
                               <AssigneeSelect
                                 value={item.assignee?.id ?? ""}
                                 orgMembers={orgMembers}

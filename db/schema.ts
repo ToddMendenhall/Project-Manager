@@ -7,6 +7,7 @@ import {
   pgEnum,
   jsonb,
   integer,
+  doublePrecision,
   uniqueIndex,
   index,
   check,
@@ -108,6 +109,10 @@ export const portfolios = pgTable(
     ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
     startDate: timestamp("start_date", { withTimezone: true, mode: "date" }),
     targetEndDate: timestamp("target_end_date", { withTimezone: true, mode: "date" }),
+    // Board view's within-column card order — a float so a drag-drop between
+    // two rows can always land on their midpoint without ever needing to
+    // renumber the rest of the column.
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -130,6 +135,7 @@ export const programs = pgTable(
     ownerId: uuid("owner_id").references(() => users.id, { onDelete: "set null" }),
     startDate: timestamp("start_date", { withTimezone: true, mode: "date" }),
     targetEndDate: timestamp("target_end_date", { withTimezone: true, mode: "date" }),
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -153,6 +159,7 @@ export const projects = pgTable(
     leadId: uuid("lead_id").references(() => users.id, { onDelete: "set null" }),
     startDate: timestamp("start_date", { withTimezone: true, mode: "date" }),
     dueDate: timestamp("due_date", { withTimezone: true, mode: "date" }),
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -182,6 +189,7 @@ export const tasks = pgTable(
     // Per-program custom attributes (e.g. whatever fields a given program
     // defines via customFieldDefs below) live here, keyed by field `key`.
     customFields: jsonb("custom_fields").notNull().default({}),
+    sortOrder: doublePrecision("sort_order").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

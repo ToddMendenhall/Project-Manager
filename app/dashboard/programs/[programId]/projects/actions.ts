@@ -55,6 +55,7 @@ export async function createProject(programId: string, formData: FormData) {
       leadId: data.leadId ?? null,
       startDate: data.startDate ? new Date(data.startDate) : null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      sortOrder: Date.now(),
     })
     .returning();
 
@@ -109,8 +110,13 @@ export async function deleteProject(programId: string, projectId: string) {
 
 const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
-/** Lightweight status-only update, used by the Board view's drag-and-drop. */
-export async function updateProjectStatus(programId: string, projectId: string, status: string) {
+/** Lightweight status+order update, used by the Board view's drag-and-drop. */
+export async function updateProjectOrder(
+  programId: string,
+  projectId: string,
+  status: string,
+  sortOrder: number,
+) {
   const ctx = await requireOrgContext();
   requireAdmin(ctx);
 
@@ -120,10 +126,11 @@ export async function updateProjectStatus(programId: string, projectId: string, 
   }
 
   const parsedStatus = statusEnum.parse(status);
+  const parsedSortOrder = z.number().finite().parse(sortOrder);
 
   await db
     .update(projects)
-    .set({ status: parsedStatus, updatedAt: new Date() })
+    .set({ status: parsedStatus, sortOrder: parsedSortOrder, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
 
   revalidatePath(`/dashboard/programs/${programId}`);
