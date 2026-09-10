@@ -14,6 +14,7 @@ import {
 type ChecklistItem = {
   id: string;
   title: string;
+  description: string | null;
   status: string;
   priority: string;
   dueDate: Date | string | null;
@@ -101,29 +102,32 @@ export function ChecklistWidget({
             return (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-3 rounded border border-gray-200 bg-white p-2 text-sm"
+                className="flex items-start justify-between gap-3 rounded border border-gray-200 bg-white p-2 text-sm"
               >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => handleToggle(item, e.target.checked)}
-                    className="h-4 w-4"
-                    aria-label={`Mark "${item.title}" complete`}
-                  />
-                  <Link
-                    href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${item.id}`}
-                    className={`hover:underline ${checked ? "text-gray-400 line-through" : "text-gray-900"}`}
-                  >
-                    {item.title}
-                  </Link>
-                  <PriorityBadge priority={item.priority} />
-                  {item.assignee && <span className="text-xs text-gray-500">{item.assignee.name}</span>}
-                  {item.dueDate && (
-                    <span className="text-xs text-gray-400">
-                      Due {new Date(item.dueDate).toLocaleDateString()}
-                    </span>
-                  )}
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => handleToggle(item, e.target.checked)}
+                      className="h-4 w-4"
+                      aria-label={`Mark "${item.title}" complete`}
+                    />
+                    <Link
+                      href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${item.id}`}
+                      className={`hover:underline ${checked ? "text-gray-400 line-through" : "text-gray-900"}`}
+                    >
+                      {item.title}
+                    </Link>
+                    <PriorityBadge priority={item.priority} />
+                    {item.assignee && <span className="text-xs text-gray-500">{item.assignee.name}</span>}
+                    {item.dueDate && (
+                      <span className="text-xs text-gray-400">
+                        Due {new Date(item.dueDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  {item.description && <p className="truncate pl-7 text-xs text-gray-500">{item.description}</p>}
                 </div>
                 <ConfirmDeleteButton
                   action={handleDelete.bind(null, item.id)}
