@@ -11,14 +11,16 @@ export type PortfolioNode = { id: string; name: string; programs: ProgramNode[] 
 export function PortfolioTree({
   portfolios,
   ungroupedPrograms,
+  isAdmin,
 }: {
   portfolios: PortfolioNode[];
   ungroupedPrograms: ProgramNode[];
+  isAdmin: boolean;
 }) {
   return (
     <div className="flex flex-col gap-0.5">
       {portfolios.map((portfolio) => (
-        <PortfolioRow key={portfolio.id} portfolio={portfolio} />
+        <PortfolioRow key={portfolio.id} portfolio={portfolio} isAdmin={isAdmin} />
       ))}
       {ungroupedPrograms.length > 0 && (
         <div className="mt-2">
@@ -27,7 +29,7 @@ export function PortfolioTree({
           </p>
           <div className="flex flex-col gap-0.5">
             {ungroupedPrograms.map((program) => (
-              <ProgramRow key={program.id} program={program} />
+              <ProgramRow key={program.id} program={program} isAdmin={isAdmin} />
             ))}
           </div>
         </div>
@@ -40,7 +42,21 @@ function TreeToggle({ open }: { open: boolean }) {
   return <span className="w-3 shrink-0 text-[10px] text-gray-400">{open ? "▾" : "▸"}</span>;
 }
 
-function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
+function AddChildLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      onClick={(e) => e.stopPropagation()}
+      className="shrink-0 px-1 text-sm leading-none text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+      title={label}
+      aria-label={label}
+    >
+      +
+    </Link>
+  );
+}
+
+function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmin: boolean }) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
   const active = pathname === `/dashboard/portfolios/${portfolio.id}`;
@@ -48,7 +64,7 @@ function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
   return (
     <div>
       <div
-        className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
+        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
           active ? "bg-gray-100" : ""
         }`}
       >
@@ -66,13 +82,18 @@ function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
         >
           {portfolio.name}
         </Link>
+        {isAdmin && (
+          <AddChildLink href={`/dashboard/programs/new?portfolioId=${portfolio.id}`} label="New Program" />
+        )}
       </div>
       {open && (
         <div className="ml-3 flex flex-col gap-0.5 border-l border-gray-200 pl-2">
           {portfolio.programs.length === 0 ? (
             <p className="px-2 py-1 text-xs text-gray-400">No programs</p>
           ) : (
-            portfolio.programs.map((program) => <ProgramRow key={program.id} program={program} />)
+            portfolio.programs.map((program) => (
+              <ProgramRow key={program.id} program={program} isAdmin={isAdmin} />
+            ))
           )}
         </div>
       )}
@@ -80,7 +101,7 @@ function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
   );
 }
 
-function ProgramRow({ program }: { program: ProgramNode }) {
+function ProgramRow({ program, isAdmin }: { program: ProgramNode; isAdmin: boolean }) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
   const active = pathname === `/dashboard/programs/${program.id}`;
@@ -88,7 +109,7 @@ function ProgramRow({ program }: { program: ProgramNode }) {
   return (
     <div>
       <div
-        className={`flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
+        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
           active ? "bg-gray-100" : ""
         }`}
       >
@@ -106,6 +127,9 @@ function ProgramRow({ program }: { program: ProgramNode }) {
         >
           {program.name}
         </Link>
+        {isAdmin && (
+          <AddChildLink href={`/dashboard/programs/${program.id}/projects/new`} label="New Project" />
+        )}
       </div>
       {open && (
         <div className="ml-3 flex flex-col gap-0.5 border-l border-gray-200 pl-2">

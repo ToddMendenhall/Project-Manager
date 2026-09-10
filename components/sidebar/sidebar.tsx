@@ -104,7 +104,7 @@ export async function Sidebar({
         {portfolioNodes.length === 0 && ungroupedPrograms.length === 0 ? (
           <p className="px-2 text-xs text-gray-400">Nothing here yet.</p>
         ) : (
-          <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} />
+          <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} isAdmin={isAdmin} />
         )}
       </div>
     </aside>
