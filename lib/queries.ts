@@ -1,9 +1,10 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
   checklistItems,
+  comments,
   customFieldDefs,
   orgMembers,
   portfolios,
@@ -147,4 +148,58 @@ export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
   }
 
   return null;
+}
+
+/**
+ * Every task across an org's programs/projects, flattened with its
+ * program/project context attached — used anywhere that needs to slice the
+ * org's full task list by an arbitrary predicate (Reports, My Tasks)
+ * rather than one project's tasks.
+ */
+export async function getOrgTasksFlat(orgId: string) {
+  const orgPrograms = await db.query.programs.findMany({
+    where: eq(programs.orgId, orgId),
+    with: {
+      projects: {
+        with: {
+          tasks: { with: { assignee: true } },
+        },
+      },
+    },
+  });
+
+  return orgPrograms.flatMap((program) =>
+    program.projects.flatMap((project) =>
+      project.tasks.map((task) => ({
+        ...task,
+        programId: program.id,
+        programName: program.name,
+        projectId: project.id,
+        projectName: project.name,
+      })),
+    ),
+  );
+}
+
+/** Comments left on tasks assigned to the given user, across the org, most recent first. */
+export async function getCommentsOnMyTasks(userId: string, orgId: string) {
+  return db
+    .select({
+      id: comments.id,
+      body: comments.body,
+      createdAt: comments.createdAt,
+      authorName: users.name,
+      taskId: tasks.id,
+      taskTitle: tasks.title,
+      projectId: projects.id,
+      programId: programs.id,
+    })
+    .from(comments)
+    .innerJoin(tasks, eq(comments.taskId, tasks.id))
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .innerJoin(users, eq(comments.authorId, users.id))
+    .where(and(eq(tasks.assigneeId, userId), eq(programs.orgId, orgId)))
+    .orderBy(desc(comments.createdAt))
+    .limit(50);
 }
