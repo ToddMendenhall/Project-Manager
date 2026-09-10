@@ -1,14 +1,39 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Field, inputClass, selectClass } from "@/components/form-controls";
+import type { ActionResult } from "@/app/dashboard/members/actions";
 
 export function MemberForm({
   action,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<ActionResult>;
   submitLabel: string;
 }) {
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const formData = new FormData(e.currentTarget);
+
+    startTransition(async () => {
+      const result = await action(formData);
+      if (result.ok) {
+        router.push("/dashboard/members");
+        router.refresh();
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
   return (
-    <form action={action} className="flex max-w-md flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex max-w-md flex-col gap-4">
       <Field label="Name">
         <input name="name" required className={inputClass} />
       </Field>
@@ -28,8 +53,14 @@ export function MemberForm({
         </select>
       </Field>
 
-      <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
-        {submitLabel}
+      {error && <p className="text-sm text-red-600">{error}</p>}
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+      >
+        {isPending ? "Creating..." : submitLabel}
       </button>
     </form>
   );

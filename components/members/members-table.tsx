@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import type { ActionResult } from "@/app/dashboard/members/actions";
 
 type Member = {
   userId: string;
@@ -19,8 +20,8 @@ export function MembersTable({
 }: {
   members: Member[];
   currentUserId: string;
-  onRoleChange: (userId: string, role: string) => Promise<void>;
-  onDelete: (userId: string) => Promise<void>;
+  onRoleChange: (userId: string, role: string) => Promise<ActionResult>;
+  onDelete: (userId: string) => Promise<ActionResult>;
 }) {
   const [rows, setRows] = useState(members);
   const [, startTransition] = useTransition();
@@ -30,21 +31,20 @@ export function MembersTable({
     setRows((prev) => prev.map((m) => (m.userId === member.userId ? { ...m, role: role as Member["role"] } : m)));
 
     startTransition(async () => {
-      try {
-        await onRoleChange(member.userId, role);
-      } catch (err) {
+      const result = await onRoleChange(member.userId, role);
+      if (!result.ok) {
         setRows((prev) => prev.map((m) => (m.userId === member.userId ? { ...m, role: previous } : m)));
-        alert(err instanceof Error ? err.message : "Couldn't update role.");
+        alert(result.error);
       }
     });
   }
 
   async function handleDelete(userId: string) {
-    try {
-      await onDelete(userId);
+    const result = await onDelete(userId);
+    if (result.ok) {
       setRows((prev) => prev.filter((m) => m.userId !== userId));
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Couldn't delete member.");
+    } else {
+      alert(result.error);
     }
   }
 
