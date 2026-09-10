@@ -167,4 +167,5 @@ export async function updateProgramDates(programId: string, startDate: string, t
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/gantt`);
   if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
+  revalidatePath("/dashboard/portfolios/gantt");
 }

@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
-import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForProject } from "@/lib/queries";
+import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject } from "@/lib/queries";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 
 // Tasks are the day-to-day work items — unlike Program/Project structure,
@@ -252,17 +252,15 @@ export async function updateTaskDueDate(
   revalidatePath(`${basePath(programId, projectId)}/calendar`);
 }
 
-/** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
-export async function updateTaskDates(
-  programId: string,
-  projectId: string,
-  taskId: string,
-  startDate: string,
-  dueDate: string,
-) {
+/**
+ * Lightweight start+due date update, used by the Gantt view's drag-to-resize
+ * handles. Scoped by task id alone (not pre-bound program/project ids) since
+ * the hierarchical Gantt view can show tasks from many projects on one page.
+ */
+export async function updateTaskDates(taskId: string, startDate: string, dueDate: string) {
   const ctx = await requireOrgContext();
 
-  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  const existing = await getTaskForOrg(taskId, ctx.org.id);
   if (!existing) {
     throw new Error("Task not found");
   }
@@ -276,8 +274,12 @@ export async function updateTaskDates(
     })
     .where(eq(tasks.id, taskId));
 
-  revalidatePath(`${basePath(programId, projectId)}/gantt`);
-  revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
+  const projectPath = basePath(existing.programId, existing.projectId);
+  revalidatePath(`${projectPath}/gantt`);
+  revalidatePath(`${projectPath}/tasks/${taskId}`);
+  revalidatePath(`/dashboard/programs/${existing.programId}/gantt`);
+  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
+  revalidatePath("/dashboard/portfolios/gantt");
 }
 
 export async function deleteTask(programId: string, projectId: string, taskId: string) {

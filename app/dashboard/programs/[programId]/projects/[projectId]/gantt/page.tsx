@@ -8,6 +8,7 @@ import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
+import { taskNode } from "@/lib/gantt-tree";
 import { updateTaskDates } from "../tasks/actions";
 
 export default async function TaskGanttPage({
@@ -27,6 +28,9 @@ export default async function TaskGanttPage({
   const allTasks = await db.query.tasks.findMany({
     where: eq(tasks.projectId, projectId),
     orderBy: (task, { asc }) => [asc(task.createdAt)],
+    with: {
+      checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+    },
   });
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
@@ -62,15 +66,8 @@ export default async function TaskGanttPage({
         <p className="text-sm text-gray-500">No tasks yet.</p>
       ) : (
         <GanttView
-          items={allTasks.map((t) => ({
-            id: t.id,
-            title: t.title,
-            status: t.status,
-            href: `${basePath}/tasks/${t.id}`,
-            startDate: t.startDate,
-            endDate: t.dueDate,
-          }))}
-          onDateChange={updateTaskDates.bind(null, programId, projectId)}
+          items={allTasks.map((t) => taskNode(t, basePath))}
+          onTaskDateChange={updateTaskDates}
         />
       )}
     </div>

@@ -4,18 +4,11 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
 import { statusLabel, dateInputValue } from "@/lib/fields";
-
-export type GanttItem = {
-  id: string;
-  title: string;
-  status: string;
-  href: string;
-  startDate: Date | string | null;
-  endDate: Date | string | null;
-};
+import type { GanttKind, GanttNode } from "@/lib/gantt-types";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DAY_WIDTH = 32; // px
+const INDENT_WIDTH = 16; // px per depth level
 
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -32,45 +25,90 @@ function addDays(d: Date, days: number) {
 }
 
 type ItemDates = { start: Date | null; end: Date | null };
+type DateChangeHandler = (id: string, startDate: string, endDate: string) => Promise<void>;
 
-function datesFromItems(items: GanttItem[]): Record<string, ItemDates> {
-  const map: Record<string, ItemDates> = {};
-  for (const item of items) {
-    map[item.id] = {
-      start: item.startDate ? startOfDay(new Date(item.startDate)) : null,
-      end: item.endDate ? startOfDay(new Date(item.endDate)) : null,
+function flattenDates(nodes: GanttNode[], map: Record<string, ItemDates> = {}): Record<string, ItemDates> {
+  for (const node of nodes) {
+    map[node.id] = {
+      start: node.startDate ? startOfDay(new Date(node.startDate)) : null,
+      end: node.endDate ? startOfDay(new Date(node.endDate)) : null,
     };
+    if (node.children) flattenDates(node.children, map);
   }
   return map;
 }
 
+/** A node is worth showing if it has a date itself, or any descendant does — otherwise it (and its subtree) stay hidden. */
+function isVisible(node: GanttNode, dates: Record<string, ItemDates>): boolean {
+  const d = dates[node.id];
+  if (d?.start || d?.end) return true;
+  return (node.children ?? []).some((child) => isVisible(child, dates));
+}
+
+type Row = { node: GanttNode; depth: number; hasVisibleChildren: boolean };
+
+function buildRows(
+  nodes: GanttNode[],
+  depth: number,
+  expanded: Set<string>,
+  dates: Record<string, ItemDates>,
+  out: Row[] = [],
+): Row[] {
+  for (const node of nodes) {
+    if (!isVisible(node, dates)) continue;
+    const visibleChildren = (node.children ?? []).filter((child) => isVisible(child, dates));
+    out.push({ node, depth, hasVisibleChildren: visibleChildren.length > 0 });
+    if (visibleChildren.length > 0 && expanded.has(node.id)) {
+      buildRows(visibleChildren, depth + 1, expanded, dates, out);
+    }
+  }
+  return out;
+}
+
 type DragEdge = "start" | "end" | "dot";
-type DragAnchor = { itemId: string; edge: DragEdge; pointerStartX: number; originStart: Date | null; originEnd: Date | null };
+type DragAnchor = {
+  itemId: string;
+  edge: DragEdge;
+  pointerStartX: number;
+  originStart: Date | null;
+  originEnd: Date | null;
+  onDateChange: DateChangeHandler;
+};
 
 export function GanttView({
   items,
-  onDateChange,
-  readOnly = false,
+  onPortfolioDateChange,
+  onProgramDateChange,
+  onProjectDateChange,
+  onTaskDateChange,
 }: {
-  items: GanttItem[];
-  onDateChange?: (id: string, startDate: string, endDate: string) => Promise<void>;
-  readOnly?: boolean;
+  items: GanttNode[];
+  onPortfolioDateChange?: DateChangeHandler;
+  onProgramDateChange?: DateChangeHandler;
+  onProjectDateChange?: DateChangeHandler;
+  onTaskDateChange?: DateChangeHandler;
 }) {
-  const [dates, setDates] = useState<Record<string, ItemDates>>(() => datesFromItems(items));
+  const actionsByKind: Partial<Record<GanttKind, DateChangeHandler>> = {
+    portfolio: onPortfolioDateChange,
+    program: onProgramDateChange,
+    project: onProjectDateChange,
+    task: onTaskDateChange,
+    // checklistItem intentionally has no handler — it only ever has a due
+    // date (no startDate column exists for it), so it's always read-only.
+  };
+
+  const [dates, setDates] = useState<Record<string, ItemDates>>(() => flattenDates(items));
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragRef = useRef<DragAnchor | null>(null);
   const [, startTransition] = useTransition();
 
-  const draggable = !readOnly && !!onDateChange;
-
   // Re-sync when the server sends fresh items (e.g. after a filter change or revalidation).
   useEffect(() => {
-    setDates(datesFromItems(items));
+    setDates(flattenDates(items));
   }, [items]);
 
   useEffect(() => {
-    if (!draggable) return;
-
     function handleMove(e: PointerEvent) {
       const drag = dragRef.current;
       if (!drag) return;
@@ -109,7 +147,7 @@ export function GanttView({
       const drag = dragRef.current;
       dragRef.current = null;
       setDraggingId(null);
-      if (!drag || !onDateChange) return;
+      if (!drag) return;
 
       setDates((prev) => {
         const entry = prev[drag.itemId];
@@ -119,7 +157,7 @@ export function GanttView({
         if (startChanged || endChanged) {
           startTransition(async () => {
             try {
-              await onDateChange(drag.itemId, dateInputValue(entry.start), dateInputValue(entry.end));
+              await drag.onDateChange(drag.itemId, dateInputValue(entry.start), dateInputValue(entry.end));
             } catch {
               setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
             }
@@ -135,32 +173,43 @@ export function GanttView({
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [draggable, onDateChange, startTransition]);
+  }, [startTransition]);
 
-  function beginDrag(itemId: string, edge: DragEdge, e: React.PointerEvent) {
-    if (!draggable) return;
+  function beginDrag(node: GanttNode, edge: DragEdge, e: React.PointerEvent) {
+    const onDateChange = actionsByKind[node.kind];
+    if (!onDateChange) return;
     e.preventDefault();
     e.stopPropagation();
-    const entry = dates[itemId];
+    const entry = dates[node.id];
     dragRef.current = {
-      itemId,
+      itemId: node.id,
       edge,
       pointerStartX: e.clientX,
       originStart: entry?.start ?? null,
       originEnd: entry?.end ?? null,
+      onDateChange,
     };
-    setDraggingId(itemId);
+    setDraggingId(node.id);
   }
 
-  const dated = items.filter((i) => dates[i.id]?.start || dates[i.id]?.end);
-  const undated = items.filter((i) => !dates[i.id]?.start && !dates[i.id]?.end);
+  function toggleExpand(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
-  if (dated.length === 0) {
+  const rows = buildRows(items, 0, expanded, dates);
+  const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
+
+  if (rows.length === 0) {
     return <p className="text-sm text-gray-500">No items have start or due dates yet.</p>;
   }
 
   const today = startOfDay(new Date());
-  const allDates = dated.flatMap((i) => [dates[i.id].start, dates[i.id].end].filter((d): d is Date => !!d));
+  const allDates = rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d));
   const earliest = new Date(Math.min(...allDates.map((d) => d.getTime()), today.getTime()));
   const latest = new Date(Math.max(...allDates.map((d) => d.getTime()), today.getTime()));
 
@@ -197,13 +246,30 @@ export function GanttView({
       <div className="flex overflow-hidden rounded border border-gray-200 bg-white">
         <div className="flex w-56 shrink-0 flex-col border-r border-gray-200">
           <div className="h-[52px] shrink-0 border-b border-gray-200" />
-          {dated.map((item) => (
+          {rows.map((row) => (
             <div
-              key={item.id}
-              className="flex h-10 shrink-0 items-center border-b border-gray-100 px-3 last:border-0"
+              key={row.node.id}
+              className="flex h-10 shrink-0 items-center gap-1 border-b border-gray-100 pr-3 last:border-0"
+              style={{ paddingLeft: 8 + row.depth * INDENT_WIDTH }}
             >
-              <Link href={item.href} className="truncate text-sm text-gray-900 hover:underline" title={item.title}>
-                {item.title}
+              {row.hasVisibleChildren ? (
+                <button
+                  type="button"
+                  onClick={() => toggleExpand(row.node.id)}
+                  aria-label={expanded.has(row.node.id) ? "Collapse" : "Expand"}
+                  className="flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-gray-400 hover:text-gray-700"
+                >
+                  {expanded.has(row.node.id) ? "▾" : "▸"}
+                </button>
+              ) : (
+                <span className="w-4 shrink-0" />
+              )}
+              <Link
+                href={row.node.href}
+                className="truncate text-sm text-gray-900 hover:underline"
+                title={row.node.title}
+              >
+                {row.node.title}
               </Link>
             </div>
           ))}
@@ -249,10 +315,12 @@ export function GanttView({
                   style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
                 />
               )}
-              {dated.map((item) => {
-                const { start, end } = dates[item.id];
-                const barColor = STATUS_BAR_COLORS[item.status] ?? "bg-gray-400";
-                const isDragging = draggingId === item.id;
+              {rows.map((row) => {
+                const { node } = row;
+                const { start, end } = dates[node.id];
+                const barColor = STATUS_BAR_COLORS[node.status] ?? "bg-gray-400";
+                const isDragging = draggingId === node.id;
+                const draggable = !!actionsByKind[node.kind];
 
                 if (start && end) {
                   const offset = Math.max(0, diffDays(start, rangeStart));
@@ -260,25 +328,25 @@ export function GanttView({
                   const left = offset * DAY_WIDTH + 2;
                   const width = Math.max(span * DAY_WIDTH - 4, 8);
                   return (
-                    <div key={item.id} className="relative h-10 border-b border-gray-100 last:border-0">
+                    <div key={node.id} className="relative h-10 border-b border-gray-100 last:border-0">
                       <Link
-                        href={item.href}
-                        title={`${item.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(item.status)})`}
+                        href={node.href}
+                        title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
                         className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor} ${isDragging ? "opacity-80" : ""}`}
                         style={{ left, width }}
                       >
-                        <span className="truncate">{statusLabel(item.status)}</span>
+                        <span className="truncate">{statusLabel(node.status)}</span>
                       </Link>
                       {draggable && (
                         <>
                           <div
-                            onPointerDown={(e) => beginDrag(item.id, "start", e)}
+                            onPointerDown={(e) => beginDrag(node, "start", e)}
                             title="Drag to change the start date"
                             className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-l-full hover:bg-black/20"
                             style={{ left: left - 1 }}
                           />
                           <div
-                            onPointerDown={(e) => beginDrag(item.id, "end", e)}
+                            onPointerDown={(e) => beginDrag(node, "end", e)}
                             title="Drag to change the due date"
                             className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-r-full hover:bg-black/20"
                             style={{ left: left + width - 7 }}
@@ -292,10 +360,10 @@ export function GanttView({
                 const point = (start ?? end)!;
                 const offset = Math.max(0, diffDays(point, rangeStart));
                 return (
-                  <div key={item.id} className="relative h-10 border-b border-gray-100 last:border-0">
+                  <div key={node.id} className="relative h-10 border-b border-gray-100 last:border-0">
                     <div
-                      onPointerDown={draggable ? (e) => beginDrag(item.id, "dot", e) : undefined}
-                      title={`${item.title}: ${point.toLocaleDateString()} (${statusLabel(item.status)})${
+                      onPointerDown={draggable ? (e) => beginDrag(node, "dot", e) : undefined}
+                      title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})${
                         draggable ? " — drag to set the missing date" : ""
                       }`}
                       className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor} ${
@@ -311,10 +379,10 @@ export function GanttView({
         </div>
       </div>
 
-      {undated.length > 0 && (
+      {hiddenTopLevel > 0 && (
         <p className="text-xs text-gray-400">
-          {undated.length} item{undated.length === 1 ? "" : "s"} without a start or due date{" "}
-          {undated.length === 1 ? "isn't" : "aren't"} shown on the timeline.
+          {hiddenTopLevel} item{hiddenTopLevel === 1 ? "" : "s"} without a start or due date (or any dated
+          descendant) {hiddenTopLevel === 1 ? "isn't" : "aren't"} shown on the timeline.
         </p>
       )}
     </div>

@@ -8,7 +8,10 @@ import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
+import { programNode } from "@/lib/gantt-tree";
 import { updateProgramDates } from "../../../programs/actions";
+import { updateProjectDates } from "../../../programs/[programId]/projects/actions";
+import { updateTaskDates } from "../../../programs/[programId]/projects/[projectId]/tasks/actions";
 
 export default async function PortfolioGanttPage({ params }: { params: Promise<{ portfolioId: string }> }) {
   const { portfolioId } = await params;
@@ -18,7 +21,22 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
       owner: true,
-      programs: { orderBy: (program, { asc }) => [asc(program.createdAt)] },
+      programs: {
+        orderBy: (program, { asc }) => [asc(program.createdAt)],
+        with: {
+          projects: {
+            orderBy: (project, { asc }) => [asc(project.createdAt)],
+            with: {
+              tasks: {
+                orderBy: (task, { asc }) => [asc(task.createdAt)],
+                with: {
+                  checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+                },
+              },
+            },
+          },
+        },
+      },
     },
   });
   if (!portfolio) notFound();
@@ -62,16 +80,10 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
         <p className="text-sm text-gray-500">No programs in this portfolio yet.</p>
       ) : (
         <GanttView
-          items={portfolio.programs.map((p) => ({
-            id: p.id,
-            title: p.name,
-            status: p.status,
-            href: `/dashboard/programs/${p.id}`,
-            startDate: p.startDate,
-            endDate: p.targetEndDate,
-          }))}
-          onDateChange={updateProgramDates}
-          readOnly={ctx.role !== "admin"}
+          items={portfolio.programs.map(programNode)}
+          onProgramDateChange={ctx.role === "admin" ? updateProgramDates : undefined}
+          onProjectDateChange={ctx.role === "admin" ? updateProjectDates : undefined}
+          onTaskDateChange={updateTaskDates}
         />
       )}
     </div>

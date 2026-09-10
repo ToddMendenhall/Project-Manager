@@ -8,7 +8,9 @@ import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
+import { projectNode } from "@/lib/gantt-tree";
 import { updateProjectDates } from "../projects/actions";
+import { updateTaskDates } from "../projects/[projectId]/tasks/actions";
 
 export default async function ProgramGanttPage({ params }: { params: Promise<{ programId: string }> }) {
   const { programId } = await params;
@@ -18,7 +20,17 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
       owner: true,
-      projects: { orderBy: (project, { asc }) => [asc(project.createdAt)] },
+      projects: {
+        orderBy: (project, { asc }) => [asc(project.createdAt)],
+        with: {
+          tasks: {
+            orderBy: (task, { asc }) => [asc(task.createdAt)],
+            with: {
+              checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+            },
+          },
+        },
+      },
     },
   });
   if (!program) notFound();
@@ -59,16 +71,9 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
         <p className="text-sm text-gray-500">No projects yet.</p>
       ) : (
         <GanttView
-          items={program.projects.map((p) => ({
-            id: p.id,
-            title: p.name,
-            status: p.status,
-            href: `${basePath}/projects/${p.id}`,
-            startDate: p.startDate,
-            endDate: p.dueDate,
-          }))}
-          onDateChange={updateProjectDates.bind(null, programId)}
-          readOnly={ctx.role !== "admin"}
+          items={program.projects.map((p) => projectNode(p, basePath))}
+          onProjectDateChange={ctx.role === "admin" ? updateProjectDates : undefined}
+          onTaskDateChange={updateTaskDates}
         />
       )}
     </div>

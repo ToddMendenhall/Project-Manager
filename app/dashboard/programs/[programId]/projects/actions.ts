@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
 import { requireAdmin, requireOrgContext } from "@/lib/org";
-import { getProgramForOrg, getProjectForProgram } from "@/lib/queries";
+import { getProgramForOrg, getProjectForOrg, getProjectForProgram } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -137,17 +137,16 @@ export async function updateProjectOrder(
   revalidatePath(`/dashboard/programs/${programId}/board`);
 }
 
-/** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
-export async function updateProjectDates(
-  programId: string,
-  projectId: string,
-  startDate: string,
-  dueDate: string,
-) {
+/**
+ * Lightweight start+due date update, used by the Gantt view's drag-to-resize
+ * handles. Scoped by project id alone (not a pre-bound programId) since the
+ * hierarchical Gantt view can show projects from many programs on one page.
+ */
+export async function updateProjectDates(projectId: string, startDate: string, dueDate: string) {
   const ctx = await requireOrgContext();
   requireAdmin(ctx);
 
-  const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
+  const existing = await getProjectForOrg(projectId, ctx.org.id);
   if (!existing) {
     throw new Error("Project not found");
   }
@@ -161,6 +160,9 @@ export async function updateProjectDates(
     })
     .where(eq(projects.id, projectId));
 
-  revalidatePath(`/dashboard/programs/${programId}`);
-  revalidatePath(`/dashboard/programs/${programId}/gantt`);
+  revalidatePath(`/dashboard/programs/${existing.programId}`);
+  revalidatePath(`/dashboard/programs/${existing.programId}/gantt`);
+  revalidatePath(`/dashboard/programs/${existing.programId}/projects/${projectId}`);
+  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
+  revalidatePath("/dashboard/portfolios/gantt");
 }

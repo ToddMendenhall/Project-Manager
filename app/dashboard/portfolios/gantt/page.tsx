@@ -6,7 +6,11 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { GanttView } from "@/components/views/gantt-view";
+import { portfolioNode } from "@/lib/gantt-tree";
 import { updatePortfolioDates } from "../actions";
+import { updateProgramDates } from "../../programs/actions";
+import { updateProjectDates } from "../../programs/[programId]/projects/actions";
+import { updateTaskDates } from "../../programs/[programId]/projects/[projectId]/tasks/actions";
 
 export default async function PortfoliosGanttPage() {
   const ctx = await requireOrgContext();
@@ -14,6 +18,24 @@ export default async function PortfoliosGanttPage() {
   const orgPortfolios = await db.query.portfolios.findMany({
     where: eq(portfolios.orgId, ctx.org.id),
     orderBy: (portfolio, { asc }) => [asc(portfolio.createdAt)],
+    with: {
+      programs: {
+        orderBy: (program, { asc }) => [asc(program.createdAt)],
+        with: {
+          projects: {
+            orderBy: (project, { asc }) => [asc(project.createdAt)],
+            with: {
+              tasks: {
+                orderBy: (task, { asc }) => [asc(task.createdAt)],
+                with: {
+                  checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   return (
@@ -42,16 +64,11 @@ export default async function PortfoliosGanttPage() {
         <p className="text-sm text-gray-500">No portfolios yet.</p>
       ) : (
         <GanttView
-          items={orgPortfolios.map((p) => ({
-            id: p.id,
-            title: p.name,
-            status: p.status,
-            href: `/dashboard/portfolios/${p.id}`,
-            startDate: p.startDate,
-            endDate: p.targetEndDate,
-          }))}
-          onDateChange={updatePortfolioDates}
-          readOnly={ctx.role !== "admin"}
+          items={orgPortfolios.map(portfolioNode)}
+          onPortfolioDateChange={ctx.role === "admin" ? updatePortfolioDates : undefined}
+          onProgramDateChange={ctx.role === "admin" ? updateProgramDates : undefined}
+          onProjectDateChange={ctx.role === "admin" ? updateProjectDates : undefined}
+          onTaskDateChange={updateTaskDates}
         />
       )}
     </div>

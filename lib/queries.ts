@@ -69,6 +69,38 @@ export async function getProjectForProgram(projectId: string, programId: string,
   return project ?? null;
 }
 
+/**
+ * Fetches a project by id alone, scoped to the org via its program — used
+ * where the caller (e.g. the Gantt view's hierarchical drag handlers) only
+ * has the project id on hand, not its parent program id.
+ */
+export async function getProjectForOrg(projectId: string, orgId: string) {
+  const [row] = await db
+    .select({ project: projects, portfolioId: programs.portfolioId })
+    .from(projects)
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(and(eq(projects.id, projectId), eq(programs.orgId, orgId)))
+    .limit(1);
+
+  return row ? { ...row.project, portfolioId: row.portfolioId } : null;
+}
+
+/**
+ * Fetches a task by id alone, scoped to the org via its project/program —
+ * used where the caller only has the task id on hand (see getProjectForOrg).
+ */
+export async function getTaskForOrg(taskId: string, orgId: string) {
+  const [row] = await db
+    .select({ task: tasks, programId: programs.id, portfolioId: programs.portfolioId })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(and(eq(tasks.id, taskId), eq(programs.orgId, orgId)))
+    .limit(1);
+
+  return row ? { ...row.task, programId: row.programId, portfolioId: row.portfolioId } : null;
+}
+
 /** Fetches a task only if it belongs to the given project (which must itself belong to the program/org). */
 export async function getTaskForProject(taskId: string, projectId: string, programId: string, orgId: string) {
   const project = await getProjectForProgram(projectId, programId, orgId);
