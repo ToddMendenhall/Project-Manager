@@ -101,3 +101,5 @@ Designed to deploy to Vercel with a Neon or Supabase Postgres database. Set
 `DATABASE_URL`, `AUTH_SECRET`, and `AUTH_URL` (your production URL) as
 environment variables, then run `npm run db:migrate` against the production
 database before first deploy.
+
+Live deployment: https://project-manager-mauve-theta.vercel.app
