@@ -1,0 +1,80 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { programs } from "@/db/schema";
+import { requireOrgContext } from "@/lib/org";
+import { ViewTabs } from "@/components/views/view-tabs";
+import { ViewHeader } from "@/components/views/view-header";
+import { BoardView } from "@/components/views/board-view";
+import { PriorityBadge } from "@/components/status-badge";
+import { updateProjectStatus } from "../projects/actions";
+
+export default async function ProgramBoardPage({ params }: { params: Promise<{ programId: string }> }) {
+  const { programId } = await params;
+  const ctx = await requireOrgContext();
+
+  const program = await db.query.programs.findFirst({
+    where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
+    with: {
+      projects: {
+        with: { lead: true },
+        orderBy: (project, { desc }) => [desc(project.createdAt)],
+      },
+    },
+  });
+  if (!program) notFound();
+
+  const basePath = `/dashboard/programs/${programId}`;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <ViewHeader
+        backHref={basePath}
+        backLabel={program.name}
+        title="Projects"
+        action={
+          ctx.role === "admin" ? (
+            <Link href={`${basePath}/projects/new`} className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+              New Project
+            </Link>
+          ) : undefined
+        }
+      />
+
+      <ViewTabs
+        basePath={basePath}
+        active="board"
+        views={["list", "board", "calendar", "gantt"]}
+        hrefs={{ list: basePath }}
+      />
+
+      {program.projects.length === 0 ? (
+        <p className="text-sm text-gray-500">No projects yet.</p>
+      ) : (
+        <BoardView
+          items={program.projects.map((project) => ({
+            id: project.id,
+            status: project.status,
+            card: (
+              <>
+                <Link href={`${basePath}/projects/${project.id}`} className="font-medium text-gray-900 hover:underline">
+                  {project.name}
+                </Link>
+                <div className="mt-2 flex items-center justify-between">
+                  <PriorityBadge priority={project.priority} />
+                  {project.lead && <span className="text-xs text-gray-500">{project.lead.name}</span>}
+                </div>
+                {project.dueDate && (
+                  <p className="mt-1 text-xs text-gray-400">Due {new Date(project.dueDate).toLocaleDateString()}</p>
+                )}
+              </>
+            ),
+          }))}
+          readOnly={ctx.role !== "admin"}
+          onStatusChange={updateProjectStatus.bind(null, programId)}
+        />
+      )}
+    </div>
+  );
+}

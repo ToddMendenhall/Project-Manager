@@ -119,9 +119,14 @@ export function TaskForm({
           ))}
         </select>
       </Field>
-      <Field label="Due date">
-        <input type="date" name="dueDate" defaultValue={dateValue(task?.dueDate)} className={inputClass} />
-      </Field>
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Start date">
+          <input type="date" name="startDate" defaultValue={dateValue(task?.startDate)} className={inputClass} />
+        </Field>
+        <Field label="Due date">
+          <input type="date" name="dueDate" defaultValue={dateValue(task?.dueDate)} className={inputClass} />
+        </Field>
+      </div>
 
       {fieldDefs.length > 0 && (
         <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">

@@ -173,8 +173,45 @@ form-action note above), and a sibling `actions.ts`. `lib/fields.ts` holds
 the shared `STATUS_OPTIONS`/`PRIORITY_OPTIONS` enums-as-arrays used by every
 form and badge component (`components/status-badge.tsx`).
 
-Project task views share one `ViewTabs` component
-(`components/tasks/view-tabs.tsx`) across List (`tasks/page.tsx`), Board
-(`board/page.tsx`, drag-and-drop via native HTML5 DnD, no library), and
-Calendar (`calendar/page.tsx`, month-grid math in `lib/calendar.ts`, no
-date library).
+### Multi-view tabs (List/Board/Calendar/Gantt) at every hierarchy level
+
+Every level whose children are worth browsing on their own — the org-wide
+Portfolios index, a Portfolio's Programs, a Program's Projects, a Project's
+Tasks — gets the same `ViewTabs` (`components/views/view-tabs.tsx`) row
+switching between List, Board, Calendar, and Gantt, so switching views never
+requires detouring through a "View all" link first. The four generic view
+components live in `components/views/` and are shape-agnostic (typed by the
+page, not the component):
+- `BoardView` — columns from the shared `STATUS_OPTIONS` (every level's
+  `status` column reuses the one `statusEnum`, which is what makes one
+  generic board work for Portfolios, Programs, Projects, and Tasks alike).
+  **Cards must be pre-rendered server-side JSX passed as each item's `card`
+  field, not a `renderCard` render-prop** — a Server Component page can pass
+  rendered `ReactNode` into a Client Component's props, but not an arbitrary
+  closure (Next.js RSC rule; passing a render-prop function throws at
+  runtime, not at typecheck). For the same reason `onStatusChange` must be
+  the actual `"use server"` action (optionally `.bind()`-ed to pin leading
+  args), never a wrapper arrow function — only a bound/unbound Server Action
+  reference survives serialization across the boundary.
+- `CalendarView` / `CalendarNav` — reuses `lib/calendar.ts`'s month-grid math.
+- `GanttView` (`components/views/gantt-view.tsx`) — a plain Server Component
+  (no client state needed: it's links + positioned `<div>`s, so no drag-to-
+  reschedule), CSS-grid day columns at a fixed `DAY_WIDTH`, horizontally
+  scrollable. Draws a bar when both `startDate` and `endDate` are present,
+  a single dot when only one is set, and omits the row entirely (with a
+  caption) when neither is. This is why `tasks` has a `startDate` column
+  even though only `dueDate` used to exist — a Gantt bar needs a range, and
+  every other leaf-ish level (Portfolio/Program's `targetEndDate`,
+  Project's `dueDate`) already had a paired start date.
+
+Portfolio/Program don't have a distinct "Overview" tab the way Project does
+(the tab set there is `["list", "board", "calendar", "gantt"]`, with `list`
+pointing at the detail page itself, `hrefs={{ list: basePath }}`) — their
+detail page already shows the full children list inline with no separate
+paginated List route, so Overview and List would otherwise be the same
+page under two tab labels. Project keeps `overview` in its tab set because
+its detail page shows a preview (5 tasks) distinct from the full,
+filterable List page — see `hrefs={{ list: `${basePath}/tasks` }}` on its
+`ViewTabs` usage, which is the one place the List tab's default
+`${basePath}/list` href is overridden (the route is named `tasks/`, not
+`list/`, since it predates this pattern).

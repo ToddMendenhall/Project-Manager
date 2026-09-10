@@ -6,6 +6,7 @@ import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { ViewTabs } from "@/components/views/view-tabs";
 import { deleteProgram } from "../actions";
 
 export default async function ProgramDetailPage({
@@ -89,6 +90,13 @@ export default async function ProgramDetailPage({
           </div>
         )}
       </div>
+
+      <ViewTabs
+        basePath={`/dashboard/programs/${program.id}`}
+        active="list"
+        views={["list", "board", "calendar", "gantt"]}
+        hrefs={{ list: `/dashboard/programs/${program.id}` }}
+      />
 
       <div>
         <div className="mb-3 flex items-center justify-between">

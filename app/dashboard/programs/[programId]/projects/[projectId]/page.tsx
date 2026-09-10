@@ -6,6 +6,7 @@ import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { ViewTabs } from "@/components/views/view-tabs";
 import { deleteProject } from "../actions";
 
 export default async function ProjectDetailPage({
@@ -90,25 +91,21 @@ export default async function ProjectDetailPage({
         )}
       </div>
 
+      <ViewTabs
+        basePath={`/dashboard/programs/${programId}/projects/${project.id}`}
+        active="overview"
+        hrefs={{ list: `/dashboard/programs/${programId}/projects/${project.id}/tasks` }}
+      />
+
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Tasks ({taskCount})</h2>
-          <div className="flex items-center gap-4">
-            {taskCount > 0 && (
-              <Link
-                href={`/dashboard/programs/${programId}/projects/${project.id}/tasks`}
-                className="text-sm underline"
-              >
-                View all &rarr;
-              </Link>
-            )}
-            <Link
-              href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/new`}
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white"
-            >
-              New Task
-            </Link>
-          </div>
+          <Link
+            href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/new`}
+            className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white"
+          >
+            New Task
+          </Link>
         </div>
         {project.tasks.length === 0 ? (
           <p className="text-sm text-gray-500">No tasks yet.</p>

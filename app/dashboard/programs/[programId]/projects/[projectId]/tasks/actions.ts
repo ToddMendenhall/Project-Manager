@@ -21,6 +21,7 @@ const taskSchema = z.object({
   status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
   priority: z.enum(["low", "medium", "high", "urgent"]),
   assigneeId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
+  startDate: z.preprocess(emptyToUndefined, z.string().optional()),
   dueDate: z.preprocess(emptyToUndefined, z.string().optional()),
 });
 
@@ -31,6 +32,7 @@ function parseTaskForm(formData: FormData) {
     status: formData.get("status"),
     priority: formData.get("priority"),
     assigneeId: formData.get("assigneeId"),
+    startDate: formData.get("startDate"),
     dueDate: formData.get("dueDate"),
   });
 }
@@ -59,6 +61,7 @@ export async function createTask(programId: string, projectId: string, formData:
       status: data.status,
       priority: data.priority,
       assigneeId: data.assigneeId ?? null,
+      startDate: data.startDate ? new Date(data.startDate) : null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       completedAt: data.status === "completed" ? new Date() : null,
       customFields,
@@ -97,6 +100,7 @@ export async function updateTask(
       status: data.status,
       priority: data.priority,
       assigneeId: data.assigneeId ?? null,
+      startDate: data.startDate ? new Date(data.startDate) : null,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       customFields,

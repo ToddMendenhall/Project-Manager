@@ -6,6 +6,7 @@ import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { ViewTabs } from "@/components/views/view-tabs";
 import { deletePortfolio } from "../actions";
 
 export default async function PortfolioDetailPage({
@@ -79,6 +80,13 @@ export default async function PortfolioDetailPage({
           </div>
         )}
       </div>
+
+      <ViewTabs
+        basePath={`/dashboard/portfolios/${portfolio.id}`}
+        active="list"
+        views={["list", "board", "calendar", "gantt"]}
+        hrefs={{ list: `/dashboard/portfolios/${portfolio.id}` }}
+      />
 
       <div>
         <div className="mb-3 flex items-center justify-between">

@@ -117,3 +117,28 @@ export async function deleteProgram(programId: string) {
   if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
   redirect("/dashboard/programs");
 }
+
+const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
+
+/** Lightweight status-only update, used by the Board view's drag-and-drop. */
+export async function updateProgramStatus(programId: string, status: string) {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const existing = await getProgramForOrg(programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Program not found");
+  }
+
+  const parsedStatus = statusEnum.parse(status);
+
+  await db
+    .update(programs)
+    .set({ status: parsedStatus, updatedAt: new Date() })
+    .where(eq(programs.id, programId));
+
+  revalidatePath("/dashboard/programs");
+  revalidatePath(`/dashboard/programs/${programId}`);
+  revalidatePath(`/dashboard/programs/${programId}/board`);
+  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
+}

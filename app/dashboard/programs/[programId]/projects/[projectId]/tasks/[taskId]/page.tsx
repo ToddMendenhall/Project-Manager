@@ -76,6 +76,12 @@ export default async function TaskDetailPage({
                 <dd>{task.assignee.name}</dd>
               </div>
             )}
+            {task.startDate && (
+              <div>
+                <dt className="font-medium text-gray-400">Start</dt>
+                <dd>{new Date(task.startDate).toLocaleDateString()}</dd>
+              </div>
+            )}
             {task.dueDate && (
               <div>
                 <dt className="font-medium text-gray-400">Due</dt>

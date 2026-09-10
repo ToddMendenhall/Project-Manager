@@ -176,6 +176,7 @@ export const tasks = pgTable(
     status: statusEnum("status").notNull().default("not_started"),
     priority: priorityEnum("priority").notNull().default("medium"),
     assigneeId: uuid("assignee_id").references(() => users.id, { onDelete: "set null" }),
+    startDate: timestamp("start_date", { withTimezone: true, mode: "date" }),
     dueDate: timestamp("due_date", { withTimezone: true, mode: "date" }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     // Per-program custom attributes (e.g. whatever fields a given program

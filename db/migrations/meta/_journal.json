@@ -29,6 +29,13 @@
       "when": 1788995758908,
       "tag": "0003_boring_thunderbolt_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789052148473,
+      "tag": "0004_yielding_raza",
+      "breakpoints": true
     }
   ]
 }

@@ -5,19 +5,14 @@ import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { CalendarView } from "@/components/views/calendar-view";
-import { CalendarNav } from "@/components/views/calendar-nav";
-import { parseMonthParam } from "@/lib/calendar";
+import { GanttView } from "@/components/views/gantt-view";
 
-export default async function TaskCalendarPage({
+export default async function TaskGanttPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ programId: string; projectId: string }>;
-  searchParams: Promise<{ month?: string }>;
 }) {
   const { programId, projectId } = await params;
-  const sp = await searchParams;
   await requireOrgContext();
 
   const project = await db.query.projects.findFirst({
@@ -25,20 +20,12 @@ export default async function TaskCalendarPage({
   });
   if (!project) notFound();
 
-  const { year, monthIndex0 } = parseMonthParam(sp.month);
-
   const allTasks = await db.query.tasks.findMany({
     where: eq(tasks.projectId, projectId),
-    orderBy: (task, { asc }) => [asc(task.dueDate)],
+    orderBy: (task, { asc }) => [asc(task.createdAt)],
   });
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
-  const items = allTasks
-    .filter((t) => t.dueDate)
-    .map((t) => ({ id: t.id, title: t.title, date: t.dueDate!, href: `${basePath}/tasks/${t.id}` }));
-  const undated = allTasks
-    .filter((t) => !t.dueDate)
-    .map((t) => ({ id: t.id, title: t.title, date: new Date(), href: `${basePath}/tasks/${t.id}` }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -55,11 +42,22 @@ export default async function TaskCalendarPage({
         </Link>
       </div>
 
-      <ViewTabs basePath={basePath} active="calendar" hrefs={{ list: `${basePath}/tasks` }} />
+      <ViewTabs basePath={basePath} active="gantt" hrefs={{ list: `${basePath}/tasks` }} />
 
-      <CalendarNav basePath={basePath} year={year} monthIndex0={monthIndex0} />
-
-      <CalendarView year={year} monthIndex0={monthIndex0} items={items} undated={undated} />
+      {allTasks.length === 0 ? (
+        <p className="text-sm text-gray-500">No tasks yet.</p>
+      ) : (
+        <GanttView
+          items={allTasks.map((t) => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            href: `${basePath}/tasks/${t.id}`,
+            startDate: t.startDate,
+            endDate: t.dueDate,
+          }))}
+        />
+      )}
     </div>
   );
 }

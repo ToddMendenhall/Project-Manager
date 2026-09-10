@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
+import { ViewTabs } from "@/components/views/view-tabs";
 
 export default async function PortfoliosPage() {
   const ctx = await requireOrgContext();
@@ -27,6 +28,13 @@ export default async function PortfoliosPage() {
           </Link>
         )}
       </div>
+
+      <ViewTabs
+        basePath="/dashboard/portfolios"
+        active="list"
+        views={["list", "board", "calendar", "gantt"]}
+        hrefs={{ list: "/dashboard/portfolios" }}
+      />
 
       {orgPortfolios.length === 0 ? (
         <p className="text-sm text-gray-500">No portfolios yet.</p>

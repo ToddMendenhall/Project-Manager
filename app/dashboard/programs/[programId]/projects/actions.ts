@@ -106,3 +106,26 @@ export async function deleteProject(programId: string, projectId: string) {
   revalidatePath(`/dashboard/programs/${programId}`);
   redirect(`/dashboard/programs/${programId}`);
 }
+
+const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
+
+/** Lightweight status-only update, used by the Board view's drag-and-drop. */
+export async function updateProjectStatus(programId: string, projectId: string, status: string) {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Project not found");
+  }
+
+  const parsedStatus = statusEnum.parse(status);
+
+  await db
+    .update(projects)
+    .set({ status: parsedStatus, updatedAt: new Date() })
+    .where(eq(projects.id, projectId));
+
+  revalidatePath(`/dashboard/programs/${programId}`);
+  revalidatePath(`/dashboard/programs/${programId}/board`);
+}
