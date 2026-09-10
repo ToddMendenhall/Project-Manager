@@ -15,6 +15,23 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: "bg-red-100 text-red-700",
 };
 
+// Solid fills (vs. the soft badge tints above) for bar charts, where the
+// color needs to read against the chart's gray track background.
+export const STATUS_BAR_COLORS: Record<string, string> = {
+  not_started: "bg-gray-400",
+  in_progress: "bg-blue-500",
+  blocked: "bg-red-500",
+  completed: "bg-green-500",
+  cancelled: "bg-gray-300",
+};
+
+export const PRIORITY_BAR_COLORS: Record<string, string> = {
+  low: "bg-gray-400",
+  medium: "bg-amber-500",
+  high: "bg-orange-500",
+  urgent: "bg-red-500",
+};
+
 export function StatusBadge({ status }: { status: string }) {
   return (
     <span

@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { portfolios, programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
+import { StatCard } from "@/components/stat-card";
 
 export default async function DashboardPage() {
   const ctx = await requireOrgContext();
@@ -78,15 +79,6 @@ export default async function DashboardPage() {
           </ul>
         )}
       </div>
-    </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded border border-gray-200 bg-white p-4">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-sm text-gray-500">{label}</p>
     </div>
   );
 }
