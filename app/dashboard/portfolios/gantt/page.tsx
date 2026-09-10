@@ -6,6 +6,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { GanttView } from "@/components/views/gantt-view";
+import { updatePortfolioDates } from "../actions";
 
 export default async function PortfoliosGanttPage() {
   const ctx = await requireOrgContext();
@@ -49,6 +50,8 @@ export default async function PortfoliosGanttPage() {
             startDate: p.startDate,
             endDate: p.targetEndDate,
           }))}
+          onDateChange={updatePortfolioDates}
+          readOnly={ctx.role !== "admin"}
         />
       )}
     </div>

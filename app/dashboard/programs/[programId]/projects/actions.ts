@@ -136,3 +136,31 @@ export async function updateProjectOrder(
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/board`);
 }
+
+/** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
+export async function updateProjectDates(
+  programId: string,
+  projectId: string,
+  startDate: string,
+  dueDate: string,
+) {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Project not found");
+  }
+
+  await db
+    .update(projects)
+    .set({
+      startDate: startDate ? new Date(startDate) : null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(projects.id, projectId));
+
+  revalidatePath(`/dashboard/programs/${programId}`);
+  revalidatePath(`/dashboard/programs/${programId}/gantt`);
+}

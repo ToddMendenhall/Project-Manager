@@ -127,3 +127,27 @@ export async function updatePortfolioOrder(portfolioId: string, status: string, 
   revalidatePath(`/dashboard/portfolios/${portfolioId}/board`);
   revalidatePath("/dashboard/portfolios/board");
 }
+
+/** Lightweight start+target-end date update, used by the Gantt view's drag-to-resize handles. */
+export async function updatePortfolioDates(portfolioId: string, startDate: string, targetEndDate: string) {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Portfolio not found");
+  }
+
+  await db
+    .update(portfolios)
+    .set({
+      startDate: startDate ? new Date(startDate) : null,
+      targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(portfolios.id, portfolioId));
+
+  revalidatePath(`/dashboard/portfolios/${portfolioId}`);
+  revalidatePath(`/dashboard/portfolios/${portfolioId}/gantt`);
+  revalidatePath("/dashboard/portfolios/gantt");
+}

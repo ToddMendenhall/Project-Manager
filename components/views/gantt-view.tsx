@@ -1,6 +1,9 @@
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
-import { statusLabel } from "@/lib/fields";
+import { statusLabel, dateInputValue } from "@/lib/fields";
 
 export type GanttItem = {
   id: string;
@@ -22,18 +25,142 @@ function diffDays(a: Date, b: Date) {
   return Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / DAY_MS);
 }
 
-export function GanttView({ items }: { items: GanttItem[] }) {
-  const dated = items.filter((i) => i.startDate || i.endDate);
-  const undated = items.filter((i) => !i.startDate && !i.endDate);
+function addDays(d: Date, days: number) {
+  const next = new Date(d);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+type ItemDates = { start: Date | null; end: Date | null };
+
+function datesFromItems(items: GanttItem[]): Record<string, ItemDates> {
+  const map: Record<string, ItemDates> = {};
+  for (const item of items) {
+    map[item.id] = {
+      start: item.startDate ? startOfDay(new Date(item.startDate)) : null,
+      end: item.endDate ? startOfDay(new Date(item.endDate)) : null,
+    };
+  }
+  return map;
+}
+
+type DragEdge = "start" | "end" | "dot";
+type DragAnchor = { itemId: string; edge: DragEdge; pointerStartX: number; originStart: Date | null; originEnd: Date | null };
+
+export function GanttView({
+  items,
+  onDateChange,
+  readOnly = false,
+}: {
+  items: GanttItem[];
+  onDateChange?: (id: string, startDate: string, endDate: string) => Promise<void>;
+  readOnly?: boolean;
+}) {
+  const [dates, setDates] = useState<Record<string, ItemDates>>(() => datesFromItems(items));
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragRef = useRef<DragAnchor | null>(null);
+  const [, startTransition] = useTransition();
+
+  const draggable = !readOnly && !!onDateChange;
+
+  // Re-sync when the server sends fresh items (e.g. after a filter change or revalidation).
+  useEffect(() => {
+    setDates(datesFromItems(items));
+  }, [items]);
+
+  useEffect(() => {
+    if (!draggable) return;
+
+    function handleMove(e: PointerEvent) {
+      const drag = dragRef.current;
+      if (!drag) return;
+      const deltaDays = Math.round((e.clientX - drag.pointerStartX) / DAY_WIDTH);
+
+      setDates((prev) => {
+        const entry = prev[drag.itemId];
+        if (!entry) return prev;
+        let next = entry;
+
+        if (drag.edge === "start") {
+          let newStart = addDays(drag.originStart!, deltaDays);
+          if (entry.end && newStart > entry.end) newStart = entry.end;
+          next = { ...entry, start: newStart };
+        } else if (drag.edge === "end") {
+          let newEnd = addDays(drag.originEnd!, deltaDays);
+          if (entry.start && newEnd < entry.start) newEnd = entry.start;
+          next = { ...entry, end: newEnd };
+        } else if (drag.originStart && !drag.originEnd) {
+          // Dot with only a start date — drag creates/moves the missing due date.
+          let newEnd = addDays(drag.originStart, deltaDays);
+          if (newEnd < drag.originStart) newEnd = drag.originStart;
+          next = { ...entry, end: newEnd };
+        } else if (drag.originEnd && !drag.originStart) {
+          // Dot with only a due date — drag creates/moves the missing start date.
+          let newStart = addDays(drag.originEnd, deltaDays);
+          if (newStart > drag.originEnd) newStart = drag.originEnd;
+          next = { ...entry, start: newStart };
+        }
+
+        return next === entry ? prev : { ...prev, [drag.itemId]: next };
+      });
+    }
+
+    function handleUp() {
+      const drag = dragRef.current;
+      dragRef.current = null;
+      setDraggingId(null);
+      if (!drag || !onDateChange) return;
+
+      setDates((prev) => {
+        const entry = prev[drag.itemId];
+        if (!entry) return prev;
+        const startChanged = (entry.start?.getTime() ?? null) !== (drag.originStart?.getTime() ?? null);
+        const endChanged = (entry.end?.getTime() ?? null) !== (drag.originEnd?.getTime() ?? null);
+        if (startChanged || endChanged) {
+          startTransition(async () => {
+            try {
+              await onDateChange(drag.itemId, dateInputValue(entry.start), dateInputValue(entry.end));
+            } catch {
+              setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
+            }
+          });
+        }
+        return prev;
+      });
+    }
+
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      window.removeEventListener("pointerup", handleUp);
+    };
+  }, [draggable, onDateChange, startTransition]);
+
+  function beginDrag(itemId: string, edge: DragEdge, e: React.PointerEvent) {
+    if (!draggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const entry = dates[itemId];
+    dragRef.current = {
+      itemId,
+      edge,
+      pointerStartX: e.clientX,
+      originStart: entry?.start ?? null,
+      originEnd: entry?.end ?? null,
+    };
+    setDraggingId(itemId);
+  }
+
+  const dated = items.filter((i) => dates[i.id]?.start || dates[i.id]?.end);
+  const undated = items.filter((i) => !dates[i.id]?.start && !dates[i.id]?.end);
 
   if (dated.length === 0) {
     return <p className="text-sm text-gray-500">No items have start or due dates yet.</p>;
   }
 
   const today = startOfDay(new Date());
-  const allDates = dated.flatMap((i) =>
-    [i.startDate, i.endDate].filter((d): d is Date | string => !!d).map((d) => startOfDay(new Date(d))),
-  );
+  const allDates = dated.flatMap((i) => [dates[i.id].start, dates[i.id].end].filter((d): d is Date => !!d));
   const earliest = new Date(Math.min(...allDates.map((d) => d.getTime()), today.getTime()));
   const latest = new Date(Math.max(...allDates.map((d) => d.getTime()), today.getTime()));
 
@@ -123,23 +250,41 @@ export function GanttView({ items }: { items: GanttItem[] }) {
                 />
               )}
               {dated.map((item) => {
-                const start = item.startDate ? startOfDay(new Date(item.startDate)) : null;
-                const end = item.endDate ? startOfDay(new Date(item.endDate)) : null;
+                const { start, end } = dates[item.id];
                 const barColor = STATUS_BAR_COLORS[item.status] ?? "bg-gray-400";
+                const isDragging = draggingId === item.id;
 
                 if (start && end) {
                   const offset = Math.max(0, diffDays(start, rangeStart));
                   const span = Math.max(1, diffDays(end, start) + 1);
+                  const left = offset * DAY_WIDTH + 2;
+                  const width = Math.max(span * DAY_WIDTH - 4, 8);
                   return (
                     <div key={item.id} className="relative h-10 border-b border-gray-100 last:border-0">
                       <Link
                         href={item.href}
                         title={`${item.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(item.status)})`}
-                        className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor}`}
-                        style={{ left: offset * DAY_WIDTH + 2, width: Math.max(span * DAY_WIDTH - 4, 8) }}
+                        className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor} ${isDragging ? "opacity-80" : ""}`}
+                        style={{ left, width }}
                       >
                         <span className="truncate">{statusLabel(item.status)}</span>
                       </Link>
+                      {draggable && (
+                        <>
+                          <div
+                            onPointerDown={(e) => beginDrag(item.id, "start", e)}
+                            title="Drag to change the start date"
+                            className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-l-full hover:bg-black/20"
+                            style={{ left: left - 1 }}
+                          />
+                          <div
+                            onPointerDown={(e) => beginDrag(item.id, "end", e)}
+                            title="Drag to change the due date"
+                            className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-r-full hover:bg-black/20"
+                            style={{ left: left + width - 7 }}
+                          />
+                        </>
+                      )}
                     </div>
                   );
                 }
@@ -149,8 +294,13 @@ export function GanttView({ items }: { items: GanttItem[] }) {
                 return (
                   <div key={item.id} className="relative h-10 border-b border-gray-100 last:border-0">
                     <div
-                      title={`${item.title}: ${point.toLocaleDateString()} (${statusLabel(item.status)})`}
-                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor}`}
+                      onPointerDown={draggable ? (e) => beginDrag(item.id, "dot", e) : undefined}
+                      title={`${item.title}: ${point.toLocaleDateString()} (${statusLabel(item.status)})${
+                        draggable ? " — drag to set the missing date" : ""
+                      }`}
+                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor} ${
+                        draggable ? "cursor-ew-resize" : ""
+                      } ${isDragging ? "opacity-80" : ""}`}
                       style={{ left: offset * DAY_WIDTH + DAY_WIDTH / 2 - 5 }}
                     />
                   </div>

@@ -144,3 +144,27 @@ export async function updateProgramOrder(programId: string, status: string, sort
   revalidatePath(`/dashboard/programs/${programId}/board`);
   if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
 }
+
+/** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
+export async function updateProgramDates(programId: string, startDate: string, targetEndDate: string) {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const existing = await getProgramForOrg(programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Program not found");
+  }
+
+  await db
+    .update(programs)
+    .set({
+      startDate: startDate ? new Date(startDate) : null,
+      targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(programs.id, programId));
+
+  revalidatePath(`/dashboard/programs/${programId}`);
+  revalidatePath(`/dashboard/programs/${programId}/gantt`);
+  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
+}

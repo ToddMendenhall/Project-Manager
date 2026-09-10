@@ -252,6 +252,34 @@ export async function updateTaskDueDate(
   revalidatePath(`${basePath(programId, projectId)}/calendar`);
 }
 
+/** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
+export async function updateTaskDates(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  startDate: string,
+  dueDate: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  await db
+    .update(tasks)
+    .set({
+      startDate: startDate ? new Date(startDate) : null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(`${basePath(programId, projectId)}/gantt`);
+  revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
+}
+
 export async function deleteTask(programId: string, projectId: string, taskId: string) {
   const ctx = await requireOrgContext();
 

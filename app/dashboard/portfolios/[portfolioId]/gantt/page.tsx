@@ -7,6 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { GanttView } from "@/components/views/gantt-view";
+import { updateProgramDates } from "../../../programs/actions";
 
 export default async function PortfolioGanttPage({ params }: { params: Promise<{ portfolioId: string }> }) {
   const { portfolioId } = await params;
@@ -59,6 +60,8 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
             startDate: p.startDate,
             endDate: p.targetEndDate,
           }))}
+          onDateChange={updateProgramDates}
+          readOnly={ctx.role !== "admin"}
         />
       )}
     </div>

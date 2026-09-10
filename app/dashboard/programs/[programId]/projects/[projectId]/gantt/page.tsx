@@ -6,6 +6,7 @@ import { projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { GanttView } from "@/components/views/gantt-view";
+import { updateTaskDates } from "../tasks/actions";
 
 export default async function TaskGanttPage({
   params,
@@ -56,6 +57,7 @@ export default async function TaskGanttPage({
             startDate: t.startDate,
             endDate: t.dueDate,
           }))}
+          onDateChange={updateTaskDates.bind(null, programId, projectId)}
         />
       )}
     </div>
