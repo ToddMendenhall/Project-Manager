@@ -40,6 +40,9 @@ const taskPath = (programId: string, projectId: string, taskId: string) =>
 const itemPath = (programId: string, projectId: string, taskId: string, itemId: string) =>
   `${taskPath(programId, projectId, taskId)}/checklist/${itemId}`;
 
+const listPath = (programId: string, projectId: string) =>
+  `/dashboard/programs/${programId}/projects/${projectId}/tasks`;
+
 /** Quick-add: only a title is required — the rest is filled in from the item's own detail page. */
 export async function createChecklistItem(
   programId: string,
@@ -125,6 +128,109 @@ export async function toggleChecklistItem(
 
   revalidatePath(taskPath(programId, projectId, taskId));
   revalidatePath(itemPath(programId, projectId, taskId, itemId));
+}
+
+const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
+const priorityEnum = z.enum(["low", "medium", "high", "urgent"]);
+
+/** Lightweight status-only update, used by the List view's inline editor (vs. toggleChecklistItem's checkbox). */
+export async function updateChecklistItemStatus(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  itemId: string,
+  status: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Checklist item not found");
+  }
+
+  const parsedStatus = statusEnum.parse(status);
+  const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
+  const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
+
+  await db
+    .update(checklistItems)
+    .set({
+      status: parsedStatus,
+      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+      updatedAt: new Date(),
+    })
+    .where(eq(checklistItems.id, itemId));
+
+  revalidatePath(listPath(programId, projectId));
+}
+
+/** Lightweight priority-only update, used by the List view's inline editor. */
+export async function updateChecklistItemPriority(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  itemId: string,
+  priority: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Checklist item not found");
+  }
+
+  await db
+    .update(checklistItems)
+    .set({ priority: priorityEnum.parse(priority), updatedAt: new Date() })
+    .where(eq(checklistItems.id, itemId));
+
+  revalidatePath(listPath(programId, projectId));
+}
+
+/** Lightweight assignee-only update, used by the List view's inline editor. */
+export async function updateChecklistItemAssignee(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  itemId: string,
+  assigneeId: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Checklist item not found");
+  }
+
+  await db
+    .update(checklistItems)
+    .set({ assigneeId: assigneeId ? z.string().uuid().parse(assigneeId) : null, updatedAt: new Date() })
+    .where(eq(checklistItems.id, itemId));
+
+  revalidatePath(listPath(programId, projectId));
+}
+
+/** Lightweight due-date-only update, used by the List view's inline editor. */
+export async function updateChecklistItemDueDate(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  itemId: string,
+  dueDate: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Checklist item not found");
+  }
+
+  await db
+    .update(checklistItems)
+    .set({ dueDate: dueDate ? new Date(dueDate) : null, updatedAt: new Date() })
+    .where(eq(checklistItems.id, itemId));
+
+  revalidatePath(listPath(programId, projectId));
 }
 
 export async function deleteChecklistItem(

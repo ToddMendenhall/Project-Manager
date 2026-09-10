@@ -34,13 +34,18 @@ export default async function ChecklistItemDetailPage({
   const item = await db.query.checklistItems.findFirst({
     where: and(eq(checklistItems.id, itemId), eq(checklistItems.taskId, taskId)),
     with: {
-      assignee: true,
+      // Restricted to id/name — CommentSection is a Client Component, and
+      // Server->Client props are serialized to the browser as-is, so an
+      // unrestricted `author` here would ship the bcrypt hash to any org
+      // member who opens this page. (`assignee` is unused below; only
+      // item.assigneeId, a plain scalar column, is — dropped rather than
+      // restricted since ChecklistItemForm never reads the relation.)
       comments: {
-        with: { author: true },
+        with: { author: { columns: { id: true, name: true } } },
         orderBy: (comment, { asc }) => [asc(comment.createdAt)],
       },
       attachments: {
-        with: { uploadedBy: true },
+        with: { uploadedBy: { columns: { id: true, name: true } } },
         orderBy: (attachment, { desc }) => [desc(attachment.createdAt)],
       },
     },

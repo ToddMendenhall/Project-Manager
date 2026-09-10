@@ -30,17 +30,22 @@ export default async function TaskDetailPage({
   const task = await db.query.tasks.findFirst({
     where: and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)),
     with: {
-      assignee: true,
+      // Restricted to id/name everywhere below (never the full user row,
+      // e.g. passwordHash) — ChecklistWidget and CommentSection are Client
+      // Components, and Server->Client props are serialized to the browser
+      // as-is, so an unrestricted `assignee`/`author` here would ship the
+      // bcrypt hash to any org member who opens this page.
+      assignee: { columns: { id: true, name: true } },
       checklistItems: {
-        with: { assignee: true },
+        with: { assignee: { columns: { id: true, name: true } } },
         orderBy: (item, { asc }) => [asc(item.createdAt)],
       },
       comments: {
-        with: { author: true },
+        with: { author: { columns: { id: true, name: true } } },
         orderBy: (comment, { asc }) => [asc(comment.createdAt)],
       },
       attachments: {
-        with: { uploadedBy: true },
+        with: { uploadedBy: { columns: { id: true, name: true } } },
         orderBy: (attachment, { desc }) => [desc(attachment.createdAt)],
       },
     },

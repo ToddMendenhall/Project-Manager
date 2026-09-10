@@ -1,6 +1,6 @@
 import { priorityLabel, statusLabel } from "@/lib/fields";
 
-const STATUS_COLORS: Record<string, string> = {
+export const STATUS_COLORS: Record<string, string> = {
   not_started: "bg-gray-100 text-gray-700",
   in_progress: "bg-blue-100 text-blue-700",
   blocked: "bg-red-100 text-red-700",
@@ -8,7 +8,7 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-100 text-gray-400 line-through",
 };
 
-const PRIORITY_COLORS: Record<string, string> = {
+export const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-gray-100 text-gray-600",
   medium: "bg-amber-100 text-amber-700",
   high: "bg-orange-100 text-orange-700",

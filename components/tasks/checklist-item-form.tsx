@@ -1,14 +1,8 @@
 import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/fields";
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, dateInputValue } from "@/lib/fields";
 import type { ChecklistItem } from "@/db/schema";
 
 type OrgMember = { id: string; name: string; email: string };
-
-function dateValue(d: Date | string | null | undefined) {
-  if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
-}
 
 export function ChecklistItemForm({
   action,
@@ -60,7 +54,7 @@ export function ChecklistItemForm({
         </select>
       </Field>
       <Field label="Due date">
-        <input type="date" name="dueDate" defaultValue={dateValue(item?.dueDate)} className={inputClass} />
+        <input type="date" name="dueDate" defaultValue={dateInputValue(item?.dueDate)} className={inputClass} />
       </Field>
 
       <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">

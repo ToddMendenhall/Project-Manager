@@ -1,35 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers } from "@/lib/queries";
-import { PriorityBadge, StatusBadge } from "@/components/status-badge";
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "@/lib/fields";
+import { STATUS_OPTIONS } from "@/lib/fields";
 import { selectClass } from "@/components/form-controls";
 import { ViewTabs } from "@/components/views/view-tabs";
-
-const SORTABLE_COLUMNS = {
-  title: tasks.title,
-  status: tasks.status,
-  priority: tasks.priority,
-  dueDate: tasks.dueDate,
-  createdAt: tasks.createdAt,
-} as const;
-
-type SortKey = keyof typeof SORTABLE_COLUMNS;
-
-function isSortKey(value: string | undefined): value is SortKey {
-  return !!value && value in SORTABLE_COLUMNS;
-}
+import { TaskListView } from "@/components/tasks/task-list-view";
 
 export default async function TaskListPage({
   params,
   searchParams,
 }: {
   params: Promise<{ programId: string; projectId: string }>;
-  searchParams: Promise<{ status?: string; assigneeId?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ status?: string; assigneeId?: string }>;
 }) {
   const { programId, projectId } = await params;
   const sp = await searchParams;
@@ -39,10 +25,6 @@ export default async function TaskListPage({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
   });
   if (!project) notFound();
-
-  const sortKey: SortKey = isSortKey(sp.sort) ? sp.sort : "createdAt";
-  const sortDir: "asc" | "desc" = sp.dir === "asc" ? "asc" : "desc";
-  const sortFn = sortDir === "asc" ? asc : desc;
 
   const filters = [eq(tasks.projectId, projectId)];
   if (sp.status) filters.push(eq(tasks.status, sp.status as (typeof tasks.status.enumValues)[number]));
@@ -55,31 +37,21 @@ export default async function TaskListPage({
   const [taskRows, members] = await Promise.all([
     db.query.tasks.findMany({
       where: and(...filters),
-      with: { assignee: true },
-      orderBy: [sortFn(SORTABLE_COLUMNS[sortKey])],
+      with: {
+        // Restricted to id/name — TaskListView is a Client Component, and
+        // Server->Client props are serialized to the browser as-is, so an
+        // unrestricted `assignee` here would ship the bcrypt hash to any
+        // org member who opens this page.
+        assignee: { columns: { id: true, name: true } },
+        checklistItems: {
+          with: { assignee: { columns: { id: true, name: true } } },
+          orderBy: (item, { asc }) => [asc(item.createdAt)],
+        },
+      },
+      orderBy: (task, { desc }) => [desc(task.createdAt)],
     }),
     getOrgMembers(ctx.org.id),
   ]);
-
-  function sortHref(column: SortKey) {
-    const nextDir = sortKey === column && sortDir === "asc" ? "desc" : "asc";
-    const qs = new URLSearchParams();
-    if (sp.status) qs.set("status", sp.status);
-    if (sp.assigneeId) qs.set("assigneeId", sp.assigneeId);
-    qs.set("sort", column);
-    qs.set("dir", nextDir);
-    return `?${qs.toString()}`;
-  }
-
-  function columnHeader(column: SortKey, label: string) {
-    const active = sortKey === column;
-    return (
-      <Link href={sortHref(column)} className="flex items-center gap-1 hover:text-gray-900">
-        {label}
-        {active && <span className="text-gray-400">{sortDir === "asc" ? "↑" : "↓"}</span>}
-      </Link>
-    );
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -129,8 +101,6 @@ export default async function TaskListPage({
             ))}
           </select>
         </label>
-        {sortKey !== "createdAt" && <input type="hidden" name="sort" value={sortKey} />}
-        {sp.dir && <input type="hidden" name="dir" value={sortDir} />}
         <button type="submit" className="rounded border border-gray-300 px-3 py-1.5 text-sm">
           Filter
         </button>
@@ -144,47 +114,7 @@ export default async function TaskListPage({
         )}
       </form>
 
-      {taskRows.length === 0 ? (
-        <p className="text-sm text-gray-500">No tasks match these filters.</p>
-      ) : (
-        <div className="overflow-x-auto rounded border border-gray-200 bg-white">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead className="border-b border-gray-200 text-xs uppercase text-gray-500">
-              <tr>
-                <th className="px-4 py-3 font-medium">{columnHeader("title", "Title")}</th>
-                <th className="px-4 py-3 font-medium">{columnHeader("status", "Status")}</th>
-                <th className="px-4 py-3 font-medium">{columnHeader("priority", "Priority")}</th>
-                <th className="px-4 py-3 font-medium">Assignee</th>
-                <th className="px-4 py-3 font-medium">{columnHeader("dueDate", "Due Date")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {taskRows.map((task) => (
-                <tr key={task.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}`}
-                      className="font-medium text-gray-900 hover:underline"
-                    >
-                      {task.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={task.status} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <PriorityBadge priority={task.priority} />
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{task.assignee?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <TaskListView programId={programId} projectId={projectId} tasks={taskRows} orgMembers={members} />
     </div>
   );
 }

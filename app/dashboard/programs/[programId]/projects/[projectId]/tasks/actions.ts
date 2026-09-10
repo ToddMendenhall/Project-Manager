@@ -146,6 +146,77 @@ export async function updateTaskStatus(
   revalidatePath(`${basePath(programId, projectId)}/board`);
 }
 
+const priorityEnum = z.enum(["low", "medium", "high", "urgent"]);
+
+/** Lightweight priority-only update, used by the List view's inline editor. */
+export async function updateTaskPriority(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  priority: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  await db
+    .update(tasks)
+    .set({ priority: priorityEnum.parse(priority), updatedAt: new Date() })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(`${basePath(programId, projectId)}/tasks`);
+  revalidatePath(`${basePath(programId, projectId)}/board`);
+}
+
+/** Lightweight assignee-only update, used by the List view's inline editor. */
+export async function updateTaskAssignee(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  assigneeId: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  await db
+    .update(tasks)
+    .set({ assigneeId: assigneeId ? z.string().uuid().parse(assigneeId) : null, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(`${basePath(programId, projectId)}/tasks`);
+  revalidatePath(`${basePath(programId, projectId)}/board`);
+}
+
+/** Lightweight due-date-only update, used by the List view's inline editor. */
+export async function updateTaskDueDate(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  dueDate: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  await db
+    .update(tasks)
+    .set({ dueDate: dueDate ? new Date(dueDate) : null, updatedAt: new Date() })
+    .where(eq(tasks.id, taskId));
+
+  revalidatePath(`${basePath(programId, projectId)}/tasks`);
+  revalidatePath(`${basePath(programId, projectId)}/calendar`);
+}
+
 export async function deleteTask(programId: string, projectId: string, taskId: string) {
   const ctx = await requireOrgContext();
 

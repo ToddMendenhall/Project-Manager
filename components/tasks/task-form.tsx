@@ -1,15 +1,9 @@
 import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/fields";
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, dateInputValue } from "@/lib/fields";
 import { customFieldName, customFieldOptions } from "@/lib/custom-fields";
 import type { CustomFieldDef, Task } from "@/db/schema";
 
 type OrgMember = { id: string; name: string; email: string };
-
-function dateValue(d: Date | string | null | undefined) {
-  if (!d) return "";
-  const date = typeof d === "string" ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
-}
 
 function CustomFieldInput({ def, value }: { def: CustomFieldDef; value: unknown }) {
   const name = customFieldName(def.key);
@@ -121,10 +115,10 @@ export function TaskForm({
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Start date">
-          <input type="date" name="startDate" defaultValue={dateValue(task?.startDate)} className={inputClass} />
+          <input type="date" name="startDate" defaultValue={dateInputValue(task?.startDate)} className={inputClass} />
         </Field>
         <Field label="Due date">
-          <input type="date" name="dueDate" defaultValue={dateValue(task?.dueDate)} className={inputClass} />
+          <input type="date" name="dueDate" defaultValue={dateInputValue(task?.dueDate)} className={inputClass} />
         </Field>
       </div>
 
