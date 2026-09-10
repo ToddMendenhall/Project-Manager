@@ -28,6 +28,22 @@ export async function getOrgMembers(orgId: string) {
     .orderBy(users.name);
 }
 
+/** Org members with account details (role, joined date) — used by the admin Members page. */
+export async function getOrgMembersDetailed(orgId: string) {
+  return db
+    .select({
+      userId: users.id,
+      name: users.name,
+      email: users.email,
+      role: orgMembers.role,
+      createdAt: orgMembers.createdAt,
+    })
+    .from(orgMembers)
+    .innerJoin(users, eq(orgMembers.userId, users.id))
+    .where(eq(orgMembers.orgId, orgId))
+    .orderBy(users.name);
+}
+
 /** Org's portfolios, for a program's portfolio picker. */
 export async function getOrgPortfolios(orgId: string) {
   return db.select().from(portfolios).where(eq(portfolios.orgId, orgId)).orderBy(portfolios.name);

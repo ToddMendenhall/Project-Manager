@@ -6,10 +6,11 @@ import { getOrgTasksFlat } from "@/lib/queries";
 import { PortfolioTree, type ProgramNode, type ProjectNode } from "./portfolio-tree";
 
 const PERSONAL_LINKS = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/dashboard/my-tasks", label: "My Tasks" },
-  { href: "/dashboard/my-comments", label: "Assigned Comments" },
-  { href: "/dashboard/reports", label: "Reports" },
+  { href: "/dashboard", label: "Home", adminOnly: false },
+  { href: "/dashboard/my-tasks", label: "My Tasks", adminOnly: false },
+  { href: "/dashboard/my-comments", label: "Assigned Comments", adminOnly: false },
+  { href: "/dashboard/reports", label: "Reports", adminOnly: false },
+  { href: "/dashboard/members", label: "Members", adminOnly: true },
 ] as const;
 
 type RawProject = { id: string; name: string; tasks: { id: string }[] };
@@ -66,7 +67,7 @@ export async function Sidebar({
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50">
       <div className="flex flex-col gap-0.5 p-3">
-        {PERSONAL_LINKS.map((link) => (
+        {PERSONAL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((link) => (
           <Link
             key={link.href}
             href={link.href}
