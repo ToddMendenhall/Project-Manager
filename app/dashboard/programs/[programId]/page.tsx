@@ -7,6 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { deleteProgram } from "../actions";
 
 export default async function ProgramDetailPage({
@@ -31,65 +32,35 @@ export default async function ProgramDetailPage({
 
   if (!program) notFound();
 
+  const meta: ItemHeaderMeta[] = [];
+  if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
+  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
+  if (program.targetEndDate)
+    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        {program.portfolio ? (
-          <Link
-            href={`/dashboard/portfolios/${program.portfolio.id}`}
-            className="text-sm text-gray-500 underline"
-          >
-            &larr; {program.portfolio.name}
-          </Link>
-        ) : (
-          <Link href="/dashboard/programs" className="text-sm text-gray-500 underline">
-            &larr; All Programs
-          </Link>
-        )}
-      </div>
-
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{program.name}</h1>
-            <StatusBadge status={program.status} />
-          </div>
-          {program.description && (
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">{program.description}</p>
-          )}
-          <dl className="mt-3 flex gap-6 text-xs text-gray-500">
-            {program.owner && (
-              <div>
-                <dt className="font-medium text-gray-400">Owner</dt>
-                <dd>{program.owner.name}</dd>
-              </div>
-            )}
-            {program.startDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Start</dt>
-                <dd>{new Date(program.startDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {program.targetEndDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Target end</dt>
-                <dd>{new Date(program.targetEndDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-        {ctx.role === "admin" && (
-          <div className="flex items-center gap-4">
-            <Link href={`/dashboard/programs/${program.id}/edit`} className="text-sm underline">
-              Edit
-            </Link>
-            <ConfirmDeleteButton
-              action={deleteProgram.bind(null, program.id)}
-              confirmMessage={`Delete "${program.name}" and all of its projects and tasks? This cannot be undone.`}
-            />
-          </div>
-        )}
-      </div>
+      <ItemHeader
+        backHref={program.portfolio ? `/dashboard/portfolios/${program.portfolio.id}` : "/dashboard/programs"}
+        backLabel={program.portfolio ? program.portfolio.name : "All Programs"}
+        name={program.name}
+        badges={<StatusBadge status={program.status} />}
+        description={program.description}
+        meta={meta}
+        action={
+          ctx.role === "admin" ? (
+            <>
+              <Link href={`/dashboard/programs/${program.id}/edit`} className="text-sm underline">
+                Edit
+              </Link>
+              <ConfirmDeleteButton
+                action={deleteProgram.bind(null, program.id)}
+                confirmMessage={`Delete "${program.name}" and all of its projects and tasks? This cannot be undone.`}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       <ViewTabs
         basePath={`/dashboard/programs/${program.id}`}

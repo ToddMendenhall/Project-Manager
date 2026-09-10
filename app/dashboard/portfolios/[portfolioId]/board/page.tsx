@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ViewHeader } from "@/components/views/view-header";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { StatusBadge } from "@/components/status-badge";
 import { BoardView } from "@/components/views/board-view";
 import { updateProgramOrder } from "../../../programs/actions";
 
@@ -16,6 +17,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
+      owner: true,
       programs: {
         with: { owner: true },
         orderBy: (program, { asc }) => [asc(program.sortOrder)],
@@ -25,13 +27,21 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
   if (!portfolio) notFound();
 
   const basePath = `/dashboard/portfolios/${portfolioId}`;
+  const meta: ItemHeaderMeta[] = [];
+  if (portfolio.owner) meta.push({ label: "Owner", value: portfolio.owner.name });
+  if (portfolio.startDate) meta.push({ label: "Start", value: new Date(portfolio.startDate).toLocaleDateString() });
+  if (portfolio.targetEndDate)
+    meta.push({ label: "Target end", value: new Date(portfolio.targetEndDate).toLocaleDateString() });
 
   return (
     <div className="flex flex-col gap-6">
-      <ViewHeader
+      <ItemHeader
         backHref={basePath}
         backLabel={portfolio.name}
-        title="Programs"
+        name={portfolio.name}
+        badges={<StatusBadge status={portfolio.status} />}
+        description={portfolio.description}
+        meta={meta}
         action={
           ctx.role === "admin" ? (
             <Link

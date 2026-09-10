@@ -8,6 +8,8 @@ import { getOrgMembers } from "@/lib/queries";
 import { STATUS_OPTIONS } from "@/lib/fields";
 import { selectClass } from "@/components/form-controls";
 import { ViewTabs } from "@/components/views/view-tabs";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { TaskListView } from "@/components/tasks/task-list-view";
 
 export default async function TaskListPage({
@@ -23,8 +25,14 @@ export default async function TaskListPage({
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
+    with: { lead: true },
   });
   if (!project) notFound();
+
+  const meta: ItemHeaderMeta[] = [];
+  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
+  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
+  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
 
   const filters = [eq(tasks.projectId, projectId)];
   if (sp.status) filters.push(eq(tasks.status, sp.status as (typeof tasks.status.enumValues)[number]));
@@ -55,21 +63,27 @@ export default async function TaskListPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link href={`/dashboard/programs/${programId}/projects/${projectId}`} className="text-sm text-gray-500 underline">
-          &larr; {project.name}
-        </Link>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Tasks</h1>
-        <Link
-          href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/new`}
-          className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
-        >
-          New Task
-        </Link>
-      </div>
+      <ItemHeader
+        backHref={`/dashboard/programs/${programId}/projects/${projectId}`}
+        backLabel={project.name}
+        name={project.name}
+        badges={
+          <>
+            <StatusBadge status={project.status} />
+            <PriorityBadge priority={project.priority} />
+          </>
+        }
+        description={project.description}
+        meta={meta}
+        action={
+          <Link
+            href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/new`}
+            className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+          >
+            New Task
+          </Link>
+        }
+      />
 
       <ViewTabs
         basePath={`/dashboard/programs/${programId}/projects/${projectId}`}

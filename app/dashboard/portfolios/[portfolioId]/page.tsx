@@ -7,6 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { deletePortfolio } from "../actions";
 
 export default async function PortfolioDetailPage({
@@ -30,56 +31,35 @@ export default async function PortfolioDetailPage({
 
   if (!portfolio) notFound();
 
+  const meta: ItemHeaderMeta[] = [];
+  if (portfolio.owner) meta.push({ label: "Owner", value: portfolio.owner.name });
+  if (portfolio.startDate) meta.push({ label: "Start", value: new Date(portfolio.startDate).toLocaleDateString() });
+  if (portfolio.targetEndDate)
+    meta.push({ label: "Target end", value: new Date(portfolio.targetEndDate).toLocaleDateString() });
+
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <Link href="/dashboard/portfolios" className="text-sm text-gray-500 underline">
-          &larr; All Portfolios
-        </Link>
-      </div>
-
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{portfolio.name}</h1>
-            <StatusBadge status={portfolio.status} />
-          </div>
-          {portfolio.description && (
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">{portfolio.description}</p>
-          )}
-          <dl className="mt-3 flex gap-6 text-xs text-gray-500">
-            {portfolio.owner && (
-              <div>
-                <dt className="font-medium text-gray-400">Owner</dt>
-                <dd>{portfolio.owner.name}</dd>
-              </div>
-            )}
-            {portfolio.startDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Start</dt>
-                <dd>{new Date(portfolio.startDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {portfolio.targetEndDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Target end</dt>
-                <dd>{new Date(portfolio.targetEndDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-        {ctx.role === "admin" && (
-          <div className="flex items-center gap-4">
-            <Link href={`/dashboard/portfolios/${portfolio.id}/edit`} className="text-sm underline">
-              Edit
-            </Link>
-            <ConfirmDeleteButton
-              action={deletePortfolio.bind(null, portfolio.id)}
-              confirmMessage={`Delete "${portfolio.name}"? Its programs will become unassigned, not deleted.`}
-            />
-          </div>
-        )}
-      </div>
+      <ItemHeader
+        backHref="/dashboard/portfolios"
+        backLabel="All Portfolios"
+        name={portfolio.name}
+        badges={<StatusBadge status={portfolio.status} />}
+        description={portfolio.description}
+        meta={meta}
+        action={
+          ctx.role === "admin" ? (
+            <>
+              <Link href={`/dashboard/portfolios/${portfolio.id}/edit`} className="text-sm underline">
+                Edit
+              </Link>
+              <ConfirmDeleteButton
+                action={deletePortfolio.bind(null, portfolio.id)}
+                confirmMessage={`Delete "${portfolio.name}"? Its programs will become unassigned, not deleted.`}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       <ViewTabs
         basePath={`/dashboard/portfolios/${portfolio.id}`}

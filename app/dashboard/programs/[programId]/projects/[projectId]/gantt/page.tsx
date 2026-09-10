@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
 import { updateTaskDates } from "../tasks/actions";
 
@@ -18,6 +20,7 @@ export default async function TaskGanttPage({
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
+    with: { lead: true },
   });
   if (!project) notFound();
 
@@ -27,21 +30,31 @@ export default async function TaskGanttPage({
   });
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
+  const meta: ItemHeaderMeta[] = [];
+  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
+  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
+  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <Link href={basePath} className="text-sm text-gray-500 underline">
-          &larr; {project.name}
-        </Link>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Tasks</h1>
-        <Link href={`${basePath}/tasks/new`} className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
-          New Task
-        </Link>
-      </div>
+      <ItemHeader
+        backHref={basePath}
+        backLabel={project.name}
+        name={project.name}
+        badges={
+          <>
+            <StatusBadge status={project.status} />
+            <PriorityBadge priority={project.priority} />
+          </>
+        }
+        description={project.description}
+        meta={meta}
+        action={
+          <Link href={`${basePath}/tasks/new`} className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+            New Task
+          </Link>
+        }
+      />
 
       <ViewTabs basePath={basePath} active="gantt" hrefs={{ list: `${basePath}/tasks` }} />
 

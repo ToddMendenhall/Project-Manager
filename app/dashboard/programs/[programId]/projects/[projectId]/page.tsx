@@ -7,6 +7,7 @@ import { requireOrgContext } from "@/lib/org";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { deleteProject } from "../actions";
 
 export default async function ProjectDetailPage({
@@ -36,60 +37,42 @@ export default async function ProjectDetailPage({
     .from(tasks)
     .where(eq(tasks.projectId, projectId));
 
+  const meta: ItemHeaderMeta[] = [];
+  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
+  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
+  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <Link href={`/dashboard/programs/${program.id}`} className="text-sm text-gray-500 underline">
-          &larr; {program.name}
-        </Link>
-      </div>
-
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{project.name}</h1>
+      <ItemHeader
+        backHref={`/dashboard/programs/${program.id}`}
+        backLabel={program.name}
+        name={project.name}
+        badges={
+          <>
             <StatusBadge status={project.status} />
             <PriorityBadge priority={project.priority} />
-          </div>
-          {project.description && (
-            <p className="mt-2 max-w-2xl text-sm text-gray-600">{project.description}</p>
-          )}
-          <dl className="mt-3 flex gap-6 text-xs text-gray-500">
-            {project.lead && (
-              <div>
-                <dt className="font-medium text-gray-400">Lead</dt>
-                <dd>{project.lead.name}</dd>
-              </div>
-            )}
-            {project.startDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Start</dt>
-                <dd>{new Date(project.startDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {project.dueDate && (
-              <div>
-                <dt className="font-medium text-gray-400">Due</dt>
-                <dd>{new Date(project.dueDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-          </dl>
-        </div>
-        {ctx.role === "admin" && (
-          <div className="flex items-center gap-4">
-            <Link
-              href={`/dashboard/programs/${programId}/projects/${project.id}/edit`}
-              className="text-sm underline"
-            >
-              Edit
-            </Link>
-            <ConfirmDeleteButton
-              action={deleteProject.bind(null, programId, project.id)}
-              confirmMessage={`Delete "${project.name}" and all of its tasks? This cannot be undone.`}
-            />
-          </div>
-        )}
-      </div>
+          </>
+        }
+        description={project.description}
+        meta={meta}
+        action={
+          ctx.role === "admin" ? (
+            <>
+              <Link
+                href={`/dashboard/programs/${programId}/projects/${project.id}/edit`}
+                className="text-sm underline"
+              >
+                Edit
+              </Link>
+              <ConfirmDeleteButton
+                action={deleteProject.bind(null, programId, project.id)}
+                confirmMessage={`Delete "${project.name}" and all of its tasks? This cannot be undone.`}
+              />
+            </>
+          ) : undefined
+        }
+      />
 
       <ViewTabs
         basePath={`/dashboard/programs/${programId}/projects/${project.id}`}

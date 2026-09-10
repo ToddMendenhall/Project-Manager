@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ViewHeader } from "@/components/views/view-header";
+import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
 import { CalendarNav } from "@/components/views/calendar-nav";
 import { parseMonthParam } from "@/lib/calendar";
@@ -23,12 +24,17 @@ export default async function PortfolioCalendarPage({
 
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
-    with: { programs: true },
+    with: { owner: true, programs: true },
   });
   if (!portfolio) notFound();
 
   const { year, monthIndex0 } = parseMonthParam(sp.month);
   const basePath = `/dashboard/portfolios/${portfolioId}`;
+  const meta: ItemHeaderMeta[] = [];
+  if (portfolio.owner) meta.push({ label: "Owner", value: portfolio.owner.name });
+  if (portfolio.startDate) meta.push({ label: "Start", value: new Date(portfolio.startDate).toLocaleDateString() });
+  if (portfolio.targetEndDate)
+    meta.push({ label: "Target end", value: new Date(portfolio.targetEndDate).toLocaleDateString() });
 
   const items = portfolio.programs
     .filter((p) => p.targetEndDate)
@@ -39,10 +45,13 @@ export default async function PortfolioCalendarPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <ViewHeader
+      <ItemHeader
         backHref={basePath}
         backLabel={portfolio.name}
-        title="Programs"
+        name={portfolio.name}
+        badges={<StatusBadge status={portfolio.status} />}
+        description={portfolio.description}
+        meta={meta}
         action={
           ctx.role === "admin" ? (
             <Link
