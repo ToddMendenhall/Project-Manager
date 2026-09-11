@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
-import { MemberForm } from "@/components/members/member-form";
-import { createMember } from "../actions";
+import { InviteForm } from "@/components/members/invite-form";
+import { createInvite } from "../actions";
 
 export default async function NewMemberPage() {
   const ctx = await requireOrgContext();
@@ -16,9 +16,9 @@ export default async function NewMemberPage() {
         </Link>
       </div>
 
-      <h1 className="text-xl font-semibold">Add Member</h1>
+      <h1 className="text-xl font-semibold">Invite Member</h1>
 
-      <MemberForm action={createMember} submitLabel="Create Account" />
+      <InviteForm action={createInvite} submitLabel="Create Invite" />
     </div>
   );
 }

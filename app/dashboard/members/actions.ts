@@ -2,12 +2,14 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { randomInt } from "crypto";
+import { randomBytes, randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { orgMembers, users } from "@/db/schema";
+import { invites, orgMembers, users } from "@/db/schema";
 import { requireAdmin, requireOrgContext } from "@/lib/org";
+
+const INVITE_TTL_DAYS = 7;
 
 // Managing other members' accounts is an admin-only capability — every
 // action here re-checks requireAdmin server-side even though the pages
@@ -24,6 +26,7 @@ import { requireAdmin, requireOrgContext } from "@/lib/org";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type ResetPasswordResult = { ok: true; password: string } | { ok: false; error: string };
+export type CreateInviteResult = { ok: true; inviteUrl: string } | { ok: false; error: string };
 
 const roleSchema = z.enum(["admin", "member"]);
 
@@ -39,25 +42,26 @@ function generatePassword(length = 16) {
   return password;
 }
 
-const createMemberSchema = z.object({
-  name: z.string().trim().min(1, "Name is required").max(255),
+const createInviteSchema = z.object({
   email: z
     .string()
     .email()
     .transform((v) => v.trim().toLowerCase()),
-  password: z.string().min(8, "Password must be at least 8 characters"),
   role: roleSchema,
 });
 
-/** Admin-created accounts join this org directly — there's no invite/email flow yet. */
-export async function createMember(formData: FormData): Promise<ActionResult> {
+/**
+ * Creates a pending invite and returns its accept-link path — there's no
+ * email sending wired up yet, so the admin copies the link and sends it
+ * themselves (Slack, text, etc.). The recipient sets their own name and
+ * password on the accept page; nobody but them ever knows it.
+ */
+export async function createInvite(formData: FormData): Promise<CreateInviteResult> {
   const ctx = await requireOrgContext();
   requireAdmin(ctx);
 
-  const parsed = createMemberSchema.safeParse({
-    name: formData.get("name"),
+  const parsed = createInviteSchema.safeParse({
     email: formData.get("email"),
-    password: formData.get("password"),
     role: formData.get("role"),
   });
   if (!parsed.success) {
@@ -65,20 +69,50 @@ export async function createMember(formData: FormData): Promise<ActionResult> {
   }
   const data = parsed.data;
 
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
-  if (existing) {
+  const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, data.email)).limit(1);
+  if (existingUser) {
     return { ok: false, error: "An account with that email already exists." };
   }
 
-  const passwordHash = await bcrypt.hash(data.password, 10);
+  const [existingInvite] = await db
+    .select({ id: invites.id })
+    .from(invites)
+    .where(and(eq(invites.orgId, ctx.org.id), eq(invites.email, data.email), isNull(invites.acceptedAt)))
+    .limit(1);
+  if (existingInvite) {
+    return { ok: false, error: "An invite is already pending for that email. Revoke it first to send a new one." };
+  }
 
-  await db.transaction(async (tx) => {
-    const [user] = await tx
-      .insert(users)
-      .values({ email: data.email, name: data.name, passwordHash })
-      .returning();
-    await tx.insert(orgMembers).values({ orgId: ctx.org.id, userId: user.id, role: data.role });
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + INVITE_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  await db.insert(invites).values({
+    orgId: ctx.org.id,
+    email: data.email,
+    role: data.role,
+    token,
+    invitedById: ctx.user.id,
+    expiresAt,
   });
+
+  revalidatePath("/dashboard/members");
+  return { ok: true, inviteUrl: `/invite/${token}` };
+}
+
+export async function revokeInvite(inviteId: string): Promise<ActionResult> {
+  const ctx = await requireOrgContext();
+  requireAdmin(ctx);
+
+  const [existing] = await db
+    .select({ id: invites.id })
+    .from(invites)
+    .where(and(eq(invites.id, inviteId), eq(invites.orgId, ctx.org.id)))
+    .limit(1);
+  if (!existing) {
+    return { ok: false, error: "Invite not found." };
+  }
+
+  await db.delete(invites).where(eq(invites.id, inviteId));
 
   revalidatePath("/dashboard/members");
   return { ok: true };

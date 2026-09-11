@@ -90,6 +90,37 @@ export const orgMembers = pgTable(
 );
 
 /**
+ * A pending invitation to join an org by email, instead of an admin
+ * setting the new member's password directly. `token` is the secret in
+ * the accept-invite link (/invite/[token]) — knowing it is what proves
+ * the recipient is the intended invitee, since the flow is unauthenticated
+ * until they set their own password. `acceptedAt` is set once, at which
+ * point the invite is spent (and a new users/orgMembers row exists); an
+ * expired-but-unaccepted invite is left in place rather than deleted, so
+ * "invite already used" and "invite expired" can be told apart.
+ */
+export const invites = pgTable(
+  "invites",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: memberRoleEnum("role").notNull().default("member"),
+    token: varchar("token", { length: 64 }).notNull(),
+    invitedById: uuid("invited_by_id").references(() => users.id, { onDelete: "set null" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tokenUnique: uniqueIndex("invites_token_unique").on(table.token),
+    orgIdx: index("invites_org_idx").on(table.orgId),
+  }),
+);
+
+/**
  * Optional grouping above Program — a portfolio can contain multiple
  * programs, but a program doesn't need one (portfolioId is nullable).
  * Deleting a portfolio un-groups its programs (set null) rather than
@@ -350,6 +381,11 @@ export const orgMembersRelations = relations(orgMembers, ({ one }) => ({
   user: one(users, { fields: [orgMembers.userId], references: [users.id] }),
 }));
 
+export const invitesRelations = relations(invites, ({ one }) => ({
+  organization: one(organizations, { fields: [invites.orgId], references: [organizations.id] }),
+  invitedBy: one(users, { fields: [invites.invitedById], references: [users.id] }),
+}));
+
 export const programsRelations = relations(programs, ({ one, many }) => ({
   organization: one(organizations, { fields: [programs.orgId], references: [organizations.id] }),
   portfolio: one(portfolios, { fields: [programs.portfolioId], references: [portfolios.id] }),
@@ -414,6 +450,8 @@ export type NewPortfolio = typeof portfolios.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type OrgMember = typeof orgMembers.$inferSelect;
+export type Invite = typeof invites.$inferSelect;
+export type NewInvite = typeof invites.$inferInsert;
 export type Program = typeof programs.$inferSelect;
 export type NewProgram = typeof programs.$inferInsert;
 export type Project = typeof projects.$inferSelect;

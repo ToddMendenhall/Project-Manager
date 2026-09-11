@@ -1,12 +1,14 @@
 import "server-only";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
   checklistItems,
   comments,
   customFieldDefs,
+  invites,
   orgMembers,
+  organizations,
   portfolios,
   programs,
   projects,
@@ -26,6 +28,42 @@ export async function getOrgMembers(orgId: string) {
     .innerJoin(users, eq(orgMembers.userId, users.id))
     .where(eq(orgMembers.orgId, orgId))
     .orderBy(users.name);
+}
+
+/** Outstanding (unaccepted, unexpired) invites for an org — used by the admin Members page. */
+export async function getPendingInvitesForOrg(orgId: string) {
+  return db
+    .select({
+      id: invites.id,
+      email: invites.email,
+      role: invites.role,
+      token: invites.token,
+      expiresAt: invites.expiresAt,
+      createdAt: invites.createdAt,
+    })
+    .from(invites)
+    .where(and(eq(invites.orgId, orgId), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())))
+    .orderBy(desc(invites.createdAt));
+}
+
+/** Fetches an invite by its link token, with the org name for display on the public accept page. */
+export async function getInviteByToken(token: string) {
+  const [row] = await db
+    .select({
+      id: invites.id,
+      orgId: invites.orgId,
+      orgName: organizations.name,
+      email: invites.email,
+      role: invites.role,
+      expiresAt: invites.expiresAt,
+      acceptedAt: invites.acceptedAt,
+    })
+    .from(invites)
+    .innerJoin(organizations, eq(invites.orgId, organizations.id))
+    .where(eq(invites.token, token))
+    .limit(1);
+
+  return row ?? null;
 }
 
 /** Org members with account details (role, joined date) — used by the admin Members page. */
