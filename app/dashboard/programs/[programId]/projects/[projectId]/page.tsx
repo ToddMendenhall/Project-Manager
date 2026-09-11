@@ -8,6 +8,7 @@ import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProject } from "../actions";
 
 export default async function ProjectDetailPage({
@@ -20,6 +21,7 @@ export default async function ProjectDetailPage({
 
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
+    with: { portfolio: true },
   });
   if (!program) notFound();
 
@@ -45,8 +47,7 @@ export default async function ProjectDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <ItemHeader
-        backHref={`/dashboard/programs/${program.id}`}
-        backLabel={program.name}
+        breadcrumbs={projectBreadcrumbs(program)}
         name={project.name}
         badges={
           <>

@@ -8,6 +8,7 @@ import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProgram } from "../actions";
 
 export default async function ProgramDetailPage({
@@ -41,8 +42,7 @@ export default async function ProgramDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <ItemHeader
-        backHref={program.portfolio ? `/dashboard/portfolios/${program.portfolio.id}` : "/dashboard/programs"}
-        backLabel={program.portfolio ? program.portfolio.name : "All Programs"}
+        breadcrumbs={programBreadcrumbs(program)}
         name={program.name}
         badges={<StatusBadge status={program.status} />}
         description={program.description}

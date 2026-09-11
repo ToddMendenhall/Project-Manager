@@ -6,6 +6,7 @@ import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
 import { CalendarNav } from "@/components/views/calendar-nav";
@@ -46,8 +47,7 @@ export default async function PortfolioCalendarPage({
   return (
     <div className="flex flex-col gap-6">
       <ItemHeader
-        backHref={basePath}
-        backLabel={portfolio.name}
+        breadcrumbs={portfolioBreadcrumbs()}
         name={portfolio.name}
         badges={<StatusBadge status={portfolio.status} />}
         description={portfolio.description}

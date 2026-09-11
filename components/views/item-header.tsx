@@ -1,19 +1,17 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { Breadcrumbs, type Crumb } from "./breadcrumbs";
 
 export type ItemHeaderMeta = { label: string; value: string };
 
 export function ItemHeader({
-  backHref,
-  backLabel,
+  breadcrumbs,
   name,
   badges,
   description,
   meta,
   action,
 }: {
-  backHref: string;
-  backLabel: string;
+  breadcrumbs: Crumb[];
   name: string;
   badges?: ReactNode;
   description?: string | null;
@@ -22,11 +20,7 @@ export function ItemHeader({
 }) {
   return (
     <>
-      <div>
-        <Link href={backHref} className="text-sm text-gray-500 underline">
-          &larr; {backLabel}
-        </Link>
-      </div>
+      <Breadcrumbs items={breadcrumbs} />
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">

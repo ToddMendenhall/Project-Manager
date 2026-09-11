@@ -6,6 +6,7 @@ import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
 import { CalendarNav } from "@/components/views/calendar-nav";
@@ -24,7 +25,7 @@ export default async function ProgramCalendarPage({
 
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
-    with: { owner: true, projects: true },
+    with: { owner: true, portfolio: true, projects: true },
   });
   if (!program) notFound();
 
@@ -46,8 +47,7 @@ export default async function ProgramCalendarPage({
   return (
     <div className="flex flex-col gap-6">
       <ItemHeader
-        backHref={basePath}
-        backLabel={program.name}
+        breadcrumbs={programBreadcrumbs(program)}
         name={program.name}
         badges={<StatusBadge status={program.status} />}
         description={program.description}

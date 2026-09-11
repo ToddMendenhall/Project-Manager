@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { deletePortfolio } from "../actions";
 
 export default async function PortfolioDetailPage({
@@ -40,8 +41,7 @@ export default async function PortfolioDetailPage({
   return (
     <div className="flex flex-col gap-8">
       <ItemHeader
-        backHref="/dashboard/portfolios"
-        backLabel="All Portfolios"
+        breadcrumbs={portfolioBreadcrumbs()}
         name={portfolio.name}
         badges={<StatusBadge status={portfolio.status} />}
         description={portfolio.description}

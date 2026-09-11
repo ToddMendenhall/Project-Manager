@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, tasks } from "@/db/schema";
+import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
 import { taskNode } from "@/lib/gantt-tree";
@@ -17,7 +18,13 @@ export default async function TaskGanttPage({
   params: Promise<{ programId: string; projectId: string }>;
 }) {
   const { programId, projectId } = await params;
-  await requireOrgContext();
+  const ctx = await requireOrgContext();
+
+  const program = await db.query.programs.findFirst({
+    where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
+    with: { portfolio: true },
+  });
+  if (!program) notFound();
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
@@ -42,8 +49,7 @@ export default async function TaskGanttPage({
   return (
     <div className="flex flex-col gap-6">
       <ItemHeader
-        backHref={basePath}
-        backLabel={project.name}
+        breadcrumbs={projectBreadcrumbs(program)}
         name={project.name}
         badges={
           <>

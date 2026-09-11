@@ -6,6 +6,7 @@ import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { updateProjectOrder } from "../projects/actions";
@@ -18,6 +19,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
       owner: true,
+      portfolio: true,
       projects: {
         with: { lead: true },
         orderBy: (project, { asc }) => [asc(project.sortOrder)],
@@ -36,8 +38,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
   return (
     <div className="flex flex-col gap-6">
       <ItemHeader
-        backHref={basePath}
-        backLabel={program.name}
+        breadcrumbs={programBreadcrumbs(program)}
         name={program.name}
         badges={<StatusBadge status={program.status} />}
         description={program.description}

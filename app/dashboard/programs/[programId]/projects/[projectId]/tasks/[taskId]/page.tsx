@@ -2,11 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { projects, tasks } from "@/db/schema";
+import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getTaskCustomFieldDefs } from "@/lib/queries";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { Breadcrumbs } from "@/components/views/breadcrumbs";
+import { taskBreadcrumbs } from "@/lib/breadcrumbs";
 import { CommentSection } from "@/components/comments/comment-section";
 import { AttachmentSection } from "@/components/attachments/attachment-section";
 import { ChecklistWidget } from "@/components/tasks/checklist-widget";
@@ -21,6 +23,12 @@ export default async function TaskDetailPage({
 }) {
   const { programId, projectId, taskId } = await params;
   const ctx = await requireOrgContext();
+
+  const program = await db.query.programs.findFirst({
+    where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
+    with: { portfolio: true },
+  });
+  if (!program) notFound();
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
@@ -57,14 +65,7 @@ export default async function TaskDetailPage({
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <Link
-          href={`/dashboard/programs/${programId}/projects/${projectId}/tasks`}
-          className="text-sm text-gray-500 underline"
-        >
-          &larr; {project.name} tasks
-        </Link>
-      </div>
+      <Breadcrumbs items={taskBreadcrumbs(program, project)} />
 
       <div className="flex items-start justify-between">
         <div>

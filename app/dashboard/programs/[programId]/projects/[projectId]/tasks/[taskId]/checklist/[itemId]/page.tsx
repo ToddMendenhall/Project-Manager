@@ -1,11 +1,12 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { checklistItems, projects, tasks } from "@/db/schema";
+import { checklistItems, programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers } from "@/lib/queries";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { Breadcrumbs } from "@/components/views/breadcrumbs";
+import { checklistItemBreadcrumbs } from "@/lib/breadcrumbs";
 import { CommentSection } from "@/components/comments/comment-section";
 import { AttachmentSection } from "@/components/attachments/attachment-section";
 import { ChecklistItemForm } from "@/components/tasks/checklist-item-form";
@@ -20,6 +21,12 @@ export default async function ChecklistItemDetailPage({
 }) {
   const { programId, projectId, taskId, itemId } = await params;
   const ctx = await requireOrgContext();
+
+  const program = await db.query.programs.findFirst({
+    where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
+    with: { portfolio: true },
+  });
+  if (!program) notFound();
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
@@ -53,15 +60,10 @@ export default async function ChecklistItemDetailPage({
   if (!item) notFound();
 
   const members = await getOrgMembers(ctx.org.id);
-  const taskPath = `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}`;
 
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <Link href={taskPath} className="text-sm text-gray-500 underline">
-          &larr; {task.title}
-        </Link>
-      </div>
+      <Breadcrumbs items={checklistItemBreadcrumbs(program, project, task)} />
 
       <div className="flex items-start justify-between gap-6">
         <ChecklistItemForm

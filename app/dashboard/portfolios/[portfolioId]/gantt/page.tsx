@@ -6,6 +6,7 @@ import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
 import { programNode } from "@/lib/gantt-tree";
@@ -51,8 +52,7 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
   return (
     <div className="flex flex-col gap-6">
       <ItemHeader
-        backHref={basePath}
-        backLabel={portfolio.name}
+        breadcrumbs={portfolioBreadcrumbs()}
         name={portfolio.name}
         badges={<StatusBadge status={portfolio.status} />}
         description={portfolio.description}
