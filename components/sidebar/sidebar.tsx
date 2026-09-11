@@ -29,10 +29,12 @@ function mapProgram(program: RawProgram): ProgramNode {
 export async function Sidebar({
   orgId,
   userId,
+  userName,
   isAdmin,
 }: {
   orgId: string;
   userId: string;
+  userName: string;
   isAdmin: boolean;
 }) {
   const [orgPortfolios, ungroupedProgramsRaw, orgTasks] = await Promise.all([
@@ -64,8 +66,22 @@ export async function Sidebar({
   }));
   const ungroupedPrograms = ungroupedProgramsRaw.map(mapProgram);
 
+  const initial = userName.trim().charAt(0).toUpperCase() || "?";
+
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50">
+      <div className="border-b border-gray-200 p-3">
+        <Link
+          href="/dashboard/account"
+          className="flex items-center gap-2 rounded px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+        >
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-900 text-xs font-semibold text-white">
+            {initial}
+          </span>
+          <span className="truncate">{userName}</span>
+        </Link>
+      </div>
+
       <div className="flex flex-col gap-0.5 p-3">
         {PERSONAL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((link) => (
           <Link

@@ -8,7 +8,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <div className="flex min-h-screen">
-      <Sidebar orgId={ctx.org.id} userId={ctx.user.id} isAdmin={ctx.role === "admin"} />
+      <Sidebar orgId={ctx.org.id} userId={ctx.user.id} userName={ctx.user.name} isAdmin={ctx.role === "admin"} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
           <div>
