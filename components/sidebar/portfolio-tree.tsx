@@ -47,7 +47,7 @@ function AddChildLink({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
       onClick={(e) => e.stopPropagation()}
-      className="shrink-0 px-1 text-sm leading-none text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+      className="shrink-0 px-1 text-xl leading-none text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
       title={label}
       aria-label={label}
     >

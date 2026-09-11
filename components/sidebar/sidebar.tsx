@@ -94,7 +94,7 @@ export async function Sidebar({
           {isAdmin && (
             <Link
               href="/dashboard/portfolios/new"
-              className="text-sm leading-none text-gray-400 hover:text-gray-700"
+              className="text-xl leading-none text-gray-400 hover:text-gray-700"
               title="New Portfolio"
               aria-label="New Portfolio"
             >
