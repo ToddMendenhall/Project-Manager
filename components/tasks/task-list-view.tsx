@@ -39,7 +39,7 @@ type TaskRow = {
   checklistItems: ChecklistItemRow[];
 };
 
-const ROW_GRID = "grid grid-cols-[20px_minmax(200px,1fr)_130px_160px_140px_110px] items-center gap-2";
+const ROW_GRID = "grid grid-cols-[28px_minmax(200px,1fr)_130px_160px_140px_110px] items-center gap-2";
 
 function isOverdue(dueDate: Date | string | null, status: string) {
   if (!dueDate || status === "completed" || status === "cancelled") return false;
@@ -308,7 +308,7 @@ export function TaskListView({
               onClick={() => toggleGroup(group.value)}
               className="mb-2 flex items-center gap-2"
             >
-              <span className="text-xs text-gray-400">{collapsed ? "▸" : "▾"}</span>
+              <span className="text-2xl leading-none text-gray-400">{collapsed ? "▸" : "▾"}</span>
               <StatusBadge status={group.value} />
               <span className="text-sm text-gray-400">{group.tasks.length}</span>
             </button>
@@ -337,7 +337,7 @@ export function TaskListView({
                           <button
                             type="button"
                             onClick={() => hasChecklist && toggleExpanded(task.id)}
-                            className={`text-xs ${hasChecklist ? "text-gray-400 hover:text-gray-700" : "text-transparent"}`}
+                            className={`text-2xl leading-none ${hasChecklist ? "text-gray-400 hover:text-gray-700" : "text-transparent"}`}
                             aria-label={isExpanded ? "Collapse checklist" : "Expand checklist"}
                             disabled={!hasChecklist}
                           >

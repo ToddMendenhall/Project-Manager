@@ -257,12 +257,12 @@ export function GanttView({
                   type="button"
                   onClick={() => toggleExpand(row.node.id)}
                   aria-label={expanded.has(row.node.id) ? "Collapse" : "Expand"}
-                  className="flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-gray-400 hover:text-gray-700"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none text-gray-400 hover:text-gray-700"
                 >
                   {expanded.has(row.node.id) ? "▾" : "▸"}
                 </button>
               ) : (
-                <span className="w-4 shrink-0" />
+                <span className="w-6 shrink-0" />
               )}
               <Link
                 href={row.node.href}

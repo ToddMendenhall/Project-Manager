@@ -39,7 +39,7 @@ export function PortfolioTree({
 }
 
 function TreeToggle({ open }: { open: boolean }) {
-  return <span className="w-3 shrink-0 text-[10px] text-gray-400">{open ? "▾" : "▸"}</span>;
+  return <span className="w-5 shrink-0 text-xl leading-none text-gray-400">{open ? "▾" : "▸"}</span>;
 }
 
 function AddChildLink({ href, label }: { href: string; label: string }) {
