@@ -19,10 +19,10 @@ export default async function MembersPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">Members</h1>
-          <p className="text-sm text-gray-500">Manage who has access to {ctx.org.name} and their role.</p>
+          <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Members</h1>
+          <p className="text-sm text-cy-gray-500">Manage who has access to {ctx.org.name} and their role.</p>
         </div>
-        <Link href="/dashboard/members/new" className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+        <Link href="/dashboard/members/new" className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
           Invite Member
         </Link>
       </div>

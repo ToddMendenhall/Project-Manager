@@ -12,7 +12,7 @@ export default async function NewPortfolioPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">New Portfolio</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">New Portfolio</h1>
       <PortfolioForm action={createPortfolio} orgMembers={members} submitLabel="Create Portfolio" />
     </div>
   );

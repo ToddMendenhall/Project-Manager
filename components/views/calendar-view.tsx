@@ -24,9 +24,9 @@ export function CalendarView({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-7 gap-px overflow-hidden rounded border border-gray-200 bg-gray-200 text-xs">
+      <div className="grid grid-cols-7 gap-px overflow-hidden rounded-card border border-cy-gray-100 bg-cy-gray-100 text-xs">
         {WEEKDAY_LABELS.map((label) => (
-          <div key={label} className="bg-gray-50 px-2 py-1 text-center font-medium text-gray-500">
+          <div key={label} className="bg-cy-gray-025 px-2 py-1 text-center font-medium text-cy-gray-500">
             {label}
           </div>
         ))}
@@ -39,11 +39,15 @@ export function CalendarView({
           return (
             <div
               key={key}
-              className={`min-h-[100px] bg-white p-1 ${inMonth ? "" : "bg-gray-50"} ${
-                isToday ? "ring-2 ring-inset ring-gray-900" : ""
+              className={`min-h-[100px] bg-white p-1 ${inMonth ? "" : "bg-cy-gray-025"} ${
+                isToday ? "ring-2 ring-inset ring-cy-blue-600" : ""
               }`}
             >
-              <p className={`mb-1 text-right text-xs ${inMonth ? "text-gray-600" : "text-gray-400"}`}>
+              <p
+                className={`mb-1 text-right font-mono text-xs tabular-nums ${
+                  isToday ? "font-semibold text-cy-blue-600" : inMonth ? "text-cy-gray-600" : "text-cy-gray-400"
+                }`}
+              >
                 {day.getDate()}
               </p>
               <div className="flex flex-col gap-1">
@@ -51,13 +55,13 @@ export function CalendarView({
                   <Link
                     key={item.id}
                     href={item.href}
-                    className="block truncate rounded bg-gray-100 px-1 py-0.5 text-xs hover:bg-gray-200"
+                    className="block truncate rounded bg-cy-blue-100 px-1 py-0.5 text-xs text-cy-blue-800 hover:bg-cy-blue-200"
                     title={item.title}
                   >
                     {item.title}
                   </Link>
                 ))}
-                {dayItems.length > 3 && <p className="text-xs text-gray-400">+{dayItems.length - 3} more</p>}
+                {dayItems.length > 3 && <p className="text-xs text-cy-gray-400">+{dayItems.length - 3} more</p>}
               </div>
             </div>
           );
@@ -66,11 +70,13 @@ export function CalendarView({
 
       {undated && undated.length > 0 && (
         <div>
-          <h2 className="mb-2 text-sm font-semibold text-gray-500">No date ({undated.length})</h2>
+          <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-label text-cy-gray-400">
+            No date ({undated.length})
+          </h2>
           <ul className="flex flex-col gap-1">
             {undated.map((item) => (
               <li key={item.id}>
-                <Link href={item.href} className="text-sm hover:underline">
+                <Link href={item.href} className="text-sm text-cy-blue-600 hover:underline">
                   {item.title}
                 </Link>
               </li>

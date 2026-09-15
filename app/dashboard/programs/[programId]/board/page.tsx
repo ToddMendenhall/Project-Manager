@@ -45,7 +45,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
         meta={meta}
         action={
           ctx.role === "admin" ? (
-            <Link href={`${basePath}/projects/new`} className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+            <Link href={`${basePath}/projects/new`} className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
               New Project
             </Link>
           ) : undefined
@@ -60,7 +60,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
       />
 
       {program.projects.length === 0 ? (
-        <p className="text-sm text-gray-500">No projects yet.</p>
+        <p className="text-sm text-cy-gray-500">No projects yet.</p>
       ) : (
         <BoardView
           items={program.projects.map((project) => ({
@@ -69,15 +69,15 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
             sortOrder: project.sortOrder,
             card: (
               <>
-                <Link href={`${basePath}/projects/${project.id}`} className="font-medium text-gray-900 hover:underline">
+                <Link href={`${basePath}/projects/${project.id}`} className="font-medium text-cy-gray-900 hover:underline">
                   {project.name}
                 </Link>
                 <div className="mt-2 flex items-center justify-between">
                   <PriorityBadge priority={project.priority} />
-                  {project.lead && <span className="text-xs text-gray-500">{project.lead.name}</span>}
+                  {project.lead && <span className="text-xs text-cy-gray-500">{project.lead.name}</span>}
                 </div>
                 {project.dueDate && (
-                  <p className="mt-1 text-xs text-gray-400">Due {new Date(project.dueDate).toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-cy-gray-400">Due {new Date(project.dueDate).toLocaleDateString()}</p>
                 )}
               </>
             ),

@@ -101,20 +101,20 @@ export default async function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-xl font-semibold">Reports</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Reports</h1>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Total Tasks" value={totalTasks} />
         <StatCard label="Completed" value={completedTasks} />
-        <StatCard label="Overdue" value={overdueTasks.length} />
+        <StatCard label="Overdue" value={overdueTasks.length} accent={overdueTasks.length > 0} />
         <StatCard label="Completion Rate" value={`${completionRate}%`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded border border-gray-200 bg-white p-4">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Tasks by Status</h2>
+        <div className="rounded-card border border-cy-gray-200 bg-white p-4">
+          <h2 className="mb-4 text-sm font-semibold text-cy-gray-700">Tasks by Status</h2>
           {totalTasks === 0 ? (
-            <p className="text-sm text-gray-500">No tasks yet.</p>
+            <p className="text-sm text-cy-gray-500">No tasks yet.</p>
           ) : (
             <BarChart
               items={STATUS_OPTIONS.map((o) => ({
@@ -126,10 +126,10 @@ export default async function ReportsPage() {
             />
           )}
         </div>
-        <div className="rounded border border-gray-200 bg-white p-4">
-          <h2 className="mb-4 text-sm font-semibold text-gray-700">Tasks by Priority</h2>
+        <div className="rounded-card border border-cy-gray-200 bg-white p-4">
+          <h2 className="mb-4 text-sm font-semibold text-cy-gray-700">Tasks by Priority</h2>
           {totalTasks === 0 ? (
-            <p className="text-sm text-gray-500">No tasks yet.</p>
+            <p className="text-sm text-cy-gray-500">No tasks yet.</p>
           ) : (
             <BarChart
               items={PRIORITY_OPTIONS.map((o) => ({
@@ -144,31 +144,33 @@ export default async function ReportsPage() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Workload by Assignee</h2>
+        <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Workload by Assignee</h2>
         {workload.length === 0 ? (
-          <p className="text-sm text-gray-500">No tasks yet.</p>
+          <p className="text-sm text-cy-gray-500">No tasks yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
             <table className="w-full min-w-[480px] text-left text-sm">
-              <thead className="border-b border-gray-200 text-xs uppercase text-gray-500">
+              <thead className="border-b border-cy-gray-200 bg-cy-blue-100 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">
                 <tr>
-                  <th className="px-4 py-3 font-medium">Assignee</th>
-                  <th className="px-4 py-3 font-medium">Open</th>
-                  <th className="px-4 py-3 font-medium">Overdue</th>
-                  <th className="px-4 py-3 font-medium">Completed</th>
+                  <th className="px-4 py-3 font-semibold">Assignee</th>
+                  <th className="px-4 py-3 font-semibold">Open</th>
+                  <th className="px-4 py-3 font-semibold">Overdue</th>
+                  <th className="px-4 py-3 font-semibold">Completed</th>
                 </tr>
               </thead>
               <tbody>
                 {workload.map((row) => (
-                  <tr key={row.name} className="border-b border-gray-100 last:border-0">
-                    <td className="px-4 py-3 font-medium text-gray-900">{row.name}</td>
-                    <td className="px-4 py-3 text-gray-600">{row.open}</td>
+                  <tr key={row.name} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
+                    <td className="px-4 py-3 font-medium text-cy-gray-900">{row.name}</td>
+                    <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">{row.open}</td>
                     <td className="px-4 py-3">
-                      <span className={row.overdue > 0 ? "font-medium text-red-600" : "text-gray-600"}>
+                      <span
+                        className={`font-mono tabular-nums ${row.overdue > 0 ? "font-semibold text-cy-red-500" : "text-cy-gray-600"}`}
+                      >
                         {row.overdue}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{row.completed}</td>
+                    <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">{row.completed}</td>
                   </tr>
                 ))}
               </tbody>
@@ -183,29 +185,29 @@ export default async function ReportsPage() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Project Progress</h2>
+        <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Project Progress</h2>
         {projectProgress.length === 0 ? (
-          <p className="text-sm text-gray-500">No projects yet.</p>
+          <p className="text-sm text-cy-gray-500">No projects yet.</p>
         ) : (
           <div className="flex flex-col gap-6">
             {projectProgress.map((program) => (
               <div key={program.id}>
-                <p className="mb-2 text-sm font-medium text-gray-500">{program.name}</p>
+                <p className="mb-2 text-sm font-medium text-cy-gray-500">{program.name}</p>
                 <div className="flex flex-col gap-3">
                   {program.projects.map((project) => (
                     <Link
                       key={project.id}
                       href={`/dashboard/programs/${program.id}/projects/${project.id}`}
-                      className="block rounded border border-gray-200 bg-white p-4 hover:border-gray-400"
+                      className="block rounded-card border border-cy-gray-100 bg-white p-4 shadow-xs transition-colors duration-fast hover:border-cy-gray-200 hover:shadow-md"
                     >
                       <div className="mb-2 flex items-center justify-between">
-                        <p className="font-medium">{project.name}</p>
-                        <p className="text-xs text-gray-400">
+                        <p className="font-medium text-cy-gray-900">{project.name}</p>
+                        <p className="font-mono text-xs tabular-nums text-cy-gray-400">
                           {project.completed}/{project.total} tasks complete
                         </p>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                        <div className="h-full rounded-full bg-green-500" style={{ width: `${project.pct}%` }} />
+                      <div className="h-2 overflow-hidden rounded-full bg-cy-gray-050">
+                        <div className="h-full rounded-full bg-cy-green-500" style={{ width: `${project.pct}%` }} />
                       </div>
                     </Link>
                   ))}
@@ -234,35 +236,35 @@ function TaskTable({ title, tasks, emptyText }: { title: string; tasks: ReportTa
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold">{title}</h2>
+      <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">{title}</h2>
       {tasks.length === 0 ? (
-        <p className="text-sm text-gray-500">{emptyText}</p>
+        <p className="text-sm text-cy-gray-500">{emptyText}</p>
       ) : (
-        <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+        <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
           <table className="w-full min-w-[420px] text-left text-sm">
-            <thead className="border-b border-gray-200 text-xs uppercase text-gray-500">
+            <thead className="border-b border-cy-gray-200 bg-cy-blue-100 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">
               <tr>
-                <th className="px-4 py-3 font-medium">Task</th>
-                <th className="px-4 py-3 font-medium">Priority</th>
-                <th className="px-4 py-3 font-medium">Due</th>
+                <th className="px-4 py-3 font-semibold">Task</th>
+                <th className="px-4 py-3 font-semibold">Priority</th>
+                <th className="px-4 py-3 font-semibold">Due</th>
               </tr>
             </thead>
             <tbody>
               {shown.map((task) => (
-                <tr key={task.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                <tr key={task.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
                   <td className="px-4 py-3">
                     <Link
                       href={`/dashboard/programs/${task.programId}/projects/${task.projectId}/tasks/${task.id}`}
-                      className="font-medium text-gray-900 hover:underline"
+                      className="font-medium text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
                     >
                       {task.title}
                     </Link>
-                    <p className="text-xs text-gray-400">{task.projectName}</p>
+                    <p className="text-xs text-cy-gray-400">{task.projectName}</p>
                   </td>
                   <td className="px-4 py-3">
                     <PriorityBadge priority={task.priority} />
                   </td>
-                  <td className="px-4 py-3 text-gray-600">
+                  <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
                     {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
                   </td>
                 </tr>
@@ -270,7 +272,7 @@ function TaskTable({ title, tasks, emptyText }: { title: string; tasks: ReportTa
             </tbody>
           </table>
           {tasks.length > MAX_ROWS && (
-            <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-400">
+            <p className="border-t border-cy-gray-100 px-4 py-2 text-xs text-cy-gray-400">
               +{tasks.length - MAX_ROWS} more
             </p>
           )}

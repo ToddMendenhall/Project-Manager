@@ -15,7 +15,7 @@ export function ViewHeader({
   return (
     <>
       <div>
-        <Link href={backHref} className="text-sm text-gray-500 underline">
+        <Link href={backHref} className="text-sm text-cy-gray-500 underline">
           &larr; {backLabel}
         </Link>
       </div>

@@ -27,27 +27,27 @@ export function AttachmentSection({
 }) {
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold">Attachments ({attachments.length})</h2>
+      <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Attachments ({attachments.length})</h2>
       <div className="mb-4">
         <AttachmentUploadForm uploadUrl={uploadUrl} />
       </div>
       {attachments.length === 0 ? (
-        <p className="text-sm text-gray-500">No attachments yet.</p>
+        <p className="text-sm text-cy-gray-500">No attachments yet.</p>
       ) : (
         <ul className="flex flex-col gap-2">
           {attachments.map((attachment) => (
             <li
               key={attachment.id}
-              className="flex items-center justify-between rounded border border-gray-200 bg-white p-3 text-sm"
+              className="flex items-center justify-between rounded-card border border-cy-gray-200 bg-white p-3 text-sm"
             >
               <div>
                 <a
                   href={`/api/attachments/${attachment.id}`}
-                  className="font-medium text-gray-900 hover:underline"
+                  className="font-medium text-cy-gray-900 hover:underline"
                 >
                   {attachment.fileName}
                 </a>
-                <p className="text-xs text-gray-400">
+                <p className="font-mono text-xs tabular-nums text-cy-gray-400">
                   {attachment.sizeBytes != null && `${formatBytes(attachment.sizeBytes)} · `}
                   {attachment.uploadedBy.name} &middot; {new Date(attachment.createdAt).toLocaleDateString()}
                 </p>

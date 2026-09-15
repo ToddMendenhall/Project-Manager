@@ -1,4 +1,4 @@
-import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, dateInputValue } from "@/lib/fields";
 import { customFieldName, customFieldOptions } from "@/lib/custom-fields";
 import type { CustomFieldDef, Task } from "@/db/schema";
@@ -123,15 +123,15 @@ export function TaskForm({
       </div>
 
       {fieldDefs.length > 0 && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4">
-          <p className="text-sm font-medium text-gray-500">Custom fields</p>
+        <div className="flex flex-col gap-4 border-t border-cy-gray-100 pt-4">
+          <p className="text-[13px] font-semibold text-cy-gray-700">Custom fields</p>
           {fieldDefs.map((def) => (
             <CustomFieldInput key={def.id} def={def} value={customValues[def.key]} />
           ))}
         </div>
       )}
 
-      <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
+      <button type="submit" className={`w-fit ${buttonPrimary}`}>
         {submitLabel}
       </button>
     </form>

@@ -20,7 +20,7 @@ export default async function NewProgramPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">New Program</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">New Program</h1>
       <ProgramForm
         action={createProgram}
         orgMembers={members}

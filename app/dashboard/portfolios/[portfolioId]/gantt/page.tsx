@@ -61,7 +61,7 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
           ctx.role === "admin" ? (
             <Link
               href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
-              className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+              className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
             >
               New Program
             </Link>
@@ -77,7 +77,7 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
       />
 
       {portfolio.programs.length === 0 ? (
-        <p className="text-sm text-gray-500">No programs in this portfolio yet.</p>
+        <p className="text-sm text-cy-gray-500">No programs in this portfolio yet.</p>
       ) : (
         <GanttView
           items={portfolio.programs.map(programNode)}

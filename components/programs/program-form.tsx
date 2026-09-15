@@ -1,4 +1,4 @@
-import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { STATUS_OPTIONS } from "@/lib/fields";
 import type { Portfolio, Program } from "@/db/schema";
 
@@ -84,7 +84,7 @@ export function ProgramForm({
           />
         </Field>
       </div>
-      <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
+      <button type="submit" className={`w-fit ${buttonPrimary}`}>
         {submitLabel}
       </button>
     </form>

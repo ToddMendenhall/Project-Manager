@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
 import { statusLabel, dateInputValue } from "@/lib/fields";
 import type { GanttKind, GanttNode } from "@/lib/gantt-types";
@@ -205,7 +206,7 @@ export function GanttView({
   const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
 
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-500">No items have start or due dates yet.</p>;
+    return <p className="text-sm text-cy-gray-500">No items have start or due dates yet.</p>;
   }
 
   const today = startOfDay(new Date());
@@ -243,13 +244,13 @@ export function GanttView({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex overflow-hidden rounded border border-gray-200 bg-white">
-        <div className="flex w-56 shrink-0 flex-col border-r border-gray-200">
-          <div className="h-[52px] shrink-0 border-b border-gray-200" />
+      <div className="flex overflow-hidden rounded-card border border-cy-gray-200 bg-white">
+        <div className="flex w-56 shrink-0 flex-col border-r border-cy-gray-200">
+          <div className="h-[52px] shrink-0 border-b border-cy-gray-200" />
           {rows.map((row) => (
             <div
               key={row.node.id}
-              className="flex h-10 shrink-0 items-center gap-1 border-b border-gray-100 pr-3 last:border-0"
+              className="flex h-10 shrink-0 items-center gap-1 border-b border-cy-gray-100 pr-3 last:border-0"
               style={{ paddingLeft: 8 + row.depth * INDENT_WIDTH }}
             >
               {row.hasVisibleChildren ? (
@@ -257,16 +258,20 @@ export function GanttView({
                   type="button"
                   onClick={() => toggleExpand(row.node.id)}
                   aria-label={expanded.has(row.node.id) ? "Collapse" : "Expand"}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center text-xl leading-none text-gray-400 hover:text-gray-700"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center text-cy-gray-400 hover:text-cy-gray-700"
                 >
-                  {expanded.has(row.node.id) ? "▾" : "▸"}
+                  <ChevronRight
+                    size={14}
+                    strokeWidth={2}
+                    className={`transition-transform duration-fast ${expanded.has(row.node.id) ? "rotate-90" : ""}`}
+                  />
                 </button>
               ) : (
                 <span className="w-6 shrink-0" />
               )}
               <Link
                 href={row.node.href}
-                className="truncate text-sm text-gray-900 hover:underline"
+                className="truncate text-[13px] text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
                 title={row.node.title}
               >
                 {row.node.title}
@@ -277,13 +282,13 @@ export function GanttView({
 
         <div className="overflow-x-auto">
           <div style={{ width: gridWidth }}>
-            <div className="flex h-[52px] shrink-0 flex-col border-b border-gray-200">
+            <div className="flex h-[52px] shrink-0 flex-col border-b border-cy-gray-200">
               <div className="flex h-6">
                 {weeks.map((week, i) => (
                   <div
                     key={i}
                     style={{ width: week.days.length * DAY_WIDTH }}
-                    className="shrink-0 truncate border-r border-gray-100 px-2 text-[11px] font-medium text-gray-500"
+                    className="shrink-0 truncate border-r border-cy-gray-100 px-2 font-mono text-[11px] font-medium tabular-nums text-cy-gray-500"
                   >
                     {week.label}
                   </div>
@@ -297,9 +302,9 @@ export function GanttView({
                     <div
                       key={i}
                       style={{ width: DAY_WIDTH }}
-                      className={`flex shrink-0 items-center justify-center border-r border-gray-100 text-[11px] ${
-                        isWeekend ? "bg-gray-50 text-gray-400" : "text-gray-500"
-                      } ${isToday ? "font-semibold text-gray-900" : ""}`}
+                      className={`flex shrink-0 items-center justify-center border-r border-cy-gray-100 font-mono text-[11px] tabular-nums ${
+                        isWeekend ? "bg-cy-gray-025 text-cy-gray-400" : "text-cy-gray-500"
+                      } ${isToday ? "font-semibold text-cy-blue-600" : ""}`}
                     >
                       {day.getDate()}
                     </div>
@@ -311,14 +316,14 @@ export function GanttView({
             <div className="relative">
               {todayOffset >= 0 && todayOffset < totalDays && (
                 <div
-                  className="pointer-events-none absolute inset-y-0 z-10 w-px bg-red-400"
+                  className="pointer-events-none absolute inset-y-0 z-10 w-px bg-cy-cyan-500"
                   style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
                 />
               )}
               {rows.map((row) => {
                 const { node } = row;
                 const { start, end } = dates[node.id];
-                const barColor = STATUS_BAR_COLORS[node.status] ?? "bg-gray-400";
+                const barColor = STATUS_BAR_COLORS[node.status] ?? "bg-cy-gray-300";
                 const isDragging = draggingId === node.id;
                 const draggable = !!actionsByKind[node.kind];
 
@@ -328,7 +333,7 @@ export function GanttView({
                   const left = offset * DAY_WIDTH + 2;
                   const width = Math.max(span * DAY_WIDTH - 4, 8);
                   return (
-                    <div key={node.id} className="relative h-10 border-b border-gray-100 last:border-0">
+                    <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
                       <Link
                         href={node.href}
                         title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
@@ -360,7 +365,7 @@ export function GanttView({
                 const point = (start ?? end)!;
                 const offset = Math.max(0, diffDays(point, rangeStart));
                 return (
-                  <div key={node.id} className="relative h-10 border-b border-gray-100 last:border-0">
+                  <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
                     <div
                       onPointerDown={draggable ? (e) => beginDrag(node, "dot", e) : undefined}
                       title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})${
@@ -380,7 +385,7 @@ export function GanttView({
       </div>
 
       {hiddenTopLevel > 0 && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-cy-gray-400">
           {hiddenTopLevel} item{hiddenTopLevel === 1 ? "" : "s"} without a start or due date (or any dated
           descendant) {hiddenTopLevel === 1 ? "isn't" : "aren't"} shown on the timeline.
         </p>

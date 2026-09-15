@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ChevronRight, Plus } from "lucide-react";
 
 export type ProjectNode = { id: string; name: string; taskCount: number };
 export type ProgramNode = { id: string; name: string; projects: ProjectNode[] };
@@ -24,7 +25,7 @@ export function PortfolioTree({
       ))}
       {ungroupedPrograms.length > 0 && (
         <div className="mt-2">
-          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+          <p className="px-2 pb-1 text-[11px] font-semibold uppercase tracking-eyebrow text-cy-gray-400">
             Other Programs
           </p>
           <div className="flex flex-col gap-0.5">
@@ -39,7 +40,13 @@ export function PortfolioTree({
 }
 
 function TreeToggle({ open }: { open: boolean }) {
-  return <span className="w-5 shrink-0 text-xl leading-none text-gray-400">{open ? "▾" : "▸"}</span>;
+  return (
+    <ChevronRight
+      size={14}
+      strokeWidth={2}
+      className={`shrink-0 text-cy-gray-400 transition-transform duration-fast ${open ? "rotate-90" : ""}`}
+    />
+  );
 }
 
 function AddChildLink({ href, label }: { href: string; label: string }) {
@@ -47,11 +54,11 @@ function AddChildLink({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
       onClick={(e) => e.stopPropagation()}
-      className="shrink-0 px-1 text-xl leading-none text-gray-400 opacity-0 hover:text-gray-700 group-hover:opacity-100"
+      className="shrink-0 px-1 text-cy-gray-400 opacity-0 hover:text-cy-blue-600 group-hover:opacity-100"
       title={label}
       aria-label={label}
     >
-      +
+      <Plus size={14} strokeWidth={2} />
     </Link>
   );
 }
@@ -64,21 +71,21 @@ function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmi
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
-          active ? "bg-gray-100" : ""
+        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-cy-gray-050 ${
+          active ? "bg-cy-gray-050" : ""
         }`}
       >
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="shrink-0 text-gray-400"
+          className="shrink-0"
           aria-label={open ? "Collapse" : "Expand"}
         >
           <TreeToggle open={open} />
         </button>
         <Link
           href={`/dashboard/portfolios/${portfolio.id}`}
-          className={`flex-1 truncate font-medium ${active ? "text-gray-900" : "text-gray-700 hover:text-gray-900"}`}
+          className={`flex-1 truncate text-[13px] font-semibold ${active ? "text-cy-gray-900" : "text-cy-gray-900 hover:text-cy-blue-600"}`}
         >
           {portfolio.name}
         </Link>
@@ -87,9 +94,9 @@ function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmi
         )}
       </div>
       {open && (
-        <div className="ml-3 flex flex-col gap-0.5 border-l border-gray-200 pl-2">
+        <div className="ml-3.5 flex flex-col gap-0.5 border-l border-cy-gray-100 pl-2">
           {portfolio.programs.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-gray-400">No programs</p>
+            <p className="px-2 py-1 text-xs text-cy-gray-400">No programs</p>
           ) : (
             portfolio.programs.map((program) => (
               <ProgramRow key={program.id} program={program} isAdmin={isAdmin} />
@@ -109,21 +116,21 @@ function ProgramRow({ program, isAdmin }: { program: ProgramNode; isAdmin: boole
   return (
     <div>
       <div
-        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-gray-100 ${
-          active ? "bg-gray-100" : ""
+        className={`group flex items-center gap-1 rounded px-2 py-1.5 text-sm hover:bg-cy-gray-050 ${
+          active ? "bg-cy-gray-050" : ""
         }`}
       >
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className="shrink-0 text-gray-400"
+          className="shrink-0"
           aria-label={open ? "Collapse" : "Expand"}
         >
           <TreeToggle open={open} />
         </button>
         <Link
           href={`/dashboard/programs/${program.id}`}
-          className={`flex-1 truncate ${active ? "font-medium text-gray-900" : "text-gray-700 hover:text-gray-900"}`}
+          className={`flex-1 truncate text-[13px] font-medium ${active ? "text-cy-gray-900" : "text-cy-gray-700 hover:text-cy-blue-600"}`}
         >
           {program.name}
         </Link>
@@ -132,9 +139,9 @@ function ProgramRow({ program, isAdmin }: { program: ProgramNode; isAdmin: boole
         )}
       </div>
       {open && (
-        <div className="ml-3 flex flex-col gap-0.5 border-l border-gray-200 pl-2">
+        <div className="ml-3.5 flex flex-col gap-0.5 border-l border-cy-gray-100 pl-2">
           {program.projects.length === 0 ? (
-            <p className="px-2 py-1 text-xs text-gray-400">No projects</p>
+            <p className="px-2 py-1 text-xs text-cy-gray-400">No projects</p>
           ) : (
             program.projects.map((project) => (
               <ProjectRow key={project.id} programId={program.id} project={project} />
@@ -154,12 +161,16 @@ function ProjectRow({ programId, project }: { programId: string; project: Projec
   return (
     <Link
       href={href}
-      className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${
-        active ? "bg-gray-100 font-medium text-gray-900" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      className={`flex items-center justify-between rounded px-2 py-1.5 text-[13px] ${
+        active
+          ? "border border-cy-gray-200 bg-white font-semibold text-cy-blue-800"
+          : "text-cy-gray-600 hover:bg-cy-gray-050 hover:text-cy-gray-900"
       }`}
     >
       <span className="truncate">{project.name}</span>
-      {project.taskCount > 0 && <span className="shrink-0 pl-2 text-xs text-gray-400">{project.taskCount}</span>}
+      {project.taskCount > 0 && (
+        <span className="shrink-0 pl-2 font-mono text-[11px] text-cy-gray-400">{project.taskCount}</span>
+      )}
     </Link>
   );
 }

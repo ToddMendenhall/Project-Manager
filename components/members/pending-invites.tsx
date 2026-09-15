@@ -47,36 +47,38 @@ export function PendingInvites({
 
   return (
     <div className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium text-gray-500">Pending Invites</h2>
-      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+      <h2 className="text-[11px] font-semibold uppercase tracking-label text-cy-gray-400">Pending Invites</h2>
+      <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
         <table className="w-full min-w-[560px] text-left text-sm">
           <thead>
-            <tr className="border-b border-gray-200 text-xs font-medium uppercase text-gray-500">
-              <th className="px-3 py-2 font-medium">Email</th>
-              <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium">Expires</th>
-              <th className="px-3 py-2" />
+            <tr className="border-b border-cy-gray-200 bg-cy-blue-100 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">
+              <th className="px-3.5 py-2 font-semibold">Email</th>
+              <th className="px-3.5 py-2 font-semibold">Role</th>
+              <th className="px-3.5 py-2 font-semibold">Expires</th>
+              <th className="px-3.5 py-2" />
             </tr>
           </thead>
           <tbody>
             {rows.map((invite) => (
-              <tr key={invite.id} className="border-b border-gray-100 last:border-0">
-                <td className="px-3 py-2 text-gray-900">{invite.email}</td>
-                <td className="px-3 py-2 capitalize text-gray-600">{invite.role}</td>
-                <td className="px-3 py-2 text-gray-500">{new Date(invite.expiresAt).toLocaleDateString()}</td>
-                <td className="px-3 py-2 text-right">
+              <tr key={invite.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
+                <td className="px-3.5 py-2.5 text-cy-gray-900">{invite.email}</td>
+                <td className="px-3.5 py-2.5 capitalize text-cy-gray-700">{invite.role}</td>
+                <td className="px-3.5 py-2.5 font-mono text-xs tabular-nums text-cy-gray-500">
+                  {new Date(invite.expiresAt).toLocaleDateString()}
+                </td>
+                <td className="px-3.5 py-2.5 text-right">
                   <div className="flex items-center justify-end gap-4">
                     <button
                       type="button"
                       onClick={() => handleCopy(invite)}
-                      className="text-sm text-gray-600 underline"
+                      className="text-sm text-cy-blue-600 underline"
                     >
                       {copiedId === invite.id ? "Copied!" : "Copy Link"}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleRevoke(invite)}
-                      className="text-sm text-red-600 underline"
+                      className="text-sm text-cy-red-500 underline"
                     >
                       Revoke
                     </button>

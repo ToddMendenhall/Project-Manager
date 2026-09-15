@@ -19,11 +19,11 @@ export function CalendarNav({
 
   return (
     <div className="flex items-center justify-between">
-      <Link href={`${basePath}/calendar?month=${prevMonthParam}`} className="text-sm underline">
+      <Link href={`${basePath}/calendar?month=${prevMonthParam}`} className="text-sm text-cy-blue-600 hover:underline">
         &larr; Prev
       </Link>
-      <p className="text-sm font-semibold">{monthLabel}</p>
-      <Link href={`${basePath}/calendar?month=${nextMonthParam}`} className="text-sm underline">
+      <p className="text-sm font-semibold text-cy-gray-900">{monthLabel}</p>
+      <Link href={`${basePath}/calendar?month=${nextMonthParam}`} className="text-sm text-cy-blue-600 hover:underline">
         Next &rarr;
       </Link>
     </div>

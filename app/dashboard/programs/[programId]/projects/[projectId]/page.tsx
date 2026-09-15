@@ -86,20 +86,20 @@ export default async function ProjectDetailPage({
           <h2 className="text-lg font-semibold">Tasks ({taskCount})</h2>
           <Link
             href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/new`}
-            className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white"
+            className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
           >
             New Task
           </Link>
         </div>
         {project.tasks.length === 0 ? (
-          <p className="text-sm text-gray-500">No tasks yet.</p>
+          <p className="text-sm text-cy-gray-500">No tasks yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {project.tasks.map((task) => (
               <li key={task.id}>
                 <Link
                   href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/${task.id}`}
-                  className="flex items-center justify-between rounded border border-gray-200 bg-white p-3 text-sm hover:border-gray-400"
+                  className="flex items-center justify-between rounded border border-cy-gray-100 bg-white p-3 text-sm hover:border-cy-gray-400"
                 >
                   <span>{task.title}</span>
                   <span className="flex gap-2">

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Breadcrumbs, type Crumb } from "./breadcrumbs";
 
-export type ItemHeaderMeta = { label: string; value: string };
+export type ItemHeaderMeta = { label: string; value: string; mono?: boolean };
 
 export function ItemHeader({
   breadcrumbs,
@@ -23,17 +23,23 @@ export function ItemHeader({
       <Breadcrumbs items={breadcrumbs} />
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{name}</h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">{name}</h1>
             {badges}
           </div>
-          {description && <p className="mt-2 max-w-2xl text-sm text-gray-600">{description}</p>}
+          {description && (
+            <p className="mt-2 max-w-[660px] text-sm leading-relaxed text-cy-gray-600">{description}</p>
+          )}
           {meta && meta.length > 0 && (
-            <dl className="mt-3 flex gap-6 text-xs text-gray-500">
+            <dl className="mt-3.5 flex gap-7">
               {meta.map((m) => (
                 <div key={m.label}>
-                  <dt className="font-medium text-gray-400">{m.label}</dt>
-                  <dd>{m.value}</dd>
+                  <dt className="text-[11px] font-semibold uppercase tracking-label text-cy-gray-400">{m.label}</dt>
+                  <dd
+                    className={`mt-[3px] text-[13px] font-medium text-cy-gray-700 ${m.mono ? "font-mono tabular-nums" : ""}`}
+                  >
+                    {m.value}
+                  </dd>
                 </div>
               ))}
             </dl>

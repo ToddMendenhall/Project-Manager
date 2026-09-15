@@ -37,8 +37,8 @@ export default async function AttachmentsPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold">Attachments</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Attachments</h1>
+        <p className="text-sm text-cy-gray-500">
           Every file attached to a task or checklist item across {ctx.org.name}. Delete old ones here to free up
           database storage.
         </p>
@@ -50,58 +50,60 @@ export default async function AttachmentsPage({
       </div>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-gray-500">No attachments yet.</p>
+        <p className="text-sm text-cy-gray-500">No attachments yet.</p>
       ) : (
         <div>
           <div className="mb-3 flex items-center gap-4 text-sm">
-            <span className="text-gray-500">Sort:</span>
+            <span className="text-cy-gray-500">Sort:</span>
             {(Object.keys(SORTS) as SortKey[]).map((key) => (
               <Link
                 key={key}
                 href={`/dashboard/attachments?sort=${key}`}
-                className={key === sortKey ? "font-medium text-gray-900 underline" : "text-gray-500 underline"}
+                className={key === sortKey ? "font-medium text-cy-gray-900 underline" : "text-cy-gray-500 underline"}
               >
                 {SORTS[key].label}
               </Link>
             ))}
           </div>
 
-          <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+          <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
             <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="border-b border-gray-200 text-xs uppercase text-gray-500">
+              <thead className="border-b border-cy-gray-200 bg-cy-blue-100 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">
                 <tr>
-                  <th className="px-4 py-3 font-medium">File</th>
-                  <th className="px-4 py-3 font-medium">Attached To</th>
-                  <th className="px-4 py-3 font-medium">Size</th>
-                  <th className="px-4 py-3 font-medium">Uploaded By</th>
-                  <th className="px-4 py-3 font-medium">Uploaded</th>
-                  <th className="px-4 py-3 font-medium" />
+                  <th className="px-4 py-3 font-semibold">File</th>
+                  <th className="px-4 py-3 font-semibold">Attached To</th>
+                  <th className="px-4 py-3 font-semibold">Size</th>
+                  <th className="px-4 py-3 font-semibold">Uploaded By</th>
+                  <th className="px-4 py-3 font-semibold">Uploaded</th>
+                  <th className="px-4 py-3 font-semibold" />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50">
+                  <tr key={row.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
                     <td className="px-4 py-3">
-                      <a href={`/api/attachments/${row.id}`} className="font-medium text-gray-900 hover:underline">
+                      <a href={`/api/attachments/${row.id}`} className="font-medium text-cy-gray-900 hover:underline">
                         {row.fileName}
                       </a>
                     </td>
                     <td className="px-4 py-3">
-                      <Link href={itemHref(row)} className="text-gray-900 hover:underline">
+                      <Link href={itemHref(row)} className="text-cy-gray-900 hover:underline">
                         {row.itemTitle}
                       </Link>
                       <div className="mt-1 flex items-center gap-2">
                         <StatusBadge status={row.itemStatus} />
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-cy-gray-400">
                           {row.programName} / {row.projectName}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">
+                    <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
                       {row.sizeBytes != null ? formatBytes(row.sizeBytes) : "—"}
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{row.uploadedByName}</td>
-                    <td className="px-4 py-3 text-gray-600">{new Date(row.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-cy-gray-600">{row.uploadedByName}</td>
+                    <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
+                      {new Date(row.createdAt).toLocaleDateString()}
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <ConfirmDeleteButton
                         action={deleteAttachmentAdmin.bind(null, row.id)}

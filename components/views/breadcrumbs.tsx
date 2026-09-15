@@ -9,11 +9,11 @@ export type Crumb = { label: string; href: string };
  */
 export function Breadcrumbs({ items }: { items: Crumb[] }) {
   return (
-    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
+    <nav className="flex flex-wrap items-center gap-1.5 text-[13px] text-cy-gray-500">
       {items.map((item, i) => (
         <span key={item.href} className="flex items-center gap-1.5">
-          {i > 0 && <span className="text-gray-300">/</span>}
-          <Link href={item.href} className="hover:text-gray-900 hover:underline">
+          {i > 0 && <span className="text-cy-gray-300">/</span>}
+          <Link href={item.href} className="text-cy-blue-600 hover:text-cy-blue-700 hover:underline">
             {item.label}
           </Link>
         </span>

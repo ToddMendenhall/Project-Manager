@@ -155,8 +155,8 @@ export function BoardView({
                   }
                 : undefined
             }
-            className={`flex w-64 shrink-0 flex-col gap-2 rounded border p-2 ${
-              dragOverColumn === column.value ? "border-gray-400 bg-gray-100" : "border-gray-200 bg-gray-50"
+            className={`flex w-64 shrink-0 flex-col gap-2 rounded-card border p-2 ${
+              dragOverColumn === column.value ? "border-cy-blue-300 bg-cy-blue-100" : "border-cy-gray-200 bg-cy-gray-025"
             }`}
           >
             <div
@@ -177,12 +177,12 @@ export function BoardView({
                 handleColumnReorder(e.dataTransfer.getData(COLUMN_MIME), column.value);
               }}
               title="Drag to reorder columns"
-              className={`flex cursor-grab items-center justify-between rounded px-1 py-1 active:cursor-grabbing ${
-                dragOverColumnHeader === column.value ? "bg-gray-200" : ""
+              className={`flex cursor-grab items-center justify-between rounded bg-cy-blue-100 px-2 py-1.5 active:cursor-grabbing ${
+                dragOverColumnHeader === column.value ? "bg-cy-blue-200" : ""
               }`}
             >
-              <p className="text-sm font-semibold">{column.label}</p>
-              <span className="text-xs text-gray-400">{columnItems.length}</span>
+              <p className="text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">{column.label}</p>
+              <span className="font-mono text-xs text-cy-blue-800">{columnItems.length}</span>
             </div>
             <div className="flex flex-col gap-2">
               {columnItems.map((item) => (
@@ -221,14 +221,14 @@ export function BoardView({
                         }
                       : undefined
                   }
-                  className={`rounded border bg-white p-3 text-sm shadow-sm ${
+                  className={`rounded-card border bg-white p-3 text-sm shadow-xs transition-colors duration-fast hover:shadow-md ${
                     draggable ? "cursor-grab active:cursor-grabbing" : ""
-                  } ${dragOverCardId === item.id ? "border-t-2 border-t-gray-900 border-x-gray-200 border-b-gray-200" : "border-gray-200"}`}
+                  } ${dragOverCardId === item.id ? "border-t-2 border-t-cy-blue-600 border-x-cy-gray-200 border-b-cy-gray-200" : "border-cy-gray-200"}`}
                 >
                   {item.card}
                 </div>
               ))}
-              {columnItems.length === 0 && <p className="px-1 py-2 text-xs text-gray-400">No items</p>}
+              {columnItems.length === 0 && <p className="px-1 py-2 text-xs text-cy-gray-400">No items</p>}
             </div>
           </div>
         );

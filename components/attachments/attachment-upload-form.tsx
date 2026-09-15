@@ -48,16 +48,16 @@ export function AttachmentUploadForm({ uploadUrl }: { uploadUrl: string }) {
         name="file"
         required
         disabled={uploading}
-        className="text-sm file:mr-3 file:rounded file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm"
+        className="text-sm text-cy-gray-700 file:mr-3 file:rounded file:border-0 file:bg-cy-gray-050 file:px-3 file:py-1.5 file:text-sm file:text-cy-gray-700"
       />
       <button
         type="submit"
         disabled={uploading}
-        className="rounded border border-gray-300 px-3 py-1.5 text-sm disabled:opacity-50"
+        className="rounded border border-cy-blue-600 bg-white px-3.5 py-[7px] text-[13px] font-semibold text-cy-blue-600 transition-colors duration-fast hover:bg-cy-blue-100 disabled:opacity-50"
       >
         {uploading ? "Uploading..." : "Upload"}
       </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-sm text-cy-red-500">{error}</span>}
     </form>
   );
 }

@@ -70,45 +70,45 @@ export default async function TaskDetailPage({
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold">{task.title}</h1>
+            <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">{task.title}</h1>
             <StatusBadge status={task.status} />
             <PriorityBadge priority={task.priority} />
           </div>
-          {task.description && <p className="mt-2 max-w-2xl text-sm text-gray-600">{task.description}</p>}
-          <dl className="mt-3 flex flex-wrap gap-6 text-xs text-gray-500">
+          {task.description && <p className="mt-2 max-w-2xl text-sm text-cy-gray-600">{task.description}</p>}
+          <dl className="mt-3 flex flex-wrap gap-6 text-xs text-cy-gray-500">
             {task.assignee && (
               <div>
-                <dt className="font-medium text-gray-400">Assignee</dt>
+                <dt className="font-medium text-cy-gray-400">Assignee</dt>
                 <dd>{task.assignee.name}</dd>
               </div>
             )}
             {task.startDate && (
               <div>
-                <dt className="font-medium text-gray-400">Start</dt>
+                <dt className="font-medium text-cy-gray-400">Start</dt>
                 <dd>{new Date(task.startDate).toLocaleDateString()}</dd>
               </div>
             )}
             {task.dueDate && (
               <div>
-                <dt className="font-medium text-gray-400">Due</dt>
+                <dt className="font-medium text-cy-gray-400">Due</dt>
                 <dd>{new Date(task.dueDate).toLocaleDateString()}</dd>
               </div>
             )}
             {task.completedAt && (
               <div>
-                <dt className="font-medium text-gray-400">Completed</dt>
+                <dt className="font-medium text-cy-gray-400">Completed</dt>
                 <dd>{new Date(task.completedAt).toLocaleDateString()}</dd>
               </div>
             )}
           </dl>
           {fieldDefs.length > 0 && (
-            <dl className="mt-4 flex flex-wrap gap-6 border-t border-gray-200 pt-4 text-xs text-gray-500">
+            <dl className="mt-4 flex flex-wrap gap-6 border-t border-cy-gray-100 pt-4 text-xs text-cy-gray-500">
               {fieldDefs.map((def) => {
                 const value = customValues[def.key];
                 if (value === null || value === undefined || value === "") return null;
                 return (
                   <div key={def.id}>
-                    <dt className="font-medium text-gray-400">{def.label}</dt>
+                    <dt className="font-medium text-cy-gray-400">{def.label}</dt>
                     <dd>{def.fieldType === "boolean" ? (value ? "Yes" : "No") : String(value)}</dd>
                   </div>
                 );

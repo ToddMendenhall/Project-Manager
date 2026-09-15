@@ -66,12 +66,12 @@ export function MembersTable({
   return (
     <div className="flex flex-col gap-3">
       {reset && (
-        <div className="rounded border border-amber-300 bg-amber-50 p-3 text-sm">
+        <div className="rounded-card border border-cy-amber-400 bg-cy-amber-100 p-3 text-sm">
           <div className="mb-2 flex items-start justify-between gap-4">
-            <p className="font-medium text-amber-900">
+            <p className="font-medium text-cy-amber-600">
               New password for {reset.name} — copy it now, it won&apos;t be shown again.
             </p>
-            <button type="button" onClick={() => setReset(null)} className="shrink-0 text-xs text-amber-700 underline">
+            <button type="button" onClick={() => setReset(null)} className="shrink-0 text-xs text-cy-amber-600 underline">
               Dismiss
             </button>
           </div>
@@ -79,45 +79,47 @@ export function MembersTable({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+      <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
-            <tr className="border-b border-gray-200 text-xs font-medium uppercase text-gray-500">
-              <th className="px-3 py-2 font-medium">Name</th>
-              <th className="px-3 py-2 font-medium">Email</th>
-              <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium">Joined</th>
-              <th className="px-3 py-2" />
+            <tr className="border-b border-cy-gray-200 bg-cy-blue-100 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800">
+              <th className="px-3.5 py-2 font-semibold">Name</th>
+              <th className="px-3.5 py-2 font-semibold">Email</th>
+              <th className="px-3.5 py-2 font-semibold">Role</th>
+              <th className="px-3.5 py-2 font-semibold">Joined</th>
+              <th className="px-3.5 py-2" />
             </tr>
           </thead>
           <tbody>
             {rows.map((member) => {
               const isSelf = member.userId === currentUserId;
               return (
-                <tr key={member.userId} className="border-b border-gray-100 last:border-0">
-                  <td className="px-3 py-2 font-medium text-gray-900">
-                    {member.name} {isSelf && <span className="text-xs font-normal text-gray-400">(you)</span>}
+                <tr key={member.userId} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
+                  <td className="px-3.5 py-2.5 font-medium text-cy-gray-900">
+                    {member.name} {isSelf && <span className="text-xs font-normal text-cy-gray-400">(you)</span>}
                   </td>
-                  <td className="px-3 py-2 text-gray-600">{member.email}</td>
-                  <td className="px-3 py-2">
+                  <td className="px-3.5 py-2.5 text-cy-gray-700">{member.email}</td>
+                  <td className="px-3.5 py-2.5">
                     <select
                       value={member.role}
                       disabled={isSelf}
                       onChange={(e) => handleRoleChange(member, e.target.value)}
                       title={isSelf ? "You can't change your own role" : undefined}
-                      className="rounded border border-gray-300 bg-white px-2 py-1 text-xs disabled:opacity-50"
+                      className="rounded border border-cy-gray-200 bg-white px-2 py-1 text-xs text-cy-gray-700 disabled:opacity-50"
                     >
                       <option value="admin">Admin</option>
                       <option value="member">Member</option>
                     </select>
                   </td>
-                  <td className="px-3 py-2 text-gray-500">{new Date(member.createdAt).toLocaleDateString()}</td>
-                  <td className="px-3 py-2 text-right">
+                  <td className="px-3.5 py-2.5 font-mono text-xs tabular-nums text-cy-gray-500">
+                    {new Date(member.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-3.5 py-2.5 text-right">
                     <div className="flex items-center justify-end gap-4">
                       <button
                         type="button"
                         onClick={() => handleResetPassword(member)}
-                        className="text-sm text-gray-600 underline"
+                        className="text-sm text-cy-blue-600 underline"
                       >
                         Reset Password
                       </button>

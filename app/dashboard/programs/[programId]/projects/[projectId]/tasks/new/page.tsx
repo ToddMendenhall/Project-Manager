@@ -22,7 +22,7 @@ export default async function NewTaskPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">New Task in {project.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">New Task in {project.name}</h1>
       <TaskForm
         action={createTask.bind(null, programId, projectId)}
         orgMembers={members}

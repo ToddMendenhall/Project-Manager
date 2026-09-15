@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { buttonPrimary, inputClass } from "@/components/form-controls";
 
 export default function LoginPage() {
   return (
@@ -65,47 +66,48 @@ function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Sign in</h1>
-        <p className="text-sm text-gray-500">Access your organization's workspace.</p>
+    <main className="flex min-h-screen items-center justify-center bg-cy-gray-025 px-4">
+      <div className="w-full max-w-[400px] overflow-hidden rounded-card border border-cy-gray-200 bg-white shadow-xs">
+        <div className="h-[3px] bg-cy-navy" />
+        <div className="flex flex-col gap-6 p-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-cy-gray-900">Sign in</h1>
+            <p className="text-sm text-cy-gray-500">Access your organization's workspace.</p>
+          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Email</span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Password</span>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            {error && <p className="text-sm text-cy-red-500">{error}</p>}
+            <button type="submit" disabled={submitting} className={`w-full ${buttonPrimary}`}>
+              {submitting ? "Signing in..." : "Sign in"}
+            </button>
+          </form>
+          <p className="text-sm text-cy-gray-500">
+            No account?{" "}
+            <Link href="/register" className="text-cy-blue-600 hover:underline">
+              Create one
+            </Link>
+          </p>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
-      <p className="text-sm text-gray-500">
-        No account?{" "}
-        <Link href="/register" className="underline">
-          Create one
-        </Link>
-      </p>
     </main>
   );
 }

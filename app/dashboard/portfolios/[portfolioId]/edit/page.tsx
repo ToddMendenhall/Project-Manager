@@ -20,7 +20,7 @@ export default async function EditPortfolioPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Edit {portfolio.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Edit {portfolio.name}</h1>
       <PortfolioForm
         action={updatePortfolio.bind(null, portfolio.id)}
         portfolio={portfolio}

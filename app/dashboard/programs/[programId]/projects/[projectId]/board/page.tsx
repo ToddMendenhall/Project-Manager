@@ -57,7 +57,7 @@ export default async function TaskBoardPage({
         description={project.description}
         meta={meta}
         action={
-          <Link href={`${basePath}/tasks/new`} className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+          <Link href={`${basePath}/tasks/new`} className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
             New Task
           </Link>
         }
@@ -66,7 +66,7 @@ export default async function TaskBoardPage({
       <ViewTabs basePath={basePath} active="board" hrefs={{ list: `${basePath}/tasks` }} />
 
       {project.tasks.length === 0 ? (
-        <p className="text-sm text-gray-500">No tasks yet.</p>
+        <p className="text-sm text-cy-gray-500">No tasks yet.</p>
       ) : (
         <BoardView
           items={project.tasks.map((task) => ({
@@ -75,15 +75,15 @@ export default async function TaskBoardPage({
             sortOrder: task.sortOrder,
             card: (
               <>
-                <Link href={`${basePath}/tasks/${task.id}`} className="font-medium text-gray-900 hover:underline">
+                <Link href={`${basePath}/tasks/${task.id}`} className="font-medium text-cy-gray-900 hover:underline">
                   {task.title}
                 </Link>
                 <div className="mt-2 flex items-center justify-between">
                   <PriorityBadge priority={task.priority} />
-                  {task.assignee && <span className="text-xs text-gray-500">{task.assignee.name}</span>}
+                  {task.assignee && <span className="text-xs text-cy-gray-500">{task.assignee.name}</span>}
                 </div>
                 {task.dueDate && (
-                  <p className="mt-1 text-xs text-gray-400">Due {new Date(task.dueDate).toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-cy-gray-400">Due {new Date(task.dueDate).toLocaleDateString()}</p>
                 )}
               </>
             ),

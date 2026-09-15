@@ -75,21 +75,21 @@ export default async function ProgramDetailPage({
           {ctx.role === "admin" && (
             <Link
               href={`/dashboard/programs/${program.id}/projects/new`}
-              className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white"
+              className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
             >
               New Project
             </Link>
           )}
         </div>
         {program.projects.length === 0 ? (
-          <p className="text-sm text-gray-500">No projects yet.</p>
+          <p className="text-sm text-cy-gray-500">No projects yet.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {program.projects.map((project) => (
               <li key={project.id}>
                 <Link
                   href={`/dashboard/programs/${program.id}/projects/${project.id}`}
-                  className="block rounded border border-gray-200 bg-white p-4 hover:border-gray-400"
+                  className="block rounded border border-cy-gray-100 bg-white p-4 hover:border-cy-gray-400"
                 >
                   <div className="flex items-center justify-between">
                     <p className="font-medium">{project.name}</p>
@@ -99,9 +99,9 @@ export default async function ProgramDetailPage({
                     </div>
                   </div>
                   {project.description && (
-                    <p className="mt-1 text-sm text-gray-500">{project.description}</p>
+                    <p className="mt-1 text-sm text-cy-gray-500">{project.description}</p>
                   )}
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 text-xs text-cy-gray-400">
                     {project.tasks.length} task{project.tasks.length === 1 ? "" : "s"}
                     {project.lead && ` · Lead: ${project.lead.name}`}
                   </p>

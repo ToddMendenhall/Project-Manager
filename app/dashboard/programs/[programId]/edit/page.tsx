@@ -23,7 +23,7 @@ export default async function EditProgramPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Edit {program.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Edit {program.name}</h1>
       <ProgramForm
         action={updateProgram.bind(null, program.id)}
         program={program}

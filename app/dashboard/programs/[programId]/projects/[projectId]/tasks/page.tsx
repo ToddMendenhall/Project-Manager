@@ -6,7 +6,7 @@ import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers } from "@/lib/queries";
 import { STATUS_OPTIONS } from "@/lib/fields";
-import { selectClass } from "@/components/form-controls";
+import { buttonPrimary, buttonSecondary, selectClass } from "@/components/form-controls";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
@@ -84,7 +84,7 @@ export default async function TaskListPage({
         action={
           <Link
             href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/new`}
-            className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+            className={buttonPrimary}
           >
             New Task
           </Link>
@@ -97,37 +97,31 @@ export default async function TaskListPage({
         hrefs={{ list: `/dashboard/programs/${programId}/projects/${projectId}/tasks` }}
       />
 
-      <form method="get" className="flex flex-wrap items-end gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium text-gray-500">Status</span>
-          <select name="status" defaultValue={sp.status ?? ""} className={selectClass}>
-            <option value="">All statuses</option>
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="text-xs font-medium text-gray-500">Assignee</span>
-          <select name="assigneeId" defaultValue={sp.assigneeId ?? ""} className={selectClass}>
-            <option value="">All assignees</option>
-            <option value="unassigned">Unassigned</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" className="rounded border border-gray-300 px-3 py-1.5 text-sm">
+      <form method="get" className="flex flex-wrap items-center gap-3">
+        <select name="status" defaultValue={sp.status ?? ""} className={selectClass}>
+          <option value="">All statuses</option>
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <select name="assigneeId" defaultValue={sp.assigneeId ?? ""} className={selectClass}>
+          <option value="">All assignees</option>
+          <option value="unassigned">Unassigned</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className={buttonSecondary}>
           Filter
         </button>
         {(sp.status || sp.assigneeId) && (
           <Link
             href={`/dashboard/programs/${programId}/projects/${projectId}/tasks`}
-            className="text-sm text-gray-500 underline"
+            className="rounded px-3 py-2 text-[13px] font-semibold text-cy-blue-600 hover:bg-cy-blue-100"
           >
             Clear
           </Link>

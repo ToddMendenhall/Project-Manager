@@ -11,12 +11,12 @@ export default async function NewMemberPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/dashboard/members" className="text-sm text-gray-500 underline">
+        <Link href="/dashboard/members" className="text-sm text-cy-gray-500 underline">
           &larr; Members
         </Link>
       </div>
 
-      <h1 className="text-xl font-semibold">Invite Member</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Invite Member</h1>
 
       <InviteForm action={createInvite} submitLabel="Create Invite" />
     </div>

@@ -46,7 +46,7 @@ export default async function PortfoliosGanttPage() {
         title="Portfolios"
         action={
           ctx.role === "admin" ? (
-            <Link href="/dashboard/portfolios/new" className="rounded bg-gray-900 px-4 py-2 text-sm text-white">
+            <Link href="/dashboard/portfolios/new" className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
               New Portfolio
             </Link>
           ) : undefined
@@ -61,7 +61,7 @@ export default async function PortfoliosGanttPage() {
       />
 
       {orgPortfolios.length === 0 ? (
-        <p className="text-sm text-gray-500">No portfolios yet.</p>
+        <p className="text-sm text-cy-gray-500">No portfolios yet.</p>
       ) : (
         <GanttView
           items={orgPortfolios.map(portfolioNode)}

@@ -42,15 +42,15 @@ export default async function DashboardPage() {
 
       <div>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Recent Programs</h2>
-          <Link href="/dashboard/programs" className="text-sm underline">
+          <h2 className="text-lg font-semibold text-cy-gray-900">Recent Programs</h2>
+          <Link href="/dashboard/programs" className="text-sm text-cy-blue-600 hover:underline">
             View all programs &rarr;
           </Link>
         </div>
         {recentPrograms.length === 0 ? (
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-cy-gray-500">
             No programs yet. Run <code>npm run db:seed</code> for sample data, or{" "}
-            <Link href="/dashboard/programs/new" className="underline">
+            <Link href="/dashboard/programs/new" className="text-cy-blue-600 hover:underline">
               create your first program
             </Link>
             .
@@ -61,16 +61,16 @@ export default async function DashboardPage() {
               <li key={program.id}>
                 <Link
                   href={`/dashboard/programs/${program.id}`}
-                  className="block rounded border border-gray-200 bg-white p-4 hover:border-gray-400"
+                  className="block rounded-card border border-cy-gray-100 bg-white p-4 shadow-xs transition-colors duration-fast hover:border-cy-gray-200 hover:shadow-md"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="font-medium">{program.name}</p>
+                    <p className="font-medium text-cy-gray-900">{program.name}</p>
                     <StatusBadge status={program.status} />
                   </div>
                   {program.description && (
-                    <p className="mt-1 text-sm text-gray-500">{program.description}</p>
+                    <p className="mt-1 text-sm text-cy-gray-500">{program.description}</p>
                   )}
-                  <p className="mt-2 text-xs text-gray-400">
+                  <p className="mt-2 font-mono text-xs text-cy-gray-400">
                     {program.projects.length} project{program.projects.length === 1 ? "" : "s"}
                   </p>
                 </Link>

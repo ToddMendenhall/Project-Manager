@@ -46,7 +46,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
           ctx.role === "admin" ? (
             <Link
               href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
-              className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+              className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
             >
               New Program
             </Link>
@@ -62,7 +62,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
       />
 
       {portfolio.programs.length === 0 ? (
-        <p className="text-sm text-gray-500">No programs in this portfolio yet.</p>
+        <p className="text-sm text-cy-gray-500">No programs in this portfolio yet.</p>
       ) : (
         <BoardView
           items={portfolio.programs.map((program) => ({
@@ -71,12 +71,12 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
             sortOrder: program.sortOrder,
             card: (
               <>
-                <Link href={`/dashboard/programs/${program.id}`} className="font-medium text-gray-900 hover:underline">
+                <Link href={`/dashboard/programs/${program.id}`} className="font-medium text-cy-gray-900 hover:underline">
                   {program.name}
                 </Link>
-                {program.owner && <p className="mt-2 text-xs text-gray-500">{program.owner.name}</p>}
+                {program.owner && <p className="mt-2 text-xs text-cy-gray-500">{program.owner.name}</p>}
                 {program.targetEndDate && (
-                  <p className="mt-1 text-xs text-gray-400">
+                  <p className="mt-1 text-xs text-cy-gray-400">
                     Target end {new Date(program.targetEndDate).toLocaleDateString()}
                   </p>
                 )}

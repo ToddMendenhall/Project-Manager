@@ -18,11 +18,11 @@ export default async function PortfoliosPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Portfolios</h1>
+        <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Portfolios</h1>
         {ctx.role === "admin" && (
           <Link
             href="/dashboard/portfolios/new"
-            className="rounded bg-gray-900 px-4 py-2 text-sm text-white"
+            className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
           >
             New Portfolio
           </Link>
@@ -37,23 +37,23 @@ export default async function PortfoliosPage() {
       />
 
       {orgPortfolios.length === 0 ? (
-        <p className="text-sm text-gray-500">No portfolios yet.</p>
+        <p className="text-sm text-cy-gray-500">No portfolios yet.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {orgPortfolios.map((portfolio) => (
             <li key={portfolio.id}>
               <Link
                 href={`/dashboard/portfolios/${portfolio.id}`}
-                className="block rounded border border-gray-200 bg-white p-4 hover:border-gray-400"
+                className="block rounded border border-cy-gray-100 bg-white p-4 hover:border-cy-gray-400"
               >
                 <div className="flex items-center justify-between">
                   <p className="font-medium">{portfolio.name}</p>
                   <StatusBadge status={portfolio.status} />
                 </div>
                 {portfolio.description && (
-                  <p className="mt-1 text-sm text-gray-500">{portfolio.description}</p>
+                  <p className="mt-1 text-sm text-cy-gray-500">{portfolio.description}</p>
                 )}
-                <p className="mt-2 text-xs text-gray-400">
+                <p className="mt-2 text-xs text-cy-gray-400">
                   {portfolio.programs.length} program{portfolio.programs.length === 1 ? "" : "s"}
                   {portfolio.owner && ` · Owner: ${portfolio.owner.name}`}
                 </p>

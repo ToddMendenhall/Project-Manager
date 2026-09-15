@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios, programs } from "@/db/schema";
 import { getOrgTasksFlat } from "@/lib/queries";
+import { NavLinks } from "./nav-links";
 import { PortfolioTree, type ProgramNode, type ProjectNode } from "./portfolio-tree";
 
 const PERSONAL_LINKS = [
@@ -66,45 +68,33 @@ export async function Sidebar({
   const ungroupedPrograms = ungroupedProgramsRaw.map(mapProgram);
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-gray-200 bg-gray-50">
-      <div className="flex flex-col gap-0.5 p-3">
-        {PERSONAL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((link) => (
-          <Link
-            key={link.href}
-            href={link.href}
-            className="flex items-center justify-between rounded px-2 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
-          >
-            <span>{link.label}</span>
-            {link.href === "/dashboard/my-tasks" && myOpenTaskCount > 0 && (
-              <span className="rounded-full bg-gray-200 px-1.5 text-xs font-normal text-gray-600">
-                {myOpenTaskCount}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
+    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-cy-gray-100 bg-cy-gray-025">
+      <NavLinks
+        links={PERSONAL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((l) => ({ href: l.href, label: l.label }))}
+        myOpenTaskCount={myOpenTaskCount}
+      />
 
-      <div className="flex-1 border-t border-gray-200 p-3">
+      <div className="flex-1 border-t border-cy-gray-100 p-3">
         <div className="mb-2 flex items-center justify-between px-2">
           <Link
             href="/dashboard/portfolios"
-            className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600"
+            className="text-[11px] font-semibold uppercase tracking-eyebrow text-cy-gray-400 hover:text-cy-gray-600"
           >
             Portfolios
           </Link>
           {isAdmin && (
             <Link
               href="/dashboard/portfolios/new"
-              className="text-xl leading-none text-gray-400 hover:text-gray-700"
+              className="text-cy-gray-400 hover:text-cy-blue-600"
               title="New Portfolio"
               aria-label="New Portfolio"
             >
-              +
+              <Plus size={16} strokeWidth={2} />
             </Link>
           )}
         </div>
         {portfolioNodes.length === 0 && ungroupedPrograms.length === 0 ? (
-          <p className="px-2 text-xs text-gray-400">Nothing here yet.</p>
+          <p className="px-2 text-xs text-cy-gray-400">Nothing here yet.</p>
         ) : (
           <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} isAdmin={isAdmin} />
         )}

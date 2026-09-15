@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -15,6 +15,87 @@ import {
   tasks,
   users,
 } from "@/db/schema";
+
+export type SearchResult = { id: string; title: string; path: string; href: string };
+export type SearchResults = {
+  tasks: SearchResult[];
+  projects: SearchResult[];
+  programs: SearchResult[];
+  members: SearchResult[];
+};
+
+const SEARCH_GROUP_LIMIT = 8;
+
+/** Powers the global command bar (⌘K) — matches by name/title within the org, grouped by kind. */
+export async function searchOrg(orgId: string, query: string): Promise<SearchResults> {
+  const pattern = `%${query}%`;
+
+  const [taskRows, projectRows, programRows, memberRows] = await Promise.all([
+    db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        programId: programs.id,
+        programName: programs.name,
+        projectId: projects.id,
+        projectName: projects.name,
+      })
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(eq(programs.orgId, orgId), ilike(tasks.title, pattern)))
+      .limit(SEARCH_GROUP_LIMIT),
+    db
+      .select({
+        id: projects.id,
+        name: projects.name,
+        programId: programs.id,
+        programName: programs.name,
+      })
+      .from(projects)
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(eq(programs.orgId, orgId), ilike(projects.name, pattern)))
+      .limit(SEARCH_GROUP_LIMIT),
+    db
+      .select({ id: programs.id, name: programs.name })
+      .from(programs)
+      .where(and(eq(programs.orgId, orgId), ilike(programs.name, pattern)))
+      .limit(SEARCH_GROUP_LIMIT),
+    db
+      .select({ id: users.id, name: users.name, email: users.email })
+      .from(orgMembers)
+      .innerJoin(users, eq(orgMembers.userId, users.id))
+      .where(and(eq(orgMembers.orgId, orgId), ilike(users.name, pattern)))
+      .limit(SEARCH_GROUP_LIMIT),
+  ]);
+
+  return {
+    tasks: taskRows.map((t) => ({
+      id: t.id,
+      title: t.title,
+      path: `${t.programName} / ${t.projectName}`,
+      href: `/dashboard/programs/${t.programId}/projects/${t.projectId}/tasks/${t.id}`,
+    })),
+    projects: projectRows.map((p) => ({
+      id: p.id,
+      title: p.name,
+      path: p.programName,
+      href: `/dashboard/programs/${p.programId}/projects/${p.id}`,
+    })),
+    programs: programRows.map((p) => ({
+      id: p.id,
+      title: p.name,
+      path: "Program",
+      href: `/dashboard/programs/${p.id}`,
+    })),
+    members: memberRows.map((m) => ({
+      id: m.id,
+      title: m.name,
+      path: m.email,
+      href: `/dashboard/members`,
+    })),
+  };
+}
 
 /** Org members available to assign as a program owner / project lead. */
 export async function getOrgMembers(orgId: string) {

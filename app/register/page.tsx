@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
+import { buttonPrimary, inputClass } from "@/components/form-controls";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -53,68 +54,64 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Create your organization</h1>
-        <p className="text-sm text-gray-500">
-          This creates a new workspace and makes you its admin.
-        </p>
+    <main className="flex min-h-screen items-center justify-center bg-cy-gray-025 px-4">
+      <div className="w-full max-w-[400px] overflow-hidden rounded-card border border-cy-gray-200 bg-white shadow-xs">
+        <div className="h-[3px] bg-cy-navy" />
+        <div className="flex flex-col gap-6 p-8">
+          <div>
+            <h1 className="text-2xl font-semibold text-cy-gray-900">Create your organization</h1>
+            <p className="text-sm text-cy-gray-500">
+              This creates a new workspace and makes you its admin.
+            </p>
+          </div>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Organization name</span>
+              <input
+                required
+                value={orgName}
+                onChange={(e) => setOrgName(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Your name</span>
+              <input required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Email</span>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-[13px] font-semibold text-cy-gray-700">Password</span>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={inputClass}
+              />
+            </label>
+            {error && <p className="text-sm text-cy-red-500">{error}</p>}
+            <button type="submit" disabled={submitting} className={`w-full ${buttonPrimary}`}>
+              {submitting ? "Creating..." : "Create organization"}
+            </button>
+          </form>
+          <p className="text-sm text-cy-gray-500">
+            Already have an account?{" "}
+            <Link href="/login" className="text-cy-blue-600 hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
       </div>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Organization name
-          <input
-            required
-            value={orgName}
-            onChange={(e) => setOrgName(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Your name
-          <input
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            required
-            minLength={8}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-2"
-          />
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? "Creating..." : "Create organization"}
-        </button>
-      </form>
-      <p className="text-sm text-gray-500">
-        Already have an account?{" "}
-        <Link href="/login" className="underline">
-          Sign in
-        </Link>
-      </p>
     </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition } from "react";
+import { buttonDestructive } from "@/components/form-controls";
 
 export function ConfirmDeleteButton({
   action,
@@ -24,7 +25,7 @@ export function ConfirmDeleteButton({
           });
         }
       }}
-      className="text-sm text-red-600 underline disabled:opacity-50"
+      className={`${buttonDestructive} px-3 py-1.5 text-xs`}
     >
       {isPending ? "Deleting..." : label}
     </button>

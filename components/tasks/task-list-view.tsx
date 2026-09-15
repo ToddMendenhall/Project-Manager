@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS, dateInputValue } from "@/lib/fields";
-import { StatusBadge, STATUS_COLORS, PRIORITY_COLORS } from "@/components/status-badge";
+import { StatusBadge, STATUS_COLORS, PRIORITY_COLORS, STATUS_TOKENS } from "@/components/status-badge";
 import {
   updateTaskStatus,
   updateTaskPriority,
@@ -51,7 +52,7 @@ function StatusSelect({ value, onChange }: { value: string; onChange: (value: st
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`rounded border-0 px-2 py-1 text-xs font-medium ${STATUS_COLORS[value] ?? "bg-gray-100 text-gray-700"}`}
+      className={`h-6 appearance-none rounded border-0 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[.08em] ${STATUS_COLORS[value] ?? "bg-cy-gray-050 text-cy-gray-700"}`}
     >
       {STATUS_OPTIONS.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -67,7 +68,7 @@ function PrioritySelect({ value, onChange }: { value: string; onChange: (value: 
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`rounded border-0 px-2 py-1 text-xs font-medium ${PRIORITY_COLORS[value] ?? "bg-gray-100 text-gray-700"}`}
+      className={`h-6 appearance-none rounded border-0 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[.08em] ${PRIORITY_COLORS[value] ?? "bg-cy-gray-050 text-cy-gray-700"}`}
     >
       {PRIORITY_OPTIONS.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -91,7 +92,7 @@ function AssigneeSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="rounded border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600"
+      className="rounded border border-cy-gray-200 bg-white px-2 py-1 text-[13px] text-cy-gray-700"
     >
       <option value="">Unassigned</option>
       {orgMembers.map((m) => (
@@ -117,7 +118,7 @@ function DueDateInput({
       type="date"
       value={dateInputValue(value)}
       onChange={(e) => onChange(e.target.value)}
-      className={`rounded border border-gray-200 bg-white px-2 py-1 text-xs ${overdue ? "text-red-600" : "text-gray-600"}`}
+      className={`rounded border border-transparent px-2 py-1 font-mono text-[13px] tabular-nums hover:border-cy-gray-200 focus:border-cy-gray-200 ${overdue ? "font-semibold text-cy-red-500" : "text-cy-gray-700"}`}
     />
   );
 }
@@ -293,14 +294,26 @@ export function TaskListView({
     tasks: sortRows(taskList.filter((t) => t.status === opt.value)),
   })).filter((g) => g.tasks.length > 0);
 
+  const overdueCount = taskList.filter((t) => isOverdue(t.dueDate, t.status)).length;
+
   if (groups.length === 0) {
-    return <p className="text-sm text-gray-500">No tasks match these filters.</p>;
+    return (
+      <p className="rounded-card border border-dashed border-cy-gray-200 bg-cy-gray-025 px-4 py-8 text-center text-sm text-cy-gray-500">
+        No tasks match these filters.
+      </p>
+    );
   }
 
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-right font-mono text-xs text-cy-gray-500">
+        {taskList.length} task{taskList.length === 1 ? "" : "s"}
+        {overdueCount > 0 && ` · ${overdueCount} overdue`}
+      </p>
+
       {groups.map((group) => {
         const collapsed = collapsedGroups.has(group.value);
+        const token = STATUS_TOKENS[group.value] ?? STATUS_TOKENS.not_started;
         return (
           <div key={group.value}>
             <button
@@ -308,16 +321,21 @@ export function TaskListView({
               onClick={() => toggleGroup(group.value)}
               className="mb-2 flex items-center gap-2"
             >
-              <span className="text-2xl leading-none text-gray-400">{collapsed ? "▸" : "▾"}</span>
+              <ChevronRight
+                size={14}
+                strokeWidth={2}
+                className={`text-cy-gray-400 transition-transform duration-fast ${collapsed ? "" : "rotate-90"}`}
+              />
+              <span className={`h-1.5 w-1.5 rounded-full ${token.dot}`} />
               <StatusBadge status={group.value} />
-              <span className="text-sm text-gray-400">{group.tasks.length}</span>
+              <span className="font-mono text-xs text-cy-gray-400">{group.tasks.length}</span>
             </button>
 
             {!collapsed && (
-              <div className="overflow-x-auto rounded border border-gray-200 bg-white">
+              <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
                 <div className="min-w-[760px]">
                   <div
-                    className={`${ROW_GRID} border-b border-gray-200 px-3 py-2 text-xs font-medium uppercase text-gray-500`}
+                    className={`${ROW_GRID} border-b border-cy-gray-200 bg-cy-blue-100 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800`}
                   >
                     <span />
                     <span>Name</span>
@@ -333,25 +351,29 @@ export function TaskListView({
 
                     return (
                       <div key={task.id}>
-                        <div className={`${ROW_GRID} border-b border-gray-100 px-3 py-2 text-sm last:border-0 hover:bg-gray-50`}>
+                        <div className={`${ROW_GRID} border-b border-cy-gray-100 px-3.5 py-2.5 text-sm last:border-0 hover:bg-cy-gray-025`}>
                           <button
                             type="button"
                             onClick={() => hasChecklist && toggleExpanded(task.id)}
-                            className={`text-2xl leading-none ${hasChecklist ? "text-gray-400 hover:text-gray-700" : "text-transparent"}`}
+                            className={hasChecklist ? "text-cy-gray-400 hover:text-cy-gray-700" : "text-transparent"}
                             aria-label={isExpanded ? "Collapse checklist" : "Expand checklist"}
                             disabled={!hasChecklist}
                           >
-                            {isExpanded ? "▾" : "▸"}
+                            <ChevronRight
+                              size={14}
+                              strokeWidth={2}
+                              className={`transition-transform duration-fast ${isExpanded ? "rotate-90" : ""}`}
+                            />
                           </button>
                           <div className="flex min-w-0 items-center gap-2">
                             <Link
                               href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}`}
-                              className="truncate font-medium text-gray-900 hover:underline"
+                              className="truncate font-medium text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
                             >
                               {task.title}
                             </Link>
                             {hasChecklist && (
-                              <span className="shrink-0 text-xs text-gray-400">
+                              <span className="shrink-0 font-mono text-[11px] text-cy-gray-500">
                                 {doneCount}/{task.checklistItems.length}
                               </span>
                             )}
@@ -374,12 +396,12 @@ export function TaskListView({
                           task.checklistItems.map((item) => (
                             <div
                               key={item.id}
-                              className={`${ROW_GRID} border-b border-gray-100 bg-gray-50 px-3 py-1.5 text-sm last:border-0`}
+                              className={`${ROW_GRID} border-b border-cy-gray-100 bg-cy-gray-025 px-3.5 py-[7px] text-[13px] last:border-0`}
                             >
                               <span />
                               <Link
                                 href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`}
-                                className="truncate pl-4 text-gray-700 hover:underline"
+                                className="truncate pl-[18px] text-cy-gray-700 hover:text-cy-blue-600 hover:underline"
                               >
                                 {item.title}
                               </Link>

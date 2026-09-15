@@ -3,6 +3,7 @@
 import { useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { buttonPrimary } from "@/components/form-controls";
 
 type CommentWithAuthor = {
   id: string;
@@ -50,17 +51,19 @@ export function CommentSection({
 
   return (
     <div>
-      <h2 className="mb-3 text-lg font-semibold">Comments ({comments.length})</h2>
+      <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Comments ({comments.length})</h2>
       {comments.length === 0 ? (
-        <p className="mb-4 text-sm text-gray-500">No comments yet.</p>
+        <p className="mb-4 text-sm text-cy-gray-500">No comments yet.</p>
       ) : (
         <ul className="mb-4 flex flex-col gap-3">
           {comments.map((comment) => (
-            <li key={comment.id} className="rounded border border-gray-200 bg-white p-3 text-sm">
+            <li key={comment.id} className="rounded-card border border-cy-gray-200 bg-white p-3 text-sm">
               <div className="flex items-center justify-between">
-                <p className="font-medium text-gray-900">{comment.author.name}</p>
+                <p className="font-medium text-cy-gray-900">{comment.author.name}</p>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-gray-400">{new Date(comment.createdAt).toLocaleString()}</span>
+                  <span className="font-mono text-xs tabular-nums text-cy-gray-400">
+                    {new Date(comment.createdAt).toLocaleString()}
+                  </span>
                   {(comment.authorId === currentUserId || isAdmin) && (
                     <ConfirmDeleteButton
                       action={deleteAction.bind(null, comment.id)}
@@ -69,7 +72,7 @@ export function CommentSection({
                   )}
                 </div>
               </div>
-              <p className="mt-1 whitespace-pre-wrap text-gray-600">{comment.body}</p>
+              <p className="mt-1 whitespace-pre-wrap text-cy-gray-600">{comment.body}</p>
             </li>
           ))}
         </ul>
@@ -79,13 +82,9 @@ export function CommentSection({
           name="body"
           required
           placeholder="Add a comment..."
-          className="min-h-[80px] rounded border border-gray-300 px-3 py-2 text-sm"
+          className="min-h-[80px] rounded border border-cy-gray-200 px-3 py-2 text-sm leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cy-cyan-500"
         />
-        <button
-          type="submit"
-          disabled={isPending}
-          className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-        >
+        <button type="submit" disabled={isPending} className={`w-fit ${buttonPrimary}`}>
           {isPending ? "Posting..." : "Comment"}
         </button>
       </form>

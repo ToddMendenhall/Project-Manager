@@ -20,7 +20,7 @@ export default async function EditProjectPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Edit {project.name}</h1>
+      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Edit {project.name}</h1>
       <ProjectForm
         action={updateProject.bind(null, programId, projectId)}
         project={project}

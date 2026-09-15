@@ -1,8 +1,18 @@
-export function StatCard({ label, value }: { label: string; value: number | string }) {
+export function StatCard({
+  label,
+  value,
+  accent = false,
+}: {
+  label: string;
+  value: number | string;
+  accent?: boolean;
+}) {
   return (
-    <div className="rounded border border-gray-200 bg-white p-4">
-      <p className="text-2xl font-semibold">{value}</p>
-      <p className="text-sm text-gray-500">{label}</p>
+    <div
+      className={`rounded-card border border-cy-gray-200 bg-white px-4 py-3 ${accent ? "border-t-[3px] border-t-cy-red-500" : ""}`}
+    >
+      <p className="font-mono text-[26px] font-semibold leading-none tabular-nums text-cy-gray-900">{value}</p>
+      <p className="mt-1 text-[11px] font-semibold uppercase tracking-label text-cy-gray-500">{label}</p>
     </div>
   );
 }

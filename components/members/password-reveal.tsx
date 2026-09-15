@@ -20,13 +20,13 @@ export function PasswordReveal({ password }: { password: string }) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <code className="select-all rounded border border-gray-300 bg-white px-2 py-1 font-mono text-sm">
+      <code className="select-all rounded border border-cy-gray-200 bg-white px-2 py-1 font-mono text-sm">
         {visible ? password : "•".repeat(password.length)}
       </code>
-      <button type="button" onClick={() => setVisible((v) => !v)} className="text-xs text-gray-600 underline">
+      <button type="button" onClick={() => setVisible((v) => !v)} className="text-xs text-cy-gray-600 underline">
         {visible ? "Hide" : "Show"}
       </button>
-      <button type="button" onClick={handleCopy} className="text-xs text-gray-600 underline">
+      <button type="button" onClick={handleCopy} className="text-xs text-cy-gray-600 underline">
         {copied ? "Copied!" : "Copy"}
       </button>
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Field, inputClass } from "@/components/form-controls";
+import { Field, buttonPrimary, inputClass } from "@/components/form-controls";
 import type { ActionResult } from "@/app/dashboard/account/actions";
 
 export function ChangePasswordForm({ action }: { action: (formData: FormData) => Promise<ActionResult> }) {
@@ -47,14 +47,10 @@ export function ChangePasswordForm({ action }: { action: (formData: FormData) =>
         <input type="password" name="confirmPassword" required minLength={8} className={inputClass} />
       </Field>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {success && <p className="text-sm text-green-600">Password updated.</p>}
+      {error && <p className="text-sm text-cy-red-500">{error}</p>}
+      {success && <p className="text-sm text-cy-green-500">Password updated.</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
+      <button type="submit" disabled={isPending} className={`w-fit ${buttonPrimary}`}>
         {isPending ? "Updating..." : "Update Password"}
       </button>
     </form>

@@ -1,4 +1,4 @@
-import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from "@/lib/fields";
 import type { Project } from "@/db/schema";
 
@@ -72,7 +72,7 @@ export function ProjectForm({
           <input type="date" name="dueDate" defaultValue={dateValue(project?.dueDate)} className={inputClass} />
         </Field>
       </div>
-      <button type="submit" className="w-fit rounded bg-gray-900 px-4 py-2 text-sm text-white">
+      <button type="submit" className={`w-fit ${buttonPrimary}`}>
         {submitLabel}
       </button>
     </form>
