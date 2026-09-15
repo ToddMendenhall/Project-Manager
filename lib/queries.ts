@@ -267,6 +267,89 @@ export async function getOrgTasksFlat(orgId: string) {
   );
 }
 
+export type OrgAttachmentRow = {
+  id: string;
+  fileName: string;
+  sizeBytes: number | null;
+  contentType: string | null;
+  createdAt: Date;
+  uploadedByName: string;
+  itemKind: "task" | "checklist_item";
+  itemTitle: string;
+  itemStatus: string;
+  programId: string;
+  programName: string;
+  projectId: string;
+  projectName: string;
+  taskId: string;
+  checklistItemId: string | null;
+};
+
+/**
+ * Every attachment across an org, with the task or checklist item it's
+ * attached to (and that item's current status) — feeds the admin
+ * Attachments page, which exists to find old/large files worth deleting
+ * to reclaim storage (attachment bytes live directly in Postgres as
+ * bytea, see db/schema.ts). An attachment hangs off either a task or a
+ * checklist item, never both (see the exactly-one-parent check
+ * constraint), so this runs as two queries and merges them rather than
+ * one query with an outer join either way could produce.
+ */
+export async function getOrgAttachmentsDetailed(orgId: string): Promise<OrgAttachmentRow[]> {
+  const taskAttachments = await db
+    .select({
+      id: attachments.id,
+      fileName: attachments.fileName,
+      sizeBytes: attachments.sizeBytes,
+      contentType: attachments.contentType,
+      createdAt: attachments.createdAt,
+      uploadedByName: users.name,
+      itemTitle: tasks.title,
+      itemStatus: tasks.status,
+      programId: programs.id,
+      programName: programs.name,
+      projectId: projects.id,
+      projectName: projects.name,
+      taskId: tasks.id,
+    })
+    .from(attachments)
+    .innerJoin(users, eq(attachments.uploadedById, users.id))
+    .innerJoin(tasks, eq(attachments.taskId, tasks.id))
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(eq(programs.orgId, orgId));
+
+  const checklistItemAttachments = await db
+    .select({
+      id: attachments.id,
+      fileName: attachments.fileName,
+      sizeBytes: attachments.sizeBytes,
+      contentType: attachments.contentType,
+      createdAt: attachments.createdAt,
+      uploadedByName: users.name,
+      itemTitle: checklistItems.title,
+      itemStatus: checklistItems.status,
+      programId: programs.id,
+      programName: programs.name,
+      projectId: projects.id,
+      projectName: projects.name,
+      taskId: tasks.id,
+      checklistItemId: checklistItems.id,
+    })
+    .from(attachments)
+    .innerJoin(users, eq(attachments.uploadedById, users.id))
+    .innerJoin(checklistItems, eq(attachments.checklistItemId, checklistItems.id))
+    .innerJoin(tasks, eq(checklistItems.taskId, tasks.id))
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(eq(programs.orgId, orgId));
+
+  return [
+    ...taskAttachments.map((row) => ({ ...row, itemKind: "task" as const, checklistItemId: null })),
+    ...checklistItemAttachments.map((row) => ({ ...row, itemKind: "checklist_item" as const })),
+  ];
+}
+
 /** Comments left on tasks assigned to the given user, across the org, most recent first. */
 export async function getCommentsOnMyTasks(userId: string, orgId: string) {
   return db

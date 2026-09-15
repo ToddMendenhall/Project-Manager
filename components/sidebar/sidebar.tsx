@@ -11,6 +11,7 @@ const PERSONAL_LINKS = [
   { href: "/dashboard/my-comments", label: "Assigned Comments", adminOnly: false },
   { href: "/dashboard/reports", label: "Reports", adminOnly: false },
   { href: "/dashboard/members", label: "Members", adminOnly: true },
+  { href: "/dashboard/attachments", label: "Attachments", adminOnly: true },
 ] as const;
 
 type RawProject = { id: string; name: string; tasks: { id: string }[] };
