@@ -19,6 +19,17 @@ const VIEW_ICONS: Record<ViewKey, LucideIcon> = {
   gantt: GanttChart,
 };
 
+// Each view keeps the same icon color whether or not its tab is active —
+// the color is what makes the views distinguishable from each other at a
+// glance, so it shouldn't fade with the inactive-tab text color.
+const VIEW_ICON_COLORS: Record<ViewKey, string> = {
+  overview: "text-indigo-500",
+  list: "text-blue-500",
+  board: "text-purple-500",
+  calendar: "text-amber-500",
+  gantt: "text-emerald-500",
+};
+
 const DEFAULT_VIEWS: ViewKey[] = ["overview", "list", "board", "calendar", "gantt"];
 
 function defaultHref(basePath: string, key: ViewKey) {
@@ -50,7 +61,7 @@ export function ViewTabs({
                 : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
-            <Icon size={16} strokeWidth={2} />
+            <Icon size={16} strokeWidth={2} className={VIEW_ICON_COLORS[key]} />
             {VIEW_LABELS[key]}
           </Link>
         );
