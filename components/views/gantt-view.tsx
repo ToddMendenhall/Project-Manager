@@ -281,7 +281,15 @@ export function GanttView({
         </div>
 
         <div className="overflow-x-auto">
-          <div style={{ width: gridWidth }}>
+          <div className="relative" style={{ width: gridWidth }}>
+            {todayOffset >= 0 && todayOffset < totalDays && (
+              <div
+                className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-cy-cyan-500"
+                style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
+              >
+                <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-cy-cyan-500" />
+              </div>
+            )}
             <div className="flex h-[52px] shrink-0 flex-col border-b border-cy-gray-200">
               <div className="flex h-6">
                 {weeks.map((week, i) => (
@@ -314,12 +322,6 @@ export function GanttView({
             </div>
 
             <div className="relative">
-              {todayOffset >= 0 && todayOffset < totalDays && (
-                <div
-                  className="pointer-events-none absolute inset-y-0 z-10 w-px bg-cy-cyan-500"
-                  style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
-                />
-              )}
               {rows.map((row) => {
                 const { node } = row;
                 const { start, end } = dates[node.id];
