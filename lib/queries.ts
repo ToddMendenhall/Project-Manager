@@ -343,6 +343,9 @@ export async function getOrgTasksFlat(orgId: string) {
         programName: program.name,
         projectId: project.id,
         projectName: project.name,
+        projectStatus: project.status,
+        projectStartDate: project.startDate,
+        projectDueDate: project.dueDate,
       })),
     ),
   );

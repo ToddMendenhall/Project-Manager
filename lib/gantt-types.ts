@@ -2,7 +2,7 @@
 // client GanttView component — kept free of "server-only"/"use client" so
 // both sides can import it as plain types.
 
-export type GanttKind = "portfolio" | "program" | "project" | "task" | "checklistItem";
+export type GanttKind = "portfolio" | "program" | "project" | "task" | "checklistItem" | "member";
 
 export type GanttNode = {
   id: string;

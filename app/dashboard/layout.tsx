@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { requireOrgContext } from "@/lib/org";
 import { AccountMenu } from "@/components/account-menu";
 import { CommandBar } from "@/components/command-bar";
+import { SecondaryHeader } from "@/components/secondary-header";
 import { Sidebar } from "@/components/sidebar/sidebar";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
@@ -33,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           <AccountMenu name={ctx.user.name} email={ctx.user.email} role={ctx.role} initial={userInitial} />
         </div>
       </header>
+      <SecondaryHeader />
       <div className="flex flex-1">
         <Sidebar orgId={ctx.org.id} userId={ctx.user.id} isAdmin={ctx.role === "admin"} />
         <main className="min-w-0 flex-1 px-6 py-8">{children}</main>
