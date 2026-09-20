@@ -56,7 +56,7 @@ export default async function PortfoliosGanttPage() {
       <ViewTabs
         basePath="/dashboard/portfolios"
         active="gantt"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: "/dashboard/portfolios" }}
       />
 

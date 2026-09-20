@@ -64,7 +64,7 @@ export default async function PortfolioDetailPage({
       <ViewTabs
         basePath={`/dashboard/portfolios/${portfolio.id}`}
         active="list"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: `/dashboard/portfolios/${portfolio.id}` }}
       />
 

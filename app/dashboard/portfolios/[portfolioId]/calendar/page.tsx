@@ -67,7 +67,7 @@ export default async function PortfolioCalendarPage({
       <ViewTabs
         basePath={basePath}
         active="calendar"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: basePath }}
       />
 

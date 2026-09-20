@@ -1,7 +1,15 @@
 import Link from "next/link";
-import { Calendar, GanttChart, Kanban, LayoutDashboard, List as ListIcon, type LucideIcon } from "lucide-react";
+import {
+  BarChart3,
+  Calendar,
+  GanttChart,
+  Kanban,
+  LayoutDashboard,
+  List as ListIcon,
+  type LucideIcon,
+} from "lucide-react";
 
-export type ViewKey = "overview" | "list" | "board" | "calendar" | "gantt";
+export type ViewKey = "overview" | "list" | "board" | "calendar" | "gantt" | "reports";
 
 const VIEW_LABELS: Record<ViewKey, string> = {
   overview: "Overview",
@@ -9,6 +17,7 @@ const VIEW_LABELS: Record<ViewKey, string> = {
   board: "Board",
   calendar: "Calendar",
   gantt: "Gantt",
+  reports: "Reports",
 };
 
 const VIEW_ICONS: Record<ViewKey, LucideIcon> = {
@@ -17,9 +26,10 @@ const VIEW_ICONS: Record<ViewKey, LucideIcon> = {
   board: Kanban,
   calendar: Calendar,
   gantt: GanttChart,
+  reports: BarChart3,
 };
 
-const DEFAULT_VIEWS: ViewKey[] = ["overview", "list", "board", "calendar", "gantt"];
+const DEFAULT_VIEWS: ViewKey[] = ["overview", "list", "board", "calendar", "gantt", "reports"];
 
 function defaultHref(basePath: string, key: ViewKey) {
   return key === "overview" ? basePath : `${basePath}/${key}`;

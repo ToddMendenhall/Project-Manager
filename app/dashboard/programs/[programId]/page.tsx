@@ -65,7 +65,7 @@ export default async function ProgramDetailPage({
       <ViewTabs
         basePath={`/dashboard/programs/${program.id}`}
         active="list"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: `/dashboard/programs/${program.id}` }}
       />
 

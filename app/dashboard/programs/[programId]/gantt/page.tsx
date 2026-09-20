@@ -64,7 +64,7 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
       <ViewTabs
         basePath={basePath}
         active="gantt"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: basePath }}
       />
 

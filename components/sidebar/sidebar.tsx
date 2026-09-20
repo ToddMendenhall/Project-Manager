@@ -11,7 +11,6 @@ const PERSONAL_LINKS = [
   { href: "/dashboard", label: "Home", adminOnly: false },
   { href: "/dashboard/my-tasks", label: "My Tasks", adminOnly: false },
   { href: "/dashboard/my-comments", label: "Assigned Comments", adminOnly: false },
-  { href: "/dashboard/reports", label: "Reports", adminOnly: false },
   { href: "/dashboard/members", label: "Members", adminOnly: true },
   { href: "/dashboard/attachments", label: "Attachments", adminOnly: true },
 ] as const;
