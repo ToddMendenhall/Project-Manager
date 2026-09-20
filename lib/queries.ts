@@ -351,6 +351,82 @@ export async function getOrgTasksFlat(orgId: string) {
   );
 }
 
+/**
+ * Every task in one portfolio's programs/projects, flattened the same way
+ * as getOrgTasksFlat — powers the Portfolio-level Reports view.
+ */
+export async function getPortfolioTasksFlat(portfolioId: string, orgId: string) {
+  const portfolioPrograms = await db.query.programs.findMany({
+    where: and(eq(programs.portfolioId, portfolioId), eq(programs.orgId, orgId)),
+    with: {
+      projects: {
+        with: {
+          tasks: { with: { assignee: true } },
+        },
+      },
+    },
+  });
+
+  return portfolioPrograms.flatMap((program) =>
+    program.projects.flatMap((project) =>
+      project.tasks.map((task) => ({
+        ...task,
+        programId: program.id,
+        programName: program.name,
+        projectId: project.id,
+        projectName: project.name,
+        projectStatus: project.status,
+        projectStartDate: project.startDate,
+        projectDueDate: project.dueDate,
+      })),
+    ),
+  );
+}
+
+/**
+ * Every task in one program's projects, flattened — powers the
+ * Program-level Reports view. Assumes the caller has already verified the
+ * program belongs to the org (e.g. via getProgramForOrg).
+ */
+export async function getProgramTasksFlat(programId: string) {
+  const program = await db.query.programs.findFirst({
+    where: eq(programs.id, programId),
+    with: {
+      projects: {
+        with: {
+          tasks: { with: { assignee: true } },
+        },
+      },
+    },
+  });
+  if (!program) return [];
+
+  return program.projects.flatMap((project) =>
+    project.tasks.map((task) => ({
+      ...task,
+      programId: program.id,
+      programName: program.name,
+      projectId: project.id,
+      projectName: project.name,
+      projectStatus: project.status,
+      projectStartDate: project.startDate,
+      projectDueDate: project.dueDate,
+    })),
+  );
+}
+
+/**
+ * Every task in one project, with its assignee — powers the Project-level
+ * Reports view. Assumes the caller has already verified the project
+ * belongs to the org (e.g. via getProjectForProgram).
+ */
+export async function getProjectTasksFlat(projectId: string) {
+  return db.query.tasks.findMany({
+    where: eq(tasks.projectId, projectId),
+    with: { assignee: true },
+  });
+}
+
 export type OrgAttachmentRow = {
   id: string;
   fileName: string;

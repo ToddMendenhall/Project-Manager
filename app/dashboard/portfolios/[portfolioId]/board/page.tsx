@@ -57,7 +57,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
       <ViewTabs
         basePath={basePath}
         active="board"
-        views={["list", "board", "calendar", "gantt"]}
+        views={["list", "board", "calendar", "gantt", "reports"]}
         hrefs={{ list: basePath }}
       />
 

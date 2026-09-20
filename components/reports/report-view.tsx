@@ -1,143 +1,53 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
-import { db } from "@/db";
-import { programs } from "@/db/schema";
-import { requireOrgContext } from "@/lib/org";
-import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "@/lib/fields";
 import { StatCard } from "@/components/stat-card";
 import { BarChart } from "@/components/reports/bar-chart";
 import { PriorityBadge, STATUS_BAR_COLORS, PRIORITY_BAR_COLORS } from "@/components/status-badge";
+import type { ReportData, ReportTask, ProjectProgressGroup } from "@/lib/reports";
 
-const OPEN_STATUSES = new Set(["not_started", "in_progress", "blocked"]);
 const MAX_ROWS = 15;
 
-export default async function ReportsPage() {
-  const ctx = await requireOrgContext();
-
-  const orgPrograms = await db.query.programs.findMany({
-    where: eq(programs.orgId, ctx.org.id),
-    with: {
-      projects: {
-        with: {
-          tasks: {
-            with: { assignee: true },
-          },
-        },
-      },
-    },
-    orderBy: (program, { asc }) => [asc(program.name)],
-  });
-
-  const allTasks = orgPrograms.flatMap((program) =>
-    program.projects.flatMap((project) =>
-      project.tasks.map((task) => ({
-        ...task,
-        programId: program.id,
-        programName: program.name,
-        projectId: project.id,
-        projectName: project.name,
-      })),
-    ),
-  );
-
-  const now = new Date();
-  const soonCutoff = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-
-  const statusCounts: Record<string, number> = Object.fromEntries(STATUS_OPTIONS.map((o) => [o.value, 0]));
-  const priorityCounts: Record<string, number> = Object.fromEntries(PRIORITY_OPTIONS.map((o) => [o.value, 0]));
-  for (const task of allTasks) {
-    statusCounts[task.status] = (statusCounts[task.status] ?? 0) + 1;
-    priorityCounts[task.priority] = (priorityCounts[task.priority] ?? 0) + 1;
-  }
-
-  const totalTasks = allTasks.length;
-  const completedTasks = statusCounts.completed ?? 0;
-  const activeTasks = totalTasks - (statusCounts.cancelled ?? 0);
-  const completionRate = activeTasks > 0 ? Math.round((completedTasks / activeTasks) * 100) : 0;
-
-  const overdueTasks = allTasks
-    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && new Date(t.dueDate) < now)
-    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
-
-  const dueSoonTasks = allTasks
-    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && new Date(t.dueDate) >= now && new Date(t.dueDate) <= soonCutoff)
-    .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
-
-  const workloadByAssignee = new Map<
-    string,
-    { name: string; open: number; overdue: number; completed: number }
-  >();
-  for (const task of allTasks) {
-    const key = task.assigneeId ?? "unassigned";
-    const name = task.assignee?.name ?? "Unassigned";
-    const entry = workloadByAssignee.get(key) ?? { name, open: 0, overdue: 0, completed: 0 };
-    if (task.status === "completed") {
-      entry.completed += 1;
-    } else if (OPEN_STATUSES.has(task.status)) {
-      entry.open += 1;
-      if (task.dueDate && new Date(task.dueDate) < now) entry.overdue += 1;
-    }
-    workloadByAssignee.set(key, entry);
-  }
-  const workload = Array.from(workloadByAssignee.values()).sort((a, b) => b.open - a.open);
-
-  const projectProgress = orgPrograms
-    .map((program) => ({
-      id: program.id,
-      name: program.name,
-      projects: program.projects.map((project) => {
-        const total = project.tasks.length;
-        const completed = project.tasks.filter((t) => t.status === "completed").length;
-        return {
-          id: project.id,
-          name: project.name,
-          total,
-          completed,
-          pct: total > 0 ? Math.round((completed / total) * 100) : 0,
-        };
-      }),
-    }))
-    .filter((program) => program.projects.length > 0);
-
+/**
+ * The Reports view's content, shared by every hierarchy level (all
+ * portfolios, one portfolio, one program, one project) — each level's page
+ * fetches and flattens its own scoped tasks via lib/reports.ts's
+ * buildReportData, and passes the result plus its own Project Progress
+ * grouping (empty at the Project level, where there's only one project to
+ * report on).
+ */
+export function ReportView({
+  data,
+  projectProgress,
+}: {
+  data: ReportData;
+  projectProgress: ProjectProgressGroup[];
+}) {
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Reports</h1>
-
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Total Tasks" value={totalTasks} />
-        <StatCard label="Completed" value={completedTasks} />
-        <StatCard label="Overdue" value={overdueTasks.length} accent={overdueTasks.length > 0} />
-        <StatCard label="Completion Rate" value={`${completionRate}%`} />
+        <StatCard label="Total Tasks" value={data.totalTasks} />
+        <StatCard label="Completed" value={data.completedTasks} />
+        <StatCard label="Overdue" value={data.overdueTasks.length} accent={data.overdueTasks.length > 0} />
+        <StatCard label="Completion Rate" value={`${data.completionRate}%`} />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-card border border-cy-gray-200 bg-white p-4">
           <h2 className="mb-4 text-sm font-semibold text-cy-gray-700">Tasks by Status</h2>
-          {totalTasks === 0 ? (
+          {data.totalTasks === 0 ? (
             <p className="text-sm text-cy-gray-500">No tasks yet.</p>
           ) : (
             <BarChart
-              items={STATUS_OPTIONS.map((o) => ({
-                key: o.value,
-                label: o.label,
-                count: statusCounts[o.value] ?? 0,
-                colorClass: STATUS_BAR_COLORS[o.value],
-              }))}
+              items={data.statusCounts.map((o) => ({ ...o, colorClass: STATUS_BAR_COLORS[o.key] }))}
             />
           )}
         </div>
         <div className="rounded-card border border-cy-gray-200 bg-white p-4">
           <h2 className="mb-4 text-sm font-semibold text-cy-gray-700">Tasks by Priority</h2>
-          {totalTasks === 0 ? (
+          {data.totalTasks === 0 ? (
             <p className="text-sm text-cy-gray-500">No tasks yet.</p>
           ) : (
             <BarChart
-              items={PRIORITY_OPTIONS.map((o) => ({
-                key: o.value,
-                label: o.label,
-                count: priorityCounts[o.value] ?? 0,
-                colorClass: PRIORITY_BAR_COLORS[o.value],
-              }))}
+              items={data.priorityCounts.map((o) => ({ ...o, colorClass: PRIORITY_BAR_COLORS[o.key] }))}
             />
           )}
         </div>
@@ -145,7 +55,7 @@ export default async function ReportsPage() {
 
       <div>
         <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Workload by Assignee</h2>
-        {workload.length === 0 ? (
+        {data.workload.length === 0 ? (
           <p className="text-sm text-cy-gray-500">No tasks yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
@@ -159,7 +69,7 @@ export default async function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {workload.map((row) => (
+                {data.workload.map((row) => (
                   <tr key={row.name} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
                     <td className="px-4 py-3 font-medium text-cy-gray-900">{row.name}</td>
                     <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">{row.open}</td>
@@ -180,24 +90,22 @@ export default async function ReportsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <TaskTable title="Overdue" tasks={overdueTasks} emptyText="Nothing overdue." />
-        <TaskTable title="Due in the Next 7 Days" tasks={dueSoonTasks} emptyText="Nothing due soon." />
+        <TaskTable title="Overdue" tasks={data.overdueTasks} emptyText="Nothing overdue." />
+        <TaskTable title="Due in the Next 7 Days" tasks={data.dueSoonTasks} emptyText="Nothing due soon." />
       </div>
 
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Project Progress</h2>
-        {projectProgress.length === 0 ? (
-          <p className="text-sm text-cy-gray-500">No projects yet.</p>
-        ) : (
+      {projectProgress.length > 0 && (
+        <div>
+          <h2 className="mb-3 text-lg font-semibold text-cy-gray-900">Project Progress</h2>
           <div className="flex flex-col gap-6">
-            {projectProgress.map((program) => (
-              <div key={program.id}>
-                <p className="mb-2 text-sm font-medium text-cy-gray-500">{program.name}</p>
+            {projectProgress.map((group) => (
+              <div key={group.id}>
+                <p className="mb-2 text-sm font-medium text-cy-gray-500">{group.label}</p>
                 <div className="flex flex-col gap-3">
-                  {program.projects.map((project) => (
+                  {group.projects.map((project) => (
                     <Link
                       key={project.id}
-                      href={`/dashboard/programs/${program.id}/projects/${project.id}`}
+                      href={project.href}
                       className="block rounded-card border border-cy-gray-100 bg-white p-4 shadow-xs transition-colors duration-fast hover:border-cy-gray-200 hover:shadow-md"
                     >
                       <div className="mb-2 flex items-center justify-between">
@@ -215,21 +123,11 @@ export default async function ReportsPage() {
               </div>
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
-type ReportTask = {
-  id: string;
-  title: string;
-  priority: string;
-  dueDate: Date | null;
-  programId: string;
-  projectId: string;
-  projectName: string;
-};
 
 function TaskTable({ title, tasks, emptyText }: { title: string; tasks: ReportTask[]; emptyText: string }) {
   const shown = tasks.slice(0, MAX_ROWS);
