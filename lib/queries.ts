@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gt, ilike, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -111,7 +111,13 @@ export async function getOrgMembers(orgId: string) {
     .orderBy(users.name);
 }
 
-/** Outstanding (unaccepted, unexpired) invites for an org — used by the admin Members page. */
+/**
+ * Outstanding (unaccepted) invites for an org, expired or not — used by the
+ * admin Members page. Expired invites still need to show up here: they
+ * can't be accepted anymore, but an admin still needs to see and revoke one
+ * before re-inviting the same email (createInvite blocks a second invite
+ * to an address that already has an unaccepted one, expired or not).
+ */
 export async function getPendingInvitesForOrg(orgId: string) {
   return db
     .select({
@@ -123,7 +129,7 @@ export async function getPendingInvitesForOrg(orgId: string) {
       createdAt: invites.createdAt,
     })
     .from(invites)
-    .where(and(eq(invites.orgId, orgId), isNull(invites.acceptedAt), gt(invites.expiresAt, new Date())))
+    .where(and(eq(invites.orgId, orgId), isNull(invites.acceptedAt)))
     .orderBy(desc(invites.createdAt));
 }
 

@@ -59,33 +59,42 @@ export function PendingInvites({
             </tr>
           </thead>
           <tbody>
-            {rows.map((invite) => (
-              <tr key={invite.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
-                <td className="px-3.5 py-2.5 text-cy-gray-900">{invite.email}</td>
-                <td className="px-3.5 py-2.5 capitalize text-cy-gray-700">{invite.role}</td>
-                <td className="px-3.5 py-2.5 font-mono text-xs tabular-nums text-cy-gray-500">
-                  {new Date(invite.expiresAt).toLocaleDateString()}
-                </td>
-                <td className="px-3.5 py-2.5 text-right">
-                  <div className="flex items-center justify-end gap-4">
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(invite)}
-                      className="text-sm text-cy-blue-600 underline"
-                    >
-                      {copiedId === invite.id ? "Copied!" : "Copy Link"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRevoke(invite)}
-                      className="text-sm text-cy-red-500 underline"
-                    >
-                      Revoke
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {rows.map((invite) => {
+              const isExpired = new Date(invite.expiresAt) < new Date();
+              return (
+                <tr key={invite.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
+                  <td className="px-3.5 py-2.5 text-cy-gray-900">{invite.email}</td>
+                  <td className="px-3.5 py-2.5 capitalize text-cy-gray-700">{invite.role}</td>
+                  <td className="px-3.5 py-2.5 font-mono text-xs tabular-nums">
+                    {isExpired ? (
+                      <span className="font-semibold uppercase tracking-label text-cy-red-500">Expired</span>
+                    ) : (
+                      <span className="text-cy-gray-500">{new Date(invite.expiresAt).toLocaleDateString()}</span>
+                    )}
+                  </td>
+                  <td className="px-3.5 py-2.5 text-right">
+                    <div className="flex items-center justify-end gap-4">
+                      {!isExpired && (
+                        <button
+                          type="button"
+                          onClick={() => handleCopy(invite)}
+                          className="text-sm text-cy-blue-600 underline"
+                        >
+                          {copiedId === invite.id ? "Copied!" : "Copy Link"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleRevoke(invite)}
+                        className="text-sm text-cy-red-500 underline"
+                      >
+                        Revoke
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
