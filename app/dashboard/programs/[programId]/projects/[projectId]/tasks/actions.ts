@@ -10,8 +10,8 @@ import { requireOrgContext } from "@/lib/org";
 import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject } from "@/lib/queries";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 
-// Tasks are the day-to-day work items — unlike Program/Project structure,
-// any org member (not just admins) can create, edit, or delete them.
+// Like every level of the hierarchy, any org member (not just admins) can
+// create, edit, or delete tasks.
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 

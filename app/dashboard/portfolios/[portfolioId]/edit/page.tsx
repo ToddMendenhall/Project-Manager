@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers, getPortfolioForOrg } from "@/lib/queries";
 import { PortfolioForm } from "@/components/portfolios/portfolio-form";
@@ -11,7 +11,6 @@ export default async function EditPortfolioPage({
 }) {
   const { portfolioId } = await params;
   const ctx = await requireOrgContext();
-  if (ctx.role !== "admin") redirect(`/dashboard/portfolios/${portfolioId}`);
 
   const portfolio = await getPortfolioForOrg(portfolioId, ctx.org.id);
   if (!portfolio) notFound();

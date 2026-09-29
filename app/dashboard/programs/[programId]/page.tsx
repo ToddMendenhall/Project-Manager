@@ -48,17 +48,15 @@ export default async function ProgramDetailPage({
         description={program.description}
         meta={meta}
         action={
-          ctx.role === "admin" ? (
-            <>
-              <Link href={`/dashboard/programs/${program.id}/edit`} className="text-sm underline">
-                Edit
-              </Link>
-              <ConfirmDeleteButton
-                action={deleteProgram.bind(null, program.id)}
-                confirmMessage={`Delete "${program.name}" and all of its projects and tasks? This cannot be undone.`}
-              />
-            </>
-          ) : undefined
+          <>
+            <Link href={`/dashboard/programs/${program.id}/edit`} className="text-sm underline">
+              Edit
+            </Link>
+            <ConfirmDeleteButton
+              action={deleteProgram.bind(null, program.id)}
+              confirmMessage={`Delete "${program.name}" and all of its projects and tasks? This cannot be undone.`}
+            />
+          </>
         }
       />
 
@@ -72,14 +70,12 @@ export default async function ProgramDetailPage({
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Projects</h2>
-          {ctx.role === "admin" && (
-            <Link
-              href={`/dashboard/programs/${program.id}/projects/new`}
-              className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
-            >
-              New Project
-            </Link>
-          )}
+          <Link
+            href={`/dashboard/programs/${program.id}/projects/new`}
+            className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
+          >
+            New Project
+          </Link>
         </div>
         {program.projects.length === 0 ? (
           <p className="text-sm text-cy-gray-500">No projects yet.</p>

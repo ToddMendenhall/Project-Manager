@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers, getOrgPortfolios, getProgramForOrg } from "@/lib/queries";
 import { ProgramForm } from "@/components/programs/program-form";
@@ -11,7 +11,6 @@ export default async function EditProgramPage({
 }) {
   const { programId } = await params;
   const ctx = await requireOrgContext();
-  if (ctx.role !== "admin") redirect(`/dashboard/programs/${programId}`);
 
   const program = await getProgramForOrg(programId, ctx.org.id);
   if (!program) notFound();

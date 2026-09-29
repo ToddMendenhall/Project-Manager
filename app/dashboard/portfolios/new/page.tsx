@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers } from "@/lib/queries";
 import { PortfolioForm } from "@/components/portfolios/portfolio-form";
@@ -6,7 +5,6 @@ import { createPortfolio } from "../actions";
 
 export default async function NewPortfolioPage() {
   const ctx = await requireOrgContext();
-  if (ctx.role !== "admin") redirect("/dashboard/portfolios");
 
   const members = await getOrgMembers(ctx.org.id);
 

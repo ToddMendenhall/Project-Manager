@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { programs } from "@/db/schema";
-import { requireAdmin, requireOrgContext } from "@/lib/org";
+import { requireOrgContext } from "@/lib/org";
 import { getPortfolioForOrg, getProgramForOrg } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
@@ -42,7 +42,6 @@ async function resolvePortfolioId(portfolioId: string | undefined, orgId: string
 
 export async function createProgram(formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const data = parseProgramForm(formData);
   const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
@@ -69,7 +68,6 @@ export async function createProgram(formData: FormData) {
 
 export async function updateProgram(programId: string, formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProgramForOrg(programId, ctx.org.id);
   if (!existing) {
@@ -105,7 +103,6 @@ export async function updateProgram(programId: string, formData: FormData) {
 
 export async function deleteProgram(programId: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProgramForOrg(programId, ctx.org.id);
   if (!existing) {
@@ -124,7 +121,6 @@ const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed",
 /** Lightweight status+order update, used by the Board view's drag-and-drop. */
 export async function updateProgramOrder(programId: string, status: string, sortOrder: number) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProgramForOrg(programId, ctx.org.id);
   if (!existing) {
@@ -148,7 +144,6 @@ export async function updateProgramOrder(programId: string, status: string, sort
 /** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */
 export async function updateProgramDates(programId: string, startDate: string, targetEndDate: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProgramForOrg(programId, ctx.org.id);
   if (!existing) {

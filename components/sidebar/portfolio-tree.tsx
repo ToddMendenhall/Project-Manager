@@ -12,16 +12,14 @@ export type PortfolioNode = { id: string; name: string; programs: ProgramNode[] 
 export function PortfolioTree({
   portfolios,
   ungroupedPrograms,
-  isAdmin,
 }: {
   portfolios: PortfolioNode[];
   ungroupedPrograms: ProgramNode[];
-  isAdmin: boolean;
 }) {
   return (
     <div className="flex flex-col gap-0.5">
       {portfolios.map((portfolio) => (
-        <PortfolioRow key={portfolio.id} portfolio={portfolio} isAdmin={isAdmin} />
+        <PortfolioRow key={portfolio.id} portfolio={portfolio} />
       ))}
       {ungroupedPrograms.length > 0 && (
         <div className="mt-2">
@@ -30,7 +28,7 @@ export function PortfolioTree({
           </p>
           <div className="flex flex-col gap-0.5">
             {ungroupedPrograms.map((program) => (
-              <ProgramRow key={program.id} program={program} isAdmin={isAdmin} />
+              <ProgramRow key={program.id} program={program} />
             ))}
           </div>
         </div>
@@ -63,7 +61,7 @@ function AddChildLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmin: boolean }) {
+function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
   const active = pathname === `/dashboard/portfolios/${portfolio.id}`;
@@ -89,9 +87,7 @@ function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmi
         >
           {portfolio.name}
         </Link>
-        {isAdmin && (
-          <AddChildLink href={`/dashboard/programs/new?portfolioId=${portfolio.id}`} label="New Program" />
-        )}
+        <AddChildLink href={`/dashboard/programs/new?portfolioId=${portfolio.id}`} label="New Program" />
       </div>
       {open && (
         <div className="ml-3.5 flex flex-col gap-0.5 border-l border-cy-gray-100 pl-2">
@@ -99,7 +95,7 @@ function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmi
             <p className="px-2 py-1 text-xs text-cy-gray-400">No programs</p>
           ) : (
             portfolio.programs.map((program) => (
-              <ProgramRow key={program.id} program={program} isAdmin={isAdmin} />
+              <ProgramRow key={program.id} program={program} />
             ))
           )}
         </div>
@@ -108,7 +104,7 @@ function PortfolioRow({ portfolio, isAdmin }: { portfolio: PortfolioNode; isAdmi
   );
 }
 
-function ProgramRow({ program, isAdmin }: { program: ProgramNode; isAdmin: boolean }) {
+function ProgramRow({ program }: { program: ProgramNode }) {
   const [open, setOpen] = useState(true);
   const pathname = usePathname();
   const active = pathname === `/dashboard/programs/${program.id}`;
@@ -134,9 +130,7 @@ function ProgramRow({ program, isAdmin }: { program: ProgramNode; isAdmin: boole
         >
           {program.name}
         </Link>
-        {isAdmin && (
-          <AddChildLink href={`/dashboard/programs/${program.id}/projects/new`} label="New Project" />
-        )}
+        <AddChildLink href={`/dashboard/programs/${program.id}/projects/new`} label="New Project" />
       </div>
       {open && (
         <div className="ml-3.5 flex flex-col gap-0.5 border-l border-cy-gray-100 pl-2">

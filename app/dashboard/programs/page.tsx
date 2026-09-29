@@ -18,14 +18,12 @@ export default async function ProgramsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Programs</h1>
-        {ctx.role === "admin" && (
-          <Link
-            href="/dashboard/programs/new"
-            className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
-          >
-            New Program
-          </Link>
-        )}
+        <Link
+          href="/dashboard/programs/new"
+          className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
+        >
+          New Program
+        </Link>
       </div>
 
       {orgPrograms.length === 0 ? (

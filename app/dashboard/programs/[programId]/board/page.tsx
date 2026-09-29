@@ -44,11 +44,9 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
         description={program.description}
         meta={meta}
         action={
-          ctx.role === "admin" ? (
-            <Link href={`${basePath}/projects/new`} className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
-              New Project
-            </Link>
-          ) : undefined
+          <Link href={`${basePath}/projects/new`} className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700">
+            New Project
+          </Link>
         }
       />
 
@@ -82,7 +80,6 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
               </>
             ),
           }))}
-          readOnly={ctx.role !== "admin"}
           onReorder={updateProjectOrder.bind(null, programId)}
         />
       )}

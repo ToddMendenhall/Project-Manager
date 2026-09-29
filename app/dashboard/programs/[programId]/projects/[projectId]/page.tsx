@@ -58,20 +58,18 @@ export default async function ProjectDetailPage({
         description={project.description}
         meta={meta}
         action={
-          ctx.role === "admin" ? (
-            <>
-              <Link
-                href={`/dashboard/programs/${programId}/projects/${project.id}/edit`}
-                className="text-sm underline"
-              >
-                Edit
-              </Link>
-              <ConfirmDeleteButton
-                action={deleteProject.bind(null, programId, project.id)}
-                confirmMessage={`Delete "${project.name}" and all of its tasks? This cannot be undone.`}
-              />
-            </>
-          ) : undefined
+          <>
+            <Link
+              href={`/dashboard/programs/${programId}/projects/${project.id}/edit`}
+              className="text-sm underline"
+            >
+              Edit
+            </Link>
+            <ConfirmDeleteButton
+              action={deleteProject.bind(null, programId, project.id)}
+              confirmMessage={`Delete "${project.name}" and all of its tasks? This cannot be undone.`}
+            />
+          </>
         }
       />
 

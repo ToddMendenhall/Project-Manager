@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers, getOrgPortfolios } from "@/lib/queries";
 import { ProgramForm } from "@/components/programs/program-form";
@@ -10,7 +9,6 @@ export default async function NewProgramPage({
   searchParams: Promise<{ portfolioId?: string }>;
 }) {
   const ctx = await requireOrgContext();
-  if (ctx.role !== "admin") redirect("/dashboard/programs");
 
   const { portfolioId } = await searchParams;
   const [members, portfolios] = await Promise.all([

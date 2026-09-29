@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
-import { requireAdmin, requireOrgContext } from "@/lib/org";
+import { requireOrgContext } from "@/lib/org";
 import { getProgramForOrg, getProjectForOrg, getProjectForProgram } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
@@ -35,7 +35,6 @@ function parseProjectForm(formData: FormData) {
 
 export async function createProject(programId: string, formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const program = await getProgramForOrg(programId, ctx.org.id);
   if (!program) {
@@ -65,7 +64,6 @@ export async function createProject(programId: string, formData: FormData) {
 
 export async function updateProject(programId: string, projectId: string, formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
   if (!existing) {
@@ -95,7 +93,6 @@ export async function updateProject(programId: string, projectId: string, formDa
 
 export async function deleteProject(programId: string, projectId: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
   if (!existing) {
@@ -118,7 +115,6 @@ export async function updateProjectOrder(
   sortOrder: number,
 ) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
   if (!existing) {
@@ -144,7 +140,6 @@ export async function updateProjectOrder(
  */
 export async function updateProjectDates(projectId: string, startDate: string, dueDate: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getProjectForOrg(projectId, ctx.org.id);
   if (!existing) {

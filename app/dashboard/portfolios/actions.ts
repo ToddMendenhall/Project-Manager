@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios } from "@/db/schema";
-import { requireAdmin, requireOrgContext } from "@/lib/org";
+import { requireOrgContext } from "@/lib/org";
 import { getPortfolioForOrg } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
@@ -33,7 +33,6 @@ function parsePortfolioForm(formData: FormData) {
 
 export async function createPortfolio(formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const data = parsePortfolioForm(formData);
 
@@ -57,7 +56,6 @@ export async function createPortfolio(formData: FormData) {
 
 export async function updatePortfolio(portfolioId: string, formData: FormData) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
   if (!existing) {
@@ -86,7 +84,6 @@ export async function updatePortfolio(portfolioId: string, formData: FormData) {
 
 export async function deletePortfolio(portfolioId: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
   if (!existing) {
@@ -107,7 +104,6 @@ const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed",
 /** Lightweight status+order update, used by the Board view's drag-and-drop. */
 export async function updatePortfolioOrder(portfolioId: string, status: string, sortOrder: number) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
   if (!existing) {
@@ -131,7 +127,6 @@ export async function updatePortfolioOrder(portfolioId: string, status: string, 
 /** Lightweight start+target-end date update, used by the Gantt view's drag-to-resize handles. */
 export async function updatePortfolioDates(portfolioId: string, startDate: string, targetEndDate: string) {
   const ctx = await requireOrgContext();
-  requireAdmin(ctx);
 
   const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
   if (!existing) {
