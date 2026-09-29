@@ -47,17 +47,15 @@ export default async function PortfolioDetailPage({
         description={portfolio.description}
         meta={meta}
         action={
-          ctx.role === "admin" ? (
-            <>
-              <Link href={`/dashboard/portfolios/${portfolio.id}/edit`} className="text-sm underline">
-                Edit
-              </Link>
-              <ConfirmDeleteButton
-                action={deletePortfolio.bind(null, portfolio.id)}
-                confirmMessage={`Delete "${portfolio.name}"? Its programs will become unassigned, not deleted.`}
-              />
-            </>
-          ) : undefined
+          <>
+            <Link href={`/dashboard/portfolios/${portfolio.id}/edit`} className="text-sm underline">
+              Edit
+            </Link>
+            <ConfirmDeleteButton
+              action={deletePortfolio.bind(null, portfolio.id)}
+              confirmMessage={`Delete "${portfolio.name}"? Its programs will become unassigned, not deleted.`}
+            />
+          </>
         }
       />
 
@@ -71,14 +69,12 @@ export default async function PortfolioDetailPage({
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Programs</h2>
-          {ctx.role === "admin" && (
-            <Link
-              href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
-              className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
-            >
-              New Program
-            </Link>
-          )}
+          <Link
+            href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
+            className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
+          >
+            New Program
+          </Link>
         </div>
         {portfolio.programs.length === 0 ? (
           <p className="text-sm text-cy-gray-500">No programs in this portfolio yet.</p>

@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgMembers, getProjectForProgram } from "@/lib/queries";
 import { ProjectForm } from "@/components/projects/project-form";
@@ -11,7 +11,6 @@ export default async function EditProjectPage({
 }) {
   const { programId, projectId } = await params;
   const ctx = await requireOrgContext();
-  if (ctx.role !== "admin") redirect(`/dashboard/programs/${programId}/projects/${projectId}`);
 
   const project = await getProjectForProgram(projectId, programId, ctx.org.id);
   if (!project) notFound();

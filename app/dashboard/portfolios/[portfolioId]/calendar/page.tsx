@@ -53,14 +53,12 @@ export default async function PortfolioCalendarPage({
         description={portfolio.description}
         meta={meta}
         action={
-          ctx.role === "admin" ? (
-            <Link
-              href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
-              className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
-            >
-              New Program
-            </Link>
-          ) : undefined
+          <Link
+            href={`/dashboard/programs/new?portfolioId=${portfolio.id}`}
+            className="rounded bg-cy-blue-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
+          >
+            New Program
+          </Link>
         }
       />
 

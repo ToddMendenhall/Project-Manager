@@ -63,10 +63,13 @@ a new nested entity, add a matching helper here rather than querying the
 table directly in a page/action — this is what prevents cross-org access
 through a guessed id.
 
-Permission tiers: **Portfolio/Program/Project** mutations require
-`requireAdmin`. **Task/ChecklistItem** mutations are open to any org member
-(see the comment in `tasks/actions.ts`). **Comment/Attachment** creation is
-open to any member, but only the author or an admin can delete one.
+Permission tiers: **Portfolio/Program/Project/Task/ChecklistItem**
+create/edit/delete is open to any org member — those actions only call
+`requireOrgContext()` plus the org-scoping helpers, never `requireAdmin`.
+**Comment/Attachment** creation is open to any member, but only the author
+or an admin can delete one. `requireAdmin` is reserved for org
+administration: member/invite management (`members/actions.ts`) and the
+org-wide attachments page.
 
 ### Split Auth.js config (edge vs Node runtime)
 

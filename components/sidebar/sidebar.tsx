@@ -81,21 +81,19 @@ export async function Sidebar({
           >
             Portfolios
           </Link>
-          {isAdmin && (
-            <Link
-              href="/dashboard/portfolios/new"
-              className="text-cy-gray-400 hover:text-cy-blue-600"
-              title="New Portfolio"
-              aria-label="New Portfolio"
-            >
-              <Plus size={16} strokeWidth={2} />
-            </Link>
-          )}
+          <Link
+            href="/dashboard/portfolios/new"
+            className="text-cy-gray-400 hover:text-cy-blue-600"
+            title="New Portfolio"
+            aria-label="New Portfolio"
+          >
+            <Plus size={16} strokeWidth={2} />
+          </Link>
         </div>
         {portfolioNodes.length === 0 && ungroupedPrograms.length === 0 ? (
           <p className="px-2 text-xs text-cy-gray-400">Nothing here yet.</p>
         ) : (
-          <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} isAdmin={isAdmin} />
+          <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} />
         )}
       </div>
     </aside>
