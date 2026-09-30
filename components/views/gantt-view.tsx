@@ -68,6 +68,8 @@ type DragAnchor = {
   originStart: Date | null;
   originEnd: Date | null;
   onDateChange: DateChangeHandler;
+  /** Dates as of the last pointermove; unset until the pointer actually moves. */
+  latest?: ItemDates;
 };
 
 export function GanttView({
@@ -113,56 +115,52 @@ export function GanttView({
       if (!drag) return;
       const deltaDays = Math.round((e.clientX - drag.pointerStartX) / dayWidthRef.current);
 
-      setDates((prev) => {
-        const entry = prev[drag.itemId];
-        if (!entry) return prev;
-        let next = entry;
+      // Only the dragged edge moves, so the other one is still its origin value.
+      const { originStart, originEnd } = drag;
+      let next: ItemDates = { start: originStart, end: originEnd };
+      if (drag.edge === "start") {
+        let newStart = addDays(originStart!, deltaDays);
+        if (originEnd && newStart > originEnd) newStart = originEnd;
+        next = { start: newStart, end: originEnd };
+      } else if (drag.edge === "end") {
+        let newEnd = addDays(originEnd!, deltaDays);
+        if (originStart && newEnd < originStart) newEnd = originStart;
+        next = { start: originStart, end: newEnd };
+      } else if (originStart && !originEnd) {
+        // Dot with only a start date — drag creates/moves the missing due date.
+        let newEnd = addDays(originStart, deltaDays);
+        if (newEnd < originStart) newEnd = originStart;
+        next = { start: originStart, end: newEnd };
+      } else if (originEnd && !originStart) {
+        // Dot with only a due date — drag creates/moves the missing start date.
+        let newStart = addDays(originEnd, deltaDays);
+        if (newStart > originEnd) newStart = originEnd;
+        next = { start: newStart, end: originEnd };
+      }
 
-        if (drag.edge === "start") {
-          let newStart = addDays(drag.originStart!, deltaDays);
-          if (entry.end && newStart > entry.end) newStart = entry.end;
-          next = { ...entry, start: newStart };
-        } else if (drag.edge === "end") {
-          let newEnd = addDays(drag.originEnd!, deltaDays);
-          if (entry.start && newEnd < entry.start) newEnd = entry.start;
-          next = { ...entry, end: newEnd };
-        } else if (drag.originStart && !drag.originEnd) {
-          // Dot with only a start date — drag creates/moves the missing due date.
-          let newEnd = addDays(drag.originStart, deltaDays);
-          if (newEnd < drag.originStart) newEnd = drag.originStart;
-          next = { ...entry, end: newEnd };
-        } else if (drag.originEnd && !drag.originStart) {
-          // Dot with only a due date — drag creates/moves the missing start date.
-          let newStart = addDays(drag.originEnd, deltaDays);
-          if (newStart > drag.originEnd) newStart = drag.originEnd;
-          next = { ...entry, start: newStart };
-        }
-
-        return next === entry ? prev : { ...prev, [drag.itemId]: next };
-      });
+      drag.latest = next;
+      setDates((prev) => (prev[drag.itemId] ? { ...prev, [drag.itemId]: next } : prev));
     }
 
     function handleUp() {
       const drag = dragRef.current;
       dragRef.current = null;
       setDraggingId(null);
-      if (!drag) return;
+      if (!drag?.latest) return;
 
-      setDates((prev) => {
-        const entry = prev[drag.itemId];
-        if (!entry) return prev;
-        const startChanged = (entry.start?.getTime() ?? null) !== (drag.originStart?.getTime() ?? null);
-        const endChanged = (entry.end?.getTime() ?? null) !== (drag.originEnd?.getTime() ?? null);
-        if (startChanged || endChanged) {
-          startTransition(async () => {
-            try {
-              await drag.onDateChange(drag.itemId, dateInputValue(entry.start), dateInputValue(entry.end));
-            } catch {
-              setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
-            }
-          });
+      // Saved from here, not from inside a setDates updater — updaters run
+      // during render, where starting a transition is not allowed.
+      const { start, end } = drag.latest;
+      const startChanged = (start?.getTime() ?? null) !== (drag.originStart?.getTime() ?? null);
+      const endChanged = (end?.getTime() ?? null) !== (drag.originEnd?.getTime() ?? null);
+      if (!startChanged && !endChanged) return;
+
+      startTransition(async () => {
+        try {
+          await drag.onDateChange(drag.itemId, dateInputValue(start), dateInputValue(end));
+        } catch {
+          setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
         }
-        return prev;
       });
     }
 
