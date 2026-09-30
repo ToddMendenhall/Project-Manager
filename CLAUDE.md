@@ -206,6 +206,12 @@ page, not the component):
   even though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.
+- Zoom (Days/Weeks/Months/Quarters, plus Ctrl/⌘ + wheel) lives in
+  `components/views/gantt-timeline.tsx`, shared by `GanttView` and
+  `ResourceGanttView`: each level is just a px-per-day width plus its own
+  header rows, so bar/dot/drag math stays in days and only multiplies by
+  the current `dayWidth`. The chosen level persists in `localStorage`, and
+  the date at the viewport's center is kept centered across zoom changes.
 
 Portfolio/Program don't have a distinct "Overview" tab the way Project does
 (the tab set there is `["list", "board", "calendar", "gantt"]`, with `list`
