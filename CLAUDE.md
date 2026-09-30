@@ -197,15 +197,29 @@ page, not the component):
   args), never a wrapper arrow function — only a bound/unbound Server Action
   reference survives serialization across the boundary.
 - `CalendarView` / `CalendarNav` — reuses `lib/calendar.ts`'s month-grid math.
-- `GanttView` (`components/views/gantt-view.tsx`) — a plain Server Component
-  (no client state needed: it's links + positioned `<div>`s, so no drag-to-
-  reschedule), CSS-grid day columns at a fixed `DAY_WIDTH`, horizontally
-  scrollable. Draws a bar when both `startDate` and `endDate` are present,
-  a single dot when only one is set, and omits the row entirely (with a
-  caption) when neither is. This is why `tasks` has a `startDate` column
-  even though only `dueDate` used to exist — a Gantt bar needs a range, and
+- `GanttView` (`components/views/gantt-view.tsx`) — a Client Component
+  rendering a collapsible tree of `GanttNode`s (`lib/gantt-types.ts`, built
+  server-side by `lib/gantt-tree.ts`), so one Portfolio's Gantt can expand
+  down through Programs, Projects, Tasks, and Checklist Items. Draws a bar
+  when both `startDate` and `endDate` are present, a single dot when only
+  one is set, and hides a row (with a caption) when neither it nor any
+  descendant has a date. This is why `tasks` has a `startDate` column even
+  though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.
+  Bars are drag-to-reschedule: drag either end of a bar, or drag a dot to
+  set its missing date. The page passes one `on<Kind>DateChange` prop per
+  level, each the real `"use server"` action (`updatePortfolioDates`,
+  `updateProgramDates`, `updateProjectDates`, `updateTaskDates`), per the
+  serialization rule above. Checklist Items have no handler and stay
+  read-only, since they only have a due date. Dates update optimistically
+  while dragging, are saved on pointerup, and revert if the action throws.
+  Compute the dragged dates in the pointermove handler and save from
+  pointerup directly — starting the save transition from inside a
+  `setDates` updater errors in dev, because updaters run during render.
+- `ResourceGanttView` (`components/views/resource-gantt-view.tsx`, the
+  Resources page) — the same timeline rooted at org members, built by
+  `lib/resource-gantt.ts`. It's read-only, with no drag-to-reschedule.
 - Zoom (Days/Weeks/Months/Quarters, plus Ctrl/⌘ + wheel) lives in
   `components/views/gantt-timeline.tsx`, shared by `GanttView` and
   `ResourceGanttView`: each level is just a px-per-day width plus its own
