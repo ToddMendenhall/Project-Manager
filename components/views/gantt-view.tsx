@@ -6,24 +6,18 @@ import { ChevronRight } from "lucide-react";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
 import { statusLabel, dateInputValue } from "@/lib/fields";
 import type { GanttKind, GanttNode } from "@/lib/gantt-types";
+import {
+  GanttTimelineHeader,
+  GanttZoomControls,
+  addDays,
+  buildTimeline,
+  diffDays,
+  startOfDay,
+  useGanttZoom,
+  useTimelineScroll,
+} from "@/components/views/gantt-timeline";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const DAY_WIDTH = 32; // px
 const INDENT_WIDTH = 16; // px per depth level
-
-function startOfDay(d: Date) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function diffDays(a: Date, b: Date) {
-  return Math.round((startOfDay(a).getTime() - startOfDay(b).getTime()) / DAY_MS);
-}
-
-function addDays(d: Date, days: number) {
-  const next = new Date(d);
-  next.setDate(next.getDate() + days);
-  return next;
-}
 
 type ItemDates = { start: Date | null; end: Date | null };
 type DateChangeHandler = (id: string, startDate: string, endDate: string) => Promise<void>;
@@ -103,6 +97,10 @@ export function GanttView({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const dragRef = useRef<DragAnchor | null>(null);
   const [, startTransition] = useTransition();
+  const zoom = useGanttZoom();
+  // Read by the window-level pointermove listener, which is registered once.
+  const dayWidthRef = useRef(zoom.level.dayWidth);
+  dayWidthRef.current = zoom.level.dayWidth;
 
   // Re-sync when the server sends fresh items (e.g. after a filter change or revalidation).
   useEffect(() => {
@@ -113,7 +111,7 @@ export function GanttView({
     function handleMove(e: PointerEvent) {
       const drag = dragRef.current;
       if (!drag) return;
-      const deltaDays = Math.round((e.clientX - drag.pointerStartX) / DAY_WIDTH);
+      const deltaDays = Math.round((e.clientX - drag.pointerStartX) / dayWidthRef.current);
 
       setDates((prev) => {
         const entry = prev[drag.itemId];
@@ -204,46 +202,19 @@ export function GanttView({
 
   const rows = buildRows(items, 0, expanded, dates);
   const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
+  const allDates = rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d));
+  const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
+  const scroll = useTimelineScroll(timeline, zoom);
 
-  if (rows.length === 0) {
+  if (!timeline) {
     return <p className="text-sm text-cy-gray-500">No items have start or due dates yet.</p>;
   }
 
-  const today = startOfDay(new Date());
-  const allDates = rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d));
-  const earliest = new Date(Math.min(...allDates.map((d) => d.getTime()), today.getTime()));
-  const latest = new Date(Math.max(...allDates.map((d) => d.getTime()), today.getTime()));
-
-  const rangeStart = new Date(earliest);
-  rangeStart.setDate(rangeStart.getDate() - 3);
-  const rangeEnd = new Date(latest);
-  rangeEnd.setDate(rangeEnd.getDate() + 3);
-
-  const totalDays = diffDays(rangeEnd, rangeStart) + 1;
-  const days = Array.from({ length: totalDays }, (_, i) => {
-    const d = new Date(rangeStart);
-    d.setDate(rangeStart.getDate() + i);
-    return d;
-  });
-
-  const weeks: { label: string; days: Date[] }[] = [];
-  for (const day of days) {
-    if (weeks.length === 0 || day.getDay() === 0) {
-      weeks.push({ label: "", days: [] });
-    }
-    weeks[weeks.length - 1].days.push(day);
-  }
-  for (const week of weeks) {
-    const first = week.days[0];
-    const last = week.days[week.days.length - 1];
-    week.label = `${first.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${last.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-  }
-
-  const todayOffset = diffDays(today, rangeStart);
-  const gridWidth = totalDays * DAY_WIDTH;
+  const { rangeStart, dayWidth, gridWidth } = timeline;
 
   return (
     <div className="flex flex-col gap-2">
+      <GanttZoomControls zoom={zoom} onToday={scroll.scrollToToday} />
       <div className="flex overflow-hidden rounded-card border border-cy-gray-200 bg-white">
         <div className="flex w-56 shrink-0 flex-col border-r border-cy-gray-200">
           <div className="h-[52px] shrink-0 border-b border-cy-gray-200" />
@@ -280,46 +251,9 @@ export function GanttView({
           ))}
         </div>
 
-        <div className="overflow-x-auto">
+        <div ref={scroll.scrollRef} onScroll={scroll.onScroll} className="overflow-x-auto">
           <div className="relative" style={{ width: gridWidth }}>
-            {todayOffset >= 0 && todayOffset < totalDays && (
-              <div
-                className="pointer-events-none absolute inset-y-0 z-20 w-0.5 bg-cy-cyan-500"
-                style={{ left: todayOffset * DAY_WIDTH + DAY_WIDTH / 2 }}
-              >
-                <span className="absolute -top-1 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-cy-cyan-500" />
-              </div>
-            )}
-            <div className="flex h-[52px] shrink-0 flex-col border-b border-cy-gray-200">
-              <div className="flex h-6">
-                {weeks.map((week, i) => (
-                  <div
-                    key={i}
-                    style={{ width: week.days.length * DAY_WIDTH }}
-                    className="shrink-0 truncate border-r border-cy-gray-100 px-2 font-mono text-[11px] font-medium tabular-nums text-cy-gray-500"
-                  >
-                    {week.label}
-                  </div>
-                ))}
-              </div>
-              <div className="flex h-[26px]">
-                {days.map((day, i) => {
-                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                  const isToday = diffDays(day, today) === 0;
-                  return (
-                    <div
-                      key={i}
-                      style={{ width: DAY_WIDTH }}
-                      className={`flex shrink-0 items-center justify-center border-r border-cy-gray-100 font-mono text-[11px] tabular-nums ${
-                        isWeekend ? "bg-cy-gray-025 text-cy-gray-400" : "text-cy-gray-500"
-                      } ${isToday ? "font-semibold text-cy-blue-600" : ""}`}
-                    >
-                      {day.getDate()}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <GanttTimelineHeader timeline={timeline} />
 
             <div className="relative">
               {rows.map((row) => {
@@ -332,8 +266,8 @@ export function GanttView({
                 if (start && end) {
                   const offset = Math.max(0, diffDays(start, rangeStart));
                   const span = Math.max(1, diffDays(end, start) + 1);
-                  const left = offset * DAY_WIDTH + 2;
-                  const width = Math.max(span * DAY_WIDTH - 4, 8);
+                  const left = offset * dayWidth + 2;
+                  const width = Math.max(span * dayWidth - 4, 8);
                   return (
                     <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
                       <Link
@@ -376,7 +310,7 @@ export function GanttView({
                       className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor} ${
                         draggable ? "cursor-ew-resize" : ""
                       } ${isDragging ? "opacity-80" : ""}`}
-                      style={{ left: offset * DAY_WIDTH + DAY_WIDTH / 2 - 5 }}
+                      style={{ left: offset * dayWidth + dayWidth / 2 - 5 }}
                     />
                   </div>
                 );
