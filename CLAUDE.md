@@ -36,6 +36,11 @@ its `DATABASE_URL` points at. A failed migration fails the deploy, before
 any new code goes live. Local `npm run build` deliberately doesn't migrate,
 so building never needs a database.
 
+`ALLOW_REGISTRATION=false` (optional, see `.env.example`) turns off public
+sign-up at `/register`, so people join only through admin invites. It's read
+per request (`lib/registration.ts`; `/login` and `/register` are
+`force-dynamic`), so changing it needs a restart/redeploy but no code change.
+
 `DATABASE_URL` and `AUTH_SECRET` must be set (see `.env.example`) before any
 `db:*` command or the dev server will work — `drizzle.config.ts` and
 `db/index.ts` both throw immediately if `DATABASE_URL` is missing.
@@ -109,11 +114,29 @@ org-wide attachments page.
 from `authConfig`, and without it there Auth.js rejects Vercel's deployment
 Host header (`UntrustedHost`), breaking every session check.
 
+**Unauthenticated endpoints are rate limited** (`lib/rate-limit.ts`): fixed
+windows counted in the `auth_rate_limits` table, since serverless functions
+share no memory. Keys are SHA-256 hashes of the rule plus email/IP, so the
+table never stores who tried. Sign-in (`authorize()` in `lib/auth.ts`)
+blocks after 10 failures per account or 30 per IP in 15 minutes, before
+checking the password, and throws `RateLimitedSignin` (code
+`"rate_limited"`), which the login page turns into a specific message. A
+successful sign-in clears the account's counter. Registration allows 5
+attempts per IP per hour. The limiter fails open: if its own query errors,
+the attempt is allowed and logged. An unknown email still runs a bcrypt
+compare against a dummy hash, so timing doesn't reveal which emails exist.
+Routine rejected sign-ins are filtered out of Auth.js's error log; throttling
+logs a warning. `clientIp()` trusts `x-real-ip`/`x-forwarded-for`, which
+Vercel sets from the real connection. Behind another proxy, make sure it
+overwrites those headers.
+
 Client-side `signIn()` calls must pass an explicit `callbackUrl`. Without
 one, Auth.js defaults the redirect target to the current page — so a
 *successful* sign-in from `/login` returns a URL that still points at
 `/login`, which is indistinguishable from a failure if you're checking
-`result.url` for `/login`. See `app/login/page.tsx` / `app/register/page.tsx`.
+`result.url` for `/login`. See `components/auth/login-form.tsx` /
+`components/auth/register-form.tsx` (the `app/login` and `app/register` pages
+are thin server wrappers that pass in the registration flag).
 
 ### Server actions: one native form per page
 
