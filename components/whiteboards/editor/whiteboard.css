@@ -1,0 +1,50 @@
+/* Whiteboard canvas tweaks on top of @xyflow/react's base styles. */
+
+/* Connection handles stay hidden until hovering/selecting an item, or while dragging out a connector. */
+.wb-canvas .react-flow__handle.wb-handle {
+  width: 10px;
+  height: 10px;
+  background: #ffffff;
+  border: 1.5px solid #0071bc;
+  opacity: 0;
+  transition: opacity 140ms;
+}
+.wb-canvas .react-flow__node:hover .wb-handle,
+.wb-canvas .react-flow__node.selected .wb-handle,
+.wb-canvas.wb-connecting .wb-handle {
+  opacity: 1;
+}
+
+.wb-canvas .wb-resize-handle {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: #ffffff;
+  border: 1.5px solid #0071bc;
+}
+
+/* Custom nodes draw their own chrome; drop React Flow's default node box. */
+.wb-canvas .react-flow__node-sticky,
+.wb-canvas .react-flow__node-shape,
+.wb-canvas .react-flow__node-text {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.wb-canvas.wb-placing .react-flow__pane {
+  cursor: crosshair;
+}
+
+.wb-canvas .react-flow__minimap {
+  border: 1px solid #e6e9ec;
+  border-radius: 5px;
+}
+
+/* React Flow fills control icons; lucide icons are stroke-only. */
+.wb-canvas .react-flow__controls-button svg.lucide {
+  fill: none;
+  max-width: 14px;
+  max-height: 14px;
+}

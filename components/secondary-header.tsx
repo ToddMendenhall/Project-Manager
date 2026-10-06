@@ -2,14 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users } from "lucide-react";
+import { PenTool, Users } from "lucide-react";
 
-const SECONDARY_NAV = [{ href: "/dashboard/resources", label: "Resources", icon: Users }] as const;
+const SECONDARY_NAV = [
+  { href: "/dashboard/resources", label: "Resources", icon: Users },
+  { href: "/dashboard/whiteboards", label: "Whiteboards", icon: PenTool },
+] as const;
 
 /**
  * A second, lighter-blue bar below the main navy header for org-wide
  * functions/views that don't belong under a single Portfolio/Program/
- * Project (e.g. the cross-org Resources Gantt) — as opposed to the
+ * Project (e.g. the cross-org Resources Gantt, Whiteboards) — as opposed to the
  * sidebar, which is scoped to the Portfolio/Program tree.
  */
 export function SecondaryHeader() {

@@ -227,6 +227,43 @@ page, not the component):
   the current `dayWidth`. The chosen level persists in `localStorage`, and
   the date at the viewport's center is kept centered across zoom changes.
 
+### Whiteboards
+
+Org-wide canvases for process maps and brainstorming, reached from the
+secondary header (`/dashboard/whiteboards`). `whiteboards/layout.tsx` puts
+the board list panel (`WhiteboardListPanel`) beside every whiteboard page
+and undoes `main`'s padding so the canvas runs edge to edge.
+
+- **Storage:** the whole board is one `whiteboards.data` jsonb document
+  (`{ nodes, edges }`), not a row per element. Its shape lives in
+  `lib/whiteboard.ts`: `whiteboardDocSchema` validates every save (a
+  connector must point at real nodes, and there are size caps). Only
+  content is saved. Selection, viewport and which item is being edited
+  are per-viewer state and are never persisted.
+- **Editor:** `components/whiteboards/editor/` is built on React Flow
+  (`@xyflow/react`):
+  - Custom `sticky`/`shape`/`text` node types and a `connector` edge.
+  - Handles run in `ConnectionMode.Loose`, so any side connects to any side.
+  - Per-viewer editing state reaches nodes through `EditorContext`, never
+    node `data`.
+  - Undo history is serialized-doc snapshots. Mid-drag and mid-resize
+    states are skipped, so one gesture is one undo step.
+- **Autosave:** saves are debounced and use optimistic concurrency.
+  - `saveWhiteboard(id, doc, expectedVersion)` only updates if `version`
+    still matches. Otherwise it returns a conflict, and the editor offers
+    "Load their version" or "Overwrite with mine".
+  - Open editors also poll `getWhiteboardVersion` to notice others' saves.
+  - There is no real-time co-editing or live cursors. Vercel serverless
+    can't hold websockets, so that would need an external service.
+  - `saveWhiteboard` deliberately doesn't `revalidatePath`. Doing so would
+    re-render the page (re-reading the whole board) on every autosave.
+- **Permissions:** any member can create, edit or duplicate a board. Only
+  the creator or an admin can delete one (`canDeleteWhiteboard`), the same
+  rule as comments and attachments.
+- **Scoping:** `getWhiteboardForOrg` / `getOrgWhiteboards` only load `data`
+  when passed `{ withData: true }`.
+- **Planned:** a later phase adds an optional Project/Program link.
+
 Portfolio/Program don't have a distinct "Overview" tab the way Project does
 (the tab set there is `["list", "board", "calendar", "gantt"]`, with `list`
 pointing at the detail page itself, `hrefs={{ list: basePath }}`) — their
