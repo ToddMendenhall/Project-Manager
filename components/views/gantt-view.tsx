@@ -296,6 +296,14 @@ export function GanttView({
                   );
                 }
 
+                // A row with no dates of its own is still shown when a
+                // descendant has dates (see isVisible) — e.g. an undated
+                // Portfolio above dated Projects. Keep the empty row so the
+                // timeline stays aligned with the label column.
+                if (!start && !end) {
+                  return <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0" />;
+                }
+
                 const point = (start ?? end)!;
                 const offset = Math.max(0, diffDays(point, rangeStart));
                 return (

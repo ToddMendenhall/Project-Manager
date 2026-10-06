@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { programs } from "@/db/schema";
+import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
-import { getPortfolioForOrg, getProgramForOrg } from "@/lib/queries";
+import { getPortfolioForOrg, getProgramForOrg, resolveOrgMemberId } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -44,6 +45,7 @@ export async function createProgram(formData: FormData) {
   const ctx = await requireOrgContext();
 
   const data = parseProgramForm(formData);
+  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
   const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
 
   const [program] = await db
@@ -54,9 +56,9 @@ export async function createProgram(formData: FormData) {
       name: data.name,
       description: data.description ?? null,
       status: data.status,
-      ownerId: data.ownerId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      targetEndDate: data.targetEndDate ? new Date(data.targetEndDate) : null,
+      ownerId,
+      startDate: toDateOrNull(data.startDate),
+      targetEndDate: toDateOrNull(data.targetEndDate),
       sortOrder: Date.now(),
     })
     .returning();
@@ -75,6 +77,7 @@ export async function updateProgram(programId: string, formData: FormData) {
   }
 
   const data = parseProgramForm(formData);
+  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
   const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
 
   await db
@@ -84,9 +87,9 @@ export async function updateProgram(programId: string, formData: FormData) {
       name: data.name,
       description: data.description ?? null,
       status: data.status,
-      ownerId: data.ownerId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      targetEndDate: data.targetEndDate ? new Date(data.targetEndDate) : null,
+      ownerId,
+      startDate: toDateOrNull(data.startDate),
+      targetEndDate: toDateOrNull(data.targetEndDate),
       updatedAt: new Date(),
     })
     .where(eq(programs.id, programId));
@@ -153,8 +156,8 @@ export async function updateProgramDates(programId: string, startDate: string, t
   await db
     .update(programs)
     .set({
-      startDate: startDate ? new Date(startDate) : null,
-      targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
+      startDate: toDateOrNull(startDate),
+      targetEndDate: toDateOrNull(targetEndDate),
       updatedAt: new Date(),
     })
     .where(eq(programs.id, programId));

@@ -10,7 +10,7 @@ export default async function ProgramsPage() {
 
   const orgPrograms = await db.query.programs.findMany({
     where: eq(programs.orgId, ctx.org.id),
-    with: { projects: true, owner: true, portfolio: true },
+    with: { projects: true, owner: { columns: { id: true, name: true } }, portfolio: true },
     orderBy: (program, { desc }) => [desc(program.createdAt)],
   });
 

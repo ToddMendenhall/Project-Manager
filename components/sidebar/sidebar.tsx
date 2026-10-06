@@ -3,7 +3,7 @@ import { Plus } from "lucide-react";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios, programs } from "@/db/schema";
-import { getOrgTasksFlat } from "@/lib/queries";
+import { countOpenTasksForAssignee, getProjectTaskCounts } from "@/lib/queries";
 import { NavLinks } from "./nav-links";
 import { PortfolioTree, type ProgramNode, type ProjectNode } from "./portfolio-tree";
 
@@ -15,19 +15,25 @@ const PERSONAL_LINKS = [
   { href: "/dashboard/attachments", label: "Attachments", adminOnly: true },
 ] as const;
 
-type RawProject = { id: string; name: string; tasks: { id: string }[] };
-type RawProgram = { id: string; name: string; projects: RawProject[] };
+type RawProgram = { id: string; name: string; projects: { id: string; name: string }[] };
 
-function mapProgram(program: RawProgram): ProgramNode {
+function mapProgram(program: RawProgram, taskCounts: Map<string, number>): ProgramNode {
   return {
     id: program.id,
     name: program.name,
     projects: program.projects.map(
-      (project): ProjectNode => ({ id: project.id, name: project.name, taskCount: project.tasks.length }),
+      (project): ProjectNode => ({ id: project.id, name: project.name, taskCount: taskCounts.get(project.id) ?? 0 }),
     ),
   };
 }
 
+const nameColumns = { columns: { id: true, name: true } } as const;
+
+/**
+ * Renders on every dashboard page (it's in the layout), so it only ever
+ * loads names plus two aggregate counts — never task rows, which grow with
+ * the org and would be pulled from the database on every page load.
+ */
 export async function Sidebar({
   orgId,
   userId,
@@ -37,34 +43,29 @@ export async function Sidebar({
   userId: string;
   isAdmin: boolean;
 }) {
-  const [orgPortfolios, ungroupedProgramsRaw, orgTasks] = await Promise.all([
+  const [orgPortfolios, ungroupedProgramsRaw, taskCounts, myOpenTaskCount] = await Promise.all([
     db.query.portfolios.findMany({
       where: eq(portfolios.orgId, orgId),
-      with: {
-        programs: {
-          with: { projects: { with: { tasks: { columns: { id: true } } } } },
-        },
-      },
+      ...nameColumns,
+      with: { programs: { ...nameColumns, with: { projects: nameColumns } } },
       orderBy: (portfolio, { asc }) => [asc(portfolio.name)],
     }),
     db.query.programs.findMany({
       where: and(eq(programs.orgId, orgId), isNull(programs.portfolioId)),
-      with: { projects: { with: { tasks: { columns: { id: true } } } } },
+      ...nameColumns,
+      with: { projects: nameColumns },
       orderBy: (program, { asc }) => [asc(program.name)],
     }),
-    getOrgTasksFlat(orgId),
+    getProjectTaskCounts(orgId),
+    countOpenTasksForAssignee(orgId, userId),
   ]);
-
-  const myOpenTaskCount = orgTasks.filter(
-    (task) => task.assigneeId === userId && task.status !== "completed" && task.status !== "cancelled",
-  ).length;
 
   const portfolioNodes = orgPortfolios.map((portfolio) => ({
     id: portfolio.id,
     name: portfolio.name,
-    programs: portfolio.programs.map(mapProgram),
+    programs: portfolio.programs.map((program) => mapProgram(program, taskCounts)),
   }));
-  const ungroupedPrograms = ungroupedProgramsRaw.map(mapProgram);
+  const ungroupedPrograms = ungroupedProgramsRaw.map((program) => mapProgram(program, taskCounts));
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-cy-gray-100 bg-cy-gray-025">

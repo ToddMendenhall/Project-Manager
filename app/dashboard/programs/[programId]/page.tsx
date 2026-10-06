@@ -22,11 +22,11 @@ export default async function ProgramDetailPage({
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
-      owner: true,
+      owner: { columns: { id: true, name: true } },
       portfolio: true,
       projects: {
         orderBy: (project, { desc }) => [desc(project.createdAt)],
-        with: { lead: true, tasks: true },
+        with: { lead: { columns: { id: true, name: true } }, tasks: true },
       },
     },
   });

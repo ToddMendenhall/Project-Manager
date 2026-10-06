@@ -86,6 +86,9 @@ export const orgMembers = pgTable(
   },
   (table) => ({
     orgUserUnique: uniqueIndex("org_members_org_user_unique").on(table.orgId, table.userId),
+    // requireOrgContext looks memberships up by user on every request; the
+    // unique index above leads with org_id, so it can't serve that lookup.
+    userIdx: index("org_members_user_idx").on(table.userId),
   }),
 );
 
@@ -227,6 +230,9 @@ export const tasks = pgTable(
   (table) => ({
     projectIdx: index("tasks_project_idx").on(table.projectId),
     parentIdx: index("tasks_parent_idx").on(table.parentTaskId),
+    // My Tasks and the sidebar badge filter by assignee; also keeps the
+    // ON DELETE SET NULL on member deletion from scanning every task.
+    assigneeIdx: index("tasks_assignee_idx").on(table.assigneeId),
   }),
 );
 
@@ -305,6 +311,7 @@ export const comments = pgTable(
   },
   (table) => ({
     taskIdx: index("comments_task_idx").on(table.taskId),
+    authorIdx: index("comments_author_idx").on(table.authorId),
     checklistItemIdx: index("comments_checklist_item_idx").on(table.checklistItemId),
     exactlyOneParent: check(
       "comments_exactly_one_parent",
@@ -335,6 +342,7 @@ export const attachments = pgTable(
   },
   (table) => ({
     taskIdx: index("attachments_task_idx").on(table.taskId),
+    uploadedByIdx: index("attachments_uploaded_by_idx").on(table.uploadedById),
     checklistItemIdx: index("attachments_checklist_item_idx").on(table.checklistItemId),
     whiteboardIdx: index("attachments_whiteboard_idx").on(table.whiteboardId),
     exactlyOneParent: check(

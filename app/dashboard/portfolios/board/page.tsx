@@ -13,7 +13,7 @@ export default async function PortfoliosBoardPage() {
 
   const orgPortfolios = await db.query.portfolios.findMany({
     where: eq(portfolios.orgId, ctx.org.id),
-    with: { owner: true },
+    with: { owner: { columns: { id: true, name: true } } },
     orderBy: (portfolio, { asc }) => [asc(portfolio.sortOrder)],
   });
 

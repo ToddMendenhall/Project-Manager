@@ -20,7 +20,7 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
-      owner: true,
+      owner: { columns: { id: true, name: true } },
       portfolio: true,
       projects: {
         orderBy: (project, { asc }) => [asc(project.createdAt)],

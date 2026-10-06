@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios } from "@/db/schema";
+import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
-import { getPortfolioForOrg } from "@/lib/queries";
+import { getPortfolioForOrg, resolveOrgMemberId } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -35,6 +36,7 @@ export async function createPortfolio(formData: FormData) {
   const ctx = await requireOrgContext();
 
   const data = parsePortfolioForm(formData);
+  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
 
   const [portfolio] = await db
     .insert(portfolios)
@@ -43,9 +45,9 @@ export async function createPortfolio(formData: FormData) {
       name: data.name,
       description: data.description ?? null,
       status: data.status,
-      ownerId: data.ownerId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      targetEndDate: data.targetEndDate ? new Date(data.targetEndDate) : null,
+      ownerId,
+      startDate: toDateOrNull(data.startDate),
+      targetEndDate: toDateOrNull(data.targetEndDate),
       sortOrder: Date.now(),
     })
     .returning();
@@ -63,6 +65,7 @@ export async function updatePortfolio(portfolioId: string, formData: FormData) {
   }
 
   const data = parsePortfolioForm(formData);
+  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
 
   await db
     .update(portfolios)
@@ -70,9 +73,9 @@ export async function updatePortfolio(portfolioId: string, formData: FormData) {
       name: data.name,
       description: data.description ?? null,
       status: data.status,
-      ownerId: data.ownerId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      targetEndDate: data.targetEndDate ? new Date(data.targetEndDate) : null,
+      ownerId,
+      startDate: toDateOrNull(data.startDate),
+      targetEndDate: toDateOrNull(data.targetEndDate),
       updatedAt: new Date(),
     })
     .where(eq(portfolios.id, portfolioId));
@@ -136,8 +139,8 @@ export async function updatePortfolioDates(portfolioId: string, startDate: strin
   await db
     .update(portfolios)
     .set({
-      startDate: startDate ? new Date(startDate) : null,
-      targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
+      startDate: toDateOrNull(startDate),
+      targetEndDate: toDateOrNull(targetEndDate),
       updatedAt: new Date(),
     })
     .where(eq(portfolios.id, portfolioId));

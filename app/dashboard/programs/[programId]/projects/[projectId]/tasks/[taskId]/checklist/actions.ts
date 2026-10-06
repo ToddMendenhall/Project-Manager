@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { checklistItems } from "@/db/schema";
+import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
-import { getChecklistItemForTask, getTaskForProject } from "@/lib/queries";
+import { getChecklistItemForTask, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
 
 // Checklist items follow the same permission model as tasks — any org
 // member (not just admins) can create, edit, or delete them.
@@ -79,6 +80,7 @@ export async function updateChecklistItem(
   }
 
   const data = parseChecklistItemForm(formData);
+  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
 
   const justCompleted = data.status === "completed" && existing.status !== "completed";
   const unCompleted = data.status !== "completed" && existing.status === "completed";
@@ -90,8 +92,8 @@ export async function updateChecklistItem(
       description: data.description ?? null,
       status: data.status,
       priority: data.priority,
-      assigneeId: data.assigneeId ?? null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      assigneeId,
+      dueDate: toDateOrNull(data.dueDate),
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       updatedAt: new Date(),
     })
@@ -204,7 +206,7 @@ export async function updateChecklistItemAssignee(
 
   await db
     .update(checklistItems)
-    .set({ assigneeId: assigneeId ? z.string().uuid().parse(assigneeId) : null, updatedAt: new Date() })
+    .set({ assigneeId: await resolveOrgMemberId(assigneeId, ctx.org.id), updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
 
   revalidatePath(listPath(programId, projectId));
@@ -227,7 +229,7 @@ export async function updateChecklistItemDueDate(
 
   await db
     .update(checklistItems)
-    .set({ dueDate: dueDate ? new Date(dueDate) : null, updatedAt: new Date() })
+    .set({ dueDate: toDateOrNull(dueDate), updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
 
   revalidatePath(listPath(programId, projectId));

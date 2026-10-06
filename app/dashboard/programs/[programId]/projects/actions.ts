@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { projects } from "@/db/schema";
+import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
-import { getProgramForOrg, getProjectForOrg, getProjectForProgram } from "@/lib/queries";
+import { getProgramForOrg, getProjectForOrg, getProjectForProgram, resolveOrgMemberId } from "@/lib/queries";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -42,6 +43,7 @@ export async function createProject(programId: string, formData: FormData) {
   }
 
   const data = parseProjectForm(formData);
+  const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
 
   const [project] = await db
     .insert(projects)
@@ -51,9 +53,9 @@ export async function createProject(programId: string, formData: FormData) {
       description: data.description ?? null,
       status: data.status,
       priority: data.priority,
-      leadId: data.leadId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      leadId,
+      startDate: toDateOrNull(data.startDate),
+      dueDate: toDateOrNull(data.dueDate),
       sortOrder: Date.now(),
     })
     .returning();
@@ -71,6 +73,7 @@ export async function updateProject(programId: string, projectId: string, formDa
   }
 
   const data = parseProjectForm(formData);
+  const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
 
   await db
     .update(projects)
@@ -79,9 +82,9 @@ export async function updateProject(programId: string, projectId: string, formDa
       description: data.description ?? null,
       status: data.status,
       priority: data.priority,
-      leadId: data.leadId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      leadId,
+      startDate: toDateOrNull(data.startDate),
+      dueDate: toDateOrNull(data.dueDate),
       updatedAt: new Date(),
     })
     .where(eq(projects.id, projectId));
@@ -149,8 +152,8 @@ export async function updateProjectDates(projectId: string, startDate: string, d
   await db
     .update(projects)
     .set({
-      startDate: startDate ? new Date(startDate) : null,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      startDate: toDateOrNull(startDate),
+      dueDate: toDateOrNull(dueDate),
       updatedAt: new Date(),
     })
     .where(eq(projects.id, projectId));

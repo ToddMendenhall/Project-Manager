@@ -28,7 +28,7 @@ export default async function ProjectDetailPage({
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
     with: {
-      lead: true,
+      lead: { columns: { id: true, name: true } },
       tasks: { orderBy: (task, { desc }) => [desc(task.createdAt)], limit: 5 },
     },
   });

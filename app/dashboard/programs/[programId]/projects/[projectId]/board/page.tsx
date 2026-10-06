@@ -28,9 +28,9 @@ export default async function TaskBoardPage({
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
     with: {
-      lead: true,
+      lead: { columns: { id: true, name: true } },
       tasks: {
-        with: { assignee: true },
+        with: { assignee: { columns: { id: true, name: true } } },
         orderBy: (task, { asc }) => [asc(task.sortOrder)],
       },
     },
