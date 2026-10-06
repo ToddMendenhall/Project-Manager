@@ -360,10 +360,46 @@ export const activityLog = pgTable(
   }),
 );
 
+/**
+ * A free-form canvas (process maps, brainstorms) shared across the org.
+ * The whole board — nodes (stickies, shapes, text) and edges (connectors) —
+ * is one jsonb document rather than a row per element: a save is a single
+ * statement and duplicating a board is a row copy. Its shape is validated
+ * by `whiteboardDocSchema` (lib/whiteboard.ts) on every save.
+ *
+ * `version` is bumped on every save and checked against the version the
+ * editor loaded (optimistic concurrency), so two people editing the same
+ * board get a conflict prompt instead of silently overwriting each other.
+ *
+ * Org-wide only for now; a later phase adds an optional Project/Program
+ * link. createdById is set null if the creator's user row goes away, after
+ * which only an admin can delete the board.
+ */
+export const whiteboards = pgTable(
+  "whiteboards",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    orgId: uuid("org_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 255 }).notNull(),
+    data: jsonb("data").notNull().default({ nodes: [], edges: [] }),
+    version: integer("version").notNull().default(1),
+    createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+    updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    orgUpdatedIdx: index("whiteboards_org_updated_idx").on(table.orgId, table.updatedAt),
+  }),
+);
+
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   members: many(orgMembers),
   portfolios: many(portfolios),
   programs: many(programs),
+  whiteboards: many(whiteboards),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -443,6 +479,20 @@ export const customFieldDefsRelations = relations(customFieldDefs, ({ one }) => 
   program: one(programs, { fields: [customFieldDefs.programId], references: [programs.id] }),
 }));
 
+export const whiteboardsRelations = relations(whiteboards, ({ one }) => ({
+  organization: one(organizations, { fields: [whiteboards.orgId], references: [organizations.id] }),
+  createdBy: one(users, {
+    fields: [whiteboards.createdById],
+    references: [users.id],
+    relationName: "whiteboardCreatedBy",
+  }),
+  updatedBy: one(users, {
+    fields: [whiteboards.updatedById],
+    references: [users.id],
+    relationName: "whiteboardUpdatedBy",
+  }),
+}));
+
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type Portfolio = typeof portfolios.$inferSelect;
@@ -464,3 +514,5 @@ export type CustomFieldDef = typeof customFieldDefs.$inferSelect;
 export type Comment = typeof comments.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type ActivityLogEntry = typeof activityLog.$inferSelect;
+export type Whiteboard = typeof whiteboards.$inferSelect;
+export type NewWhiteboard = typeof whiteboards.$inferInsert;

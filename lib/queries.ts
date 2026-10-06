@@ -14,6 +14,7 @@ import {
   projects,
   tasks,
   users,
+  whiteboards,
 } from "@/db/schema";
 
 export type SearchResult = { id: string; title: string; path: string; href: string };
@@ -537,4 +538,57 @@ export async function getCommentsOnMyTasks(userId: string, orgId: string) {
     .where(and(eq(tasks.assigneeId, userId), eq(programs.orgId, orgId)))
     .orderBy(desc(comments.createdAt))
     .limit(50);
+}
+
+/**
+ * Fetches a whiteboard only if it belongs to the given org — prevents
+ * cross-org access. `data` (the canvas, up to a couple of MB) is only
+ * loaded when asked for, since autosave and version polling just need the
+ * ownership check and `version`.
+ */
+export async function getWhiteboardForOrg<WithData extends boolean = false>(
+  whiteboardId: string,
+  orgId: string,
+  { withData }: { withData?: WithData } = {},
+) {
+  const board = await db.query.whiteboards.findFirst({
+    where: and(eq(whiteboards.id, whiteboardId), eq(whiteboards.orgId, orgId)),
+    columns: {
+      id: true,
+      orgId: true,
+      name: true,
+      version: true,
+      createdById: true,
+      createdAt: true,
+      updatedAt: true,
+      data: (withData ?? false) as WithData,
+    },
+    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
+  });
+
+  return board ?? null;
+}
+
+/**
+ * The org's whiteboards, most recently edited first. `data` (the whole
+ * canvas) is only loaded when asked for — the list panel beside every
+ * whiteboard page needs just names and timestamps.
+ */
+export async function getOrgWhiteboards<WithData extends boolean = false>(
+  orgId: string,
+  { withData }: { withData?: WithData } = {},
+) {
+  return db.query.whiteboards.findMany({
+    where: eq(whiteboards.orgId, orgId),
+    columns: {
+      id: true,
+      name: true,
+      createdById: true,
+      createdAt: true,
+      updatedAt: true,
+      data: (withData ?? false) as WithData,
+    },
+    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
+    orderBy: [desc(whiteboards.updatedAt)],
+  });
 }
