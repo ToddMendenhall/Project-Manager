@@ -77,7 +77,7 @@ function LoginForm({ allowRegistration }: { allowRegistration: boolean }) {
         <div className="flex flex-col gap-6 p-8">
           <div>
             <h1 className="text-2xl font-semibold text-cy-gray-900">Sign in</h1>
-            <p className="text-sm text-cy-gray-500">Access your organization's workspace.</p>
+            <p className="text-sm text-cy-gray-500">Access your organization&rsquo;s workspace.</p>
           </div>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
@@ -113,7 +113,7 @@ function LoginForm({ allowRegistration }: { allowRegistration: boolean }) {
               </Link>
             </p>
           ) : (
-            <p className="text-sm text-cy-gray-500">No account? Ask your organization's admin for an invite.</p>
+            <p className="text-sm text-cy-gray-500">No account? Ask your organization&rsquo;s admin for an invite.</p>
           )}
         </div>
       </div>

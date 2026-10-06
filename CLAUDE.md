@@ -22,7 +22,7 @@ npm run dev              # dev server
 npm run build             # production build (also type-checks)
 npm run start             # serve a production build
 npx tsc --noEmit          # type-check only, faster than a full build
-npm run lint
+npm run lint              # ESLint (flat config, eslint.config.mjs); also runs during `next build`
 
 npm run db:generate       # generate a migration from db/schema.ts changes
 npm run db:migrate        # run pending migrations (tsx db/migrate.ts)
@@ -44,6 +44,10 @@ per request (`lib/registration.ts`; `/login` and `/register` are
 `DATABASE_URL` and `AUTH_SECRET` must be set (see `.env.example`) before any
 `db:*` command or the dev server will work — `drizzle.config.ts` and
 `db/index.ts` both throw immediately if `DATABASE_URL` is missing.
+
+Lint uses the ESLint CLI with `eslint-config-next` (`next/core-web-vitals` +
+`next/typescript`) rather than the deprecated `next lint`. `next build` lints
+too, so a lint error fails a deploy: keep `npm run lint` clean.
 
 There is no automated test suite in this repo. Every feature so far has been
 verified with a throwaway Playwright script (headless Chromium, run against

@@ -15,7 +15,7 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-3 p-8">
           <h1 className="text-xl font-semibold text-cy-gray-900">Registration is closed</h1>
           <p className="text-sm text-cy-gray-500">
-            New organizations can't be created here. To join an existing one, ask its admin for an invite link.
+            New organizations can&rsquo;t be created here. To join an existing one, ask its admin for an invite link.
           </p>
           <Link href="/login" className="text-sm text-cy-blue-600 hover:underline">
             Back to sign in
