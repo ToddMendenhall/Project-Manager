@@ -11,7 +11,7 @@ export default async function PortfoliosPage() {
 
   const orgPortfolios = await db.query.portfolios.findMany({
     where: eq(portfolios.orgId, ctx.org.id),
-    with: { programs: true, owner: true },
+    with: { programs: true, owner: { columns: { id: true, name: true } } },
     orderBy: (portfolio, { desc }) => [desc(portfolio.createdAt)],
   });
 

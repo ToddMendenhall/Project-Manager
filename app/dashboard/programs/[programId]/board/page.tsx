@@ -18,10 +18,10 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
-      owner: true,
+      owner: { columns: { id: true, name: true } },
       portfolio: true,
       projects: {
-        with: { lead: true },
+        with: { lead: { columns: { id: true, name: true } } },
         orderBy: (project, { asc }) => [asc(project.sortOrder)],
       },
     },

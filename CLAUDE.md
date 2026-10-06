@@ -57,6 +57,8 @@ authorization in this app reduces to "does this row's ownership chain lead
 to the current user's org." `lib/org.ts`'s `requireOrgContext()` is the
 server-side guard every page/action calls first; it returns
 `{ user, org, role }` (`role` is `"admin" | "member"`, from `orgMembers`).
+It's wrapped in React's `cache()`, so the layout, page and nested server
+components share one session decode and membership query per request.
 `requireAdmin(ctx)` throws if `role !== "admin"`.
 
 `lib/queries.ts` holds the org-scoping query helpers, each one chaining
@@ -68,6 +70,21 @@ parent is set (task or checklist item — see below) to `orgId`. When adding
 a new nested entity, add a matching helper here rather than querying the
 table directly in a page/action — this is what prevents cross-org access
 through a guessed id.
+
+The same applies to user references: an owner/lead/assignee id from a form
+or inline editor goes through `resolveOrgMemberId(userId, orgId)`, which
+rejects anyone who isn't a member of the org (a valid UUID alone proves
+nothing). Optional date strings go through `toDateOrNull` (`lib/dates.ts`),
+which throws a clear error for a malformed date instead of letting an
+Invalid Date reach the driver.
+
+**Keep the dashboard layout cheap.** `Sidebar` renders on every dashboard
+page, so it loads only names plus aggregate counts
+(`getProjectTaskCounts`, `countOpenTasksForAssignee`), never task rows.
+Likewise, relational loads of a user (`owner`, `lead`, `assignee`) select
+`{ columns: { id: true, name: true } }`, not the full row (which carries
+the password hash). Per-user lists (`getAssignedTasks`) filter in SQL
+rather than loading the org and filtering in JS.
 
 Permission tiers: **Portfolio/Program/Project/Task/ChecklistItem**
 create/edit/delete is open to any org member — those actions only call
@@ -177,6 +194,12 @@ poolers (Neon's `-pooler` endpoint, PgBouncer in transaction mode, etc.)
 that don't support prepared statements reused across queries — omitting it
 works fine against a direct/unpooled connection but breaks silently (or
 with cryptic errors) against a pooled one.
+
+`db/index.ts` also caches its client on `globalThis` outside production:
+`next dev` evaluates the module once per compiled route (and on every hot
+reload), and without the cache each evaluation opens its own pool until
+Postgres refuses connections ("too many clients already"). It sets
+`idle_timeout: 20` so idle connections close instead of lingering.
 
 ### Route structure
 

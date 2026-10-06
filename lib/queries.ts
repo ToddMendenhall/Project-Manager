@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, notInArray, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -186,6 +186,30 @@ export async function getPortfolioForOrg(portfolioId: string, orgId: string) {
   return portfolio ?? null;
 }
 
+/**
+ * Validates a submitted user id (owner, lead, assignee) against the org's
+ * membership rather than trusting the form value: an id that's merely a
+ * well-formed UUID could be anyone's, including another org's user.
+ * Empty means "unassigned".
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function resolveOrgMemberId(userId: string | null | undefined, orgId: string): Promise<string | null> {
+  if (!userId) return null;
+  if (!UUID_PATTERN.test(userId)) {
+    throw new Error("That person isn't a member of this organization");
+  }
+  const [member] = await db
+    .select({ userId: orgMembers.userId })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.userId, userId), eq(orgMembers.orgId, orgId)))
+    .limit(1);
+  if (!member) {
+    throw new Error("That person isn't a member of this organization");
+  }
+  return member.userId;
+}
+
 /** Fetches a program only if it belongs to the given org — prevents cross-org access. */
 export async function getProgramForOrg(programId: string, orgId: string) {
   const [program] = await db
@@ -333,6 +357,86 @@ export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
   return null;
 }
 
+const assignedTaskColumns = {
+  id: tasks.id,
+  title: tasks.title,
+  status: tasks.status,
+  priority: tasks.priority,
+  dueDate: tasks.dueDate,
+  projectId: projects.id,
+  projectName: projects.name,
+  programId: programs.id,
+};
+
+/**
+ * The user's tasks for the My Tasks page, filtered and sorted in SQL and
+ * only the columns the table shows: open ones by due date (undated last),
+ * and the most recently touched finished ones. Both lists are capped (the
+ * open one only when `openLimit` is set) so one person with a very long
+ * backlog can't produce a multi-megabyte page.
+ */
+export async function getAssignedTasks(
+  orgId: string,
+  userId: string,
+  { openLimit, closedLimit = 50 }: { openLimit?: number; closedLimit?: number } = {},
+) {
+  const scope = and(eq(programs.orgId, orgId), eq(tasks.assigneeId, userId));
+  const finished = ["completed", "cancelled"] as const;
+  const [open, closed] = await Promise.all([
+    db
+      .select(assignedTaskColumns)
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(scope, notInArray(tasks.status, [...finished])))
+      .orderBy(sql`${tasks.dueDate} asc nulls last`, asc(tasks.title))
+      .limit(openLimit === undefined ? Number.MAX_SAFE_INTEGER : openLimit + 1),
+    db
+      .select(assignedTaskColumns)
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .innerJoin(programs, eq(projects.programId, programs.id))
+      .where(and(scope, inArray(tasks.status, [...finished])))
+      .orderBy(desc(tasks.updatedAt))
+      .limit(closedLimit + 1),
+  ]);
+  return {
+    open: openLimit === undefined ? open : open.slice(0, openLimit),
+    moreOpen: openLimit !== undefined && open.length > openLimit,
+    closed: closed.slice(0, closedLimit),
+    moreClosed: closed.length > closedLimit,
+  };
+}
+
+/** Task count per project across the org, for the sidebar tree — one aggregate query, no task rows. */
+export async function getProjectTaskCounts(orgId: string): Promise<Map<string, number>> {
+  const rows = await db
+    .select({ projectId: tasks.projectId, count: count() })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(eq(programs.orgId, orgId))
+    .groupBy(tasks.projectId);
+  return new Map(rows.map((row) => [row.projectId, row.count]));
+}
+
+/** How many not-yet-finished tasks are assigned to the user — the sidebar's My Tasks badge. */
+export async function countOpenTasksForAssignee(orgId: string, userId: string): Promise<number> {
+  const [row] = await db
+    .select({ count: count() })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .where(
+      and(
+        eq(programs.orgId, orgId),
+        eq(tasks.assigneeId, userId),
+        notInArray(tasks.status, ["completed", "cancelled"]),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
 /**
  * Every task across an org's programs/projects, flattened with its
  * program/project context attached — used anywhere that needs to slice the
@@ -345,7 +449,7 @@ export async function getOrgTasksFlat(orgId: string) {
     with: {
       projects: {
         with: {
-          tasks: { with: { assignee: true } },
+          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
         },
       },
     },
@@ -377,7 +481,7 @@ export async function getPortfolioTasksFlat(portfolioId: string, orgId: string) 
     with: {
       projects: {
         with: {
-          tasks: { with: { assignee: true } },
+          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
         },
       },
     },
@@ -410,7 +514,7 @@ export async function getProgramTasksFlat(programId: string) {
     with: {
       projects: {
         with: {
-          tasks: { with: { assignee: true } },
+          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
         },
       },
     },
@@ -439,7 +543,7 @@ export async function getProgramTasksFlat(programId: string) {
 export async function getProjectTasksFlat(projectId: string) {
   return db.query.tasks.findMany({
     where: eq(tasks.projectId, projectId),
-    with: { assignee: true },
+    with: { assignee: { columns: { id: true, name: true } } },
   });
 }
 

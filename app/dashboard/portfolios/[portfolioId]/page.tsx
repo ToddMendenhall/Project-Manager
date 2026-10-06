@@ -22,10 +22,10 @@ export default async function PortfolioDetailPage({
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
-      owner: true,
+      owner: { columns: { id: true, name: true } },
       programs: {
         orderBy: (program, { desc }) => [desc(program.createdAt)],
-        with: { projects: true, owner: true },
+        with: { projects: true, owner: { columns: { id: true, name: true } } },
       },
     },
   });

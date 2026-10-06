@@ -6,8 +6,9 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { tasks } from "@/db/schema";
+import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
-import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject } from "@/lib/queries";
+import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 
 // Like every level of the hierarchy, any org member (not just admins) can
@@ -49,6 +50,7 @@ export async function createTask(programId: string, projectId: string, formData:
   }
 
   const data = parseTaskForm(formData);
+  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
   const fieldDefs = await getTaskCustomFieldDefs(programId);
   const customFields = parseCustomFieldValues(fieldDefs, formData);
 
@@ -60,9 +62,9 @@ export async function createTask(programId: string, projectId: string, formData:
       description: data.description ?? null,
       status: data.status,
       priority: data.priority,
-      assigneeId: data.assigneeId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      assigneeId,
+      startDate: toDateOrNull(data.startDate),
+      dueDate: toDateOrNull(data.dueDate),
       completedAt: data.status === "completed" ? new Date() : null,
       customFields,
       sortOrder: Date.now(),
@@ -87,6 +89,7 @@ export async function updateTask(
   }
 
   const data = parseTaskForm(formData);
+  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
   const fieldDefs = await getTaskCustomFieldDefs(programId);
   const customFields = parseCustomFieldValues(fieldDefs, formData);
 
@@ -100,9 +103,9 @@ export async function updateTask(
       description: data.description ?? null,
       status: data.status,
       priority: data.priority,
-      assigneeId: data.assigneeId ?? null,
-      startDate: data.startDate ? new Date(data.startDate) : null,
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
+      assigneeId,
+      startDate: toDateOrNull(data.startDate),
+      dueDate: toDateOrNull(data.dueDate),
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       customFields,
       updatedAt: new Date(),
@@ -222,7 +225,7 @@ export async function updateTaskAssignee(
 
   await db
     .update(tasks)
-    .set({ assigneeId: assigneeId ? z.string().uuid().parse(assigneeId) : null, updatedAt: new Date() })
+    .set({ assigneeId: await resolveOrgMemberId(assigneeId, ctx.org.id), updatedAt: new Date() })
     .where(eq(tasks.id, taskId));
 
   revalidatePath(`${basePath(programId, projectId)}/tasks`);
@@ -245,7 +248,7 @@ export async function updateTaskDueDate(
 
   await db
     .update(tasks)
-    .set({ dueDate: dueDate ? new Date(dueDate) : null, updatedAt: new Date() })
+    .set({ dueDate: toDateOrNull(dueDate), updatedAt: new Date() })
     .where(eq(tasks.id, taskId));
 
   revalidatePath(`${basePath(programId, projectId)}/tasks`);
@@ -268,8 +271,8 @@ export async function updateTaskDates(taskId: string, startDate: string, dueDate
   await db
     .update(tasks)
     .set({
-      startDate: startDate ? new Date(startDate) : null,
-      dueDate: dueDate ? new Date(dueDate) : null,
+      startDate: toDateOrNull(startDate),
+      dueDate: toDateOrNull(dueDate),
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));

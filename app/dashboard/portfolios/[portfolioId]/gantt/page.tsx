@@ -21,7 +21,7 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
-      owner: true,
+      owner: { columns: { id: true, name: true } },
       programs: {
         orderBy: (program, { asc }) => [asc(program.createdAt)],
         with: {
