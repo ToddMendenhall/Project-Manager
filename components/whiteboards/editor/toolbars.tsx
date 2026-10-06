@@ -7,8 +7,12 @@ import {
   Circle,
   Copy,
   Diamond,
+  Frame,
   Hand,
+  Highlighter,
+  ImagePlus,
   MousePointer2,
+  PenLine,
   Redo2,
   RectangleHorizontal,
   Square,
@@ -31,6 +35,7 @@ import {
   type ShapeKind,
 } from "@/lib/whiteboard";
 import type { Tool } from "./model";
+import type { AlignAction } from "./geometry";
 
 function ParallelogramIcon({ size = 16 }: { size?: number }) {
   return (
@@ -94,16 +99,21 @@ export function ToolPalette({
   canRedo,
   onUndo,
   onRedo,
+  onImage,
+  imageBusy,
 }: {
   tool: Tool;
   onTool: (tool: Tool) => void;
+  onImage: () => void;
+  imageBusy: boolean;
   canUndo: boolean;
   canRedo: boolean;
   onUndo: () => void;
   onRedo: () => void;
 }) {
   return (
-    <div className="absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-card border border-cy-gray-100 bg-white p-1 shadow-md">
+    // Anchored to the top and capped so it never covers the zoom controls in the bottom-left corner.
+    <div className="absolute left-3 top-3 z-10 flex max-h-[calc(100%-170px)] flex-col items-center gap-0.5 overflow-y-auto rounded-card border border-cy-gray-100 bg-white p-1 shadow-md">
       <ToolButton label="Select" shortcut="V" active={tool === "select"} onClick={() => onTool("select")}>
         <MousePointer2 size={16} />
       </ToolButton>
@@ -128,6 +138,19 @@ export function ToolPalette({
           {SHAPE_ICONS[shape]}
         </ToolButton>
       ))}
+      <ToolButton label="Frame" shortcut="F" active={tool === "frame"} onClick={() => onTool("frame")}>
+        <Frame size={16} />
+      </ToolButton>
+      <Divider />
+      <ToolButton label="Pen" shortcut="P" active={tool === "pen"} onClick={() => onTool("pen")}>
+        <PenLine size={16} />
+      </ToolButton>
+      <ToolButton label="Highlighter" shortcut="M" active={tool === "highlighter"} onClick={() => onTool("highlighter")}>
+        <Highlighter size={16} />
+      </ToolButton>
+      <ToolButton label={imageBusy ? "Uploading image…" : "Image"} shortcut="I" disabled={imageBusy} onClick={onImage}>
+        <ImagePlus size={16} />
+      </ToolButton>
       <Divider />
       <ToolButton label="Undo" shortcut="Ctrl+Z" disabled={!canUndo} onClick={onUndo}>
         <Undo2 size={16} />
@@ -165,9 +188,45 @@ const ARROW_LABELS: Record<EdgeArrow, string> = { end: "Arrow →", both: "Arrow
 const selectClass =
   "rounded border border-cy-gray-200 bg-white px-1.5 py-1 text-xs text-cy-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cy-cyan-500";
 
+const ALIGN_OPTIONS: { value: AlignAction; label: string }[] = [
+  { value: "left", label: "Align left" },
+  { value: "center", label: "Align centers horizontally" },
+  { value: "right", label: "Align right" },
+  { value: "top", label: "Align top" },
+  { value: "middle", label: "Align middles vertically" },
+  { value: "bottom", label: "Align bottom" },
+  { value: "distribute-horizontal", label: "Distribute horizontally" },
+  { value: "distribute-vertical", label: "Distribute vertically" },
+];
+
+/** Shown instead of the selection toolbar while a pen tool is active. */
+export function PenOptions({
+  highlight,
+  color,
+  onColor,
+}: {
+  highlight: boolean;
+  color: ColorKey;
+  onColor: (color: ColorKey) => void;
+}) {
+  return (
+    <div
+      className="absolute left-1/2 top-3 z-10 flex -translate-x-1/2 items-center gap-2 rounded-card border border-cy-gray-100 bg-white px-3 py-1.5 shadow-md"
+      role="toolbar"
+      aria-label={highlight ? "Highlighter options" : "Pen options"}
+    >
+      <span className="text-xs font-medium text-cy-gray-600">{highlight ? "Highlighter" : "Pen"}</span>
+      <Swatches value={color} onChange={onColor} />
+      <span className="text-xs text-cy-gray-400">Esc to finish</span>
+    </div>
+  );
+}
+
 export type SelectionSummary = {
   nodeCount: number;
   edgeCount: number;
+  /** Whether any selected node shows text (font size applies). */
+  hasText: boolean;
   /** Shared value across the selection, or null when mixed. */
   color: ColorKey | null;
   fontSize: number | null;
@@ -191,8 +250,10 @@ export function SelectionToolbar({
   onBack,
   onDuplicate,
   onDelete,
+  onAlign,
 }: {
   summary: SelectionSummary;
+  onAlign: (action: AlignAction) => void;
   onColor: (color: ColorKey) => void;
   onFontSize: (size: number) => void;
   onShape: (shape: ShapeKind) => void;
@@ -214,7 +275,7 @@ export function SelectionToolbar({
       aria-label="Selection"
     >
       <Swatches value={summary.color} onChange={onColor} />
-      {hasNodes && (
+      {hasNodes && summary.hasText && (
         <>
           <Divider vertical />
           <select
@@ -280,6 +341,26 @@ export function SelectionToolbar({
             <input type="checkbox" checked={summary.dashed === true} onChange={(e) => onDashed(e.target.checked)} />
             Dashed
           </label>
+        </>
+      )}
+      {summary.nodeCount >= 2 && (
+        <>
+          <Divider vertical />
+          <select
+            className={selectClass}
+            aria-label="Align"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onAlign(e.target.value as AlignAction);
+            }}
+          >
+            <option value="">Align…</option>
+            {ALIGN_OPTIONS.filter((o) => !o.value.startsWith("distribute") || summary.nodeCount >= 3).map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
         </>
       )}
       <Divider vertical />

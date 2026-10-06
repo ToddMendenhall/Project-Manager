@@ -25,6 +25,7 @@ export async function GET(
       "Content-Disposition": contentDisposition(attachment.fileName),
       "Content-Length": String(attachment.data.length),
       "Cache-Control": "private, no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

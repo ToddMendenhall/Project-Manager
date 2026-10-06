@@ -22,6 +22,7 @@ export default async function WhiteboardPage({ params }: { params: Promise<{ whi
       name={board.name}
       initialDoc={parseStoredWhiteboardDoc(board.data)}
       initialVersion={board.version}
+      hasThumbnail={board.thumbnailUpdatedAt !== null}
       onDelete={canDeleteWhiteboard(board, ctx) ? deleteWhiteboard.bind(null, board.id) : undefined}
     />
   );

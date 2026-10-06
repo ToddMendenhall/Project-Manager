@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
-import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Plus, Search } from "lucide-react";
-import { createWhiteboard } from "@/app/dashboard/whiteboards/actions";
+import { useEffect, useState } from "react";
+import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { NewWhiteboardButton } from "./new-whiteboard-button";
 
 const COLLAPSED_STORAGE_KEY = "whiteboards.listPanelCollapsed";
 
@@ -15,7 +15,6 @@ export function WhiteboardListPanel({ boards }: { boards: WhiteboardListItem[] }
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(false);
-  const [isCreating, startCreate] = useTransition();
 
   useEffect(() => {
     try {
@@ -35,12 +34,6 @@ export function WhiteboardListPanel({ boards }: { boards: WhiteboardListItem[] }
     }
   }
 
-  function newBoard() {
-    startCreate(() => {
-      createWhiteboard();
-    });
-  }
-
   if (collapsed) {
     return (
       <aside className="flex w-11 shrink-0 flex-col items-center gap-2 border-r border-cy-gray-100 bg-white py-3">
@@ -53,16 +46,7 @@ export function WhiteboardListPanel({ boards }: { boards: WhiteboardListItem[] }
         >
           <PanelLeftOpen size={16} />
         </button>
-        <button
-          type="button"
-          onClick={newBoard}
-          disabled={isCreating}
-          title="New whiteboard"
-          aria-label="New whiteboard"
-          className="rounded p-1.5 text-cy-blue-600 hover:bg-cy-blue-100 disabled:opacity-50"
-        >
-          <Plus size={16} />
-        </button>
+        <NewWhiteboardButton variant="icon" />
       </aside>
     );
   }
@@ -94,15 +78,7 @@ export function WhiteboardListPanel({ boards }: { boards: WhiteboardListItem[] }
       </div>
 
       <div className="flex flex-col gap-2 px-3 pb-2">
-        <button
-          type="button"
-          onClick={newBoard}
-          disabled={isCreating}
-          className="flex items-center justify-center gap-1.5 rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700 disabled:opacity-50"
-        >
-          <Plus size={14} />
-          {isCreating ? "Creating..." : "New whiteboard"}
-        </button>
+        <NewWhiteboardButton variant="panel" />
         <label className="flex items-center gap-1.5 rounded border border-cy-gray-200 px-2 py-1.5 focus-within:border-cy-blue-500">
           <Search size={13} className="shrink-0 text-cy-gray-400" />
           <input
