@@ -413,6 +413,24 @@ export const whiteboards = pgTable(
   }),
 );
 
+/**
+ * Fixed-window attempt counters for unauthenticated endpoints (sign-in,
+ * registration) — see lib/rate-limit.ts. `key` is a SHA-256 of the rule
+ * name plus the email or client IP, so the table never stores who tried.
+ * Rows are tiny and get swept once their window is long past.
+ */
+export const authRateLimits = pgTable(
+  "auth_rate_limits",
+  {
+    key: varchar("key", { length: 64 }).primaryKey(),
+    count: integer("count").notNull().default(0),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    windowIdx: index("auth_rate_limits_window_idx").on(table.windowStart),
+  }),
+);
+
 export const organizationsRelations = relations(organizations, ({ many }) => ({
   members: many(orgMembers),
   portfolios: many(portfolios),

@@ -4,6 +4,8 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/db";
 import { organizations, users, orgMembers } from "@/db/schema";
+import { RATE_LIMITS, clientIp, recordAttempt, retryAfterSeconds } from "@/lib/rate-limit";
+import { isRegistrationOpen } from "@/lib/registration";
 
 const registerSchema = z.object({
   orgName: z.string().min(2).max(255),
@@ -42,6 +44,22 @@ async function uniqueSlug(base: string) {
 }
 
 export async function POST(request: Request) {
+  if (!isRegistrationOpen()) {
+    return NextResponse.json({ error: "Registration is closed. Ask an admin for an invite." }, { status: 403 });
+  }
+
+  // Every attempt counts (not just failures): this caps how many orgs one
+  // client can create, and how fast it can probe which emails exist.
+  const ip = clientIp(request.headers);
+  const wait = await retryAfterSeconds(RATE_LIMITS.registerIp, ip);
+  if (wait > 0) {
+    return NextResponse.json(
+      { error: "Too many sign-up attempts from this network. Try again later." },
+      { status: 429, headers: { "Retry-After": String(wait) } },
+    );
+  }
+  await recordAttempt(RATE_LIMITS.registerIp, ip);
+
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
