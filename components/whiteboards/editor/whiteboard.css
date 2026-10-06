@@ -48,3 +48,30 @@
   max-width: 14px;
   max-height: 14px;
 }
+
+.wb-canvas .react-flow__node-frame,
+.wb-canvas .react-flow__node-drawing,
+.wb-canvas .react-flow__node-image {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Strokes: only the drawn line takes clicks, not its bounding box. */
+.wb-canvas .react-flow__node-drawing {
+  pointer-events: none;
+}
+.wb-canvas .react-flow__node-drawing .wb-stroke-hit,
+.wb-canvas .react-flow__node-drawing .react-flow__resize-control {
+  pointer-events: visibleStroke;
+}
+.wb-canvas .react-flow__node-drawing .react-flow__resize-control {
+  pointer-events: auto;
+}
+
+/* Pen tools draw on an overlay above the canvas. */
+.wb-pen-overlay {
+  cursor: crosshair;
+  touch-action: none;
+}

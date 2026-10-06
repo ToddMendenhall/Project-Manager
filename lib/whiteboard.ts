@@ -22,7 +22,7 @@ export const SHAPE_LABELS: Record<ShapeKind, string> = {
   parallelogram: "Input / Output",
 };
 
-export const NODE_KINDS = ["sticky", "shape", "text"] as const;
+export const NODE_KINDS = ["sticky", "shape", "text", "frame", "drawing", "image"] as const;
 export type NodeKind = (typeof NODE_KINDS)[number];
 
 export const COLOR_KEYS = ["yellow", "orange", "pink", "purple", "blue", "green", "gray", "white"] as const;
@@ -53,27 +53,67 @@ export const HANDLE_IDS = ["top", "right", "bottom", "left"] as const;
 export const MAX_WHITEBOARD_NODES = 2000;
 export const MAX_WHITEBOARD_EDGES = 4000;
 export const MAX_WHITEBOARD_BYTES = 2 * 1024 * 1024;
+/** Per pen stroke; strokes are simplified client-side well below this. */
+export const MAX_DRAWING_POINTS = 4000;
+/** Images are stored as attachments; the canvas only references them. */
+export const MAX_WHITEBOARD_IMAGE_BYTES = 4 * 1024 * 1024;
+export const WHITEBOARD_IMAGE_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp"] as const;
+/** Thumbnails are small PNGs rendered by the editor (see the thumbnail route). */
+export const MAX_WHITEBOARD_THUMBNAIL_BYTES = 400 * 1024;
 
 const finite = z.number().finite();
 const id = z.string().min(1).max(64);
 
+/**
+ * One data shape for every node kind, with kind-specific fields optional;
+ * `whiteboardNodeSchema` enforces which ones each kind requires.
+ * - frame: `text` is its title; contents move with it (see the editor).
+ * - drawing: `points` is a pen stroke in the coordinate space of the
+ *   node's original box, `pathWidth`/`pathHeight`. Rendering scales that
+ *   box to the node's current size, so resizing a drawing stretches it.
+ * - image: `attachmentId` is an attachments row parented by this board.
+ *   Not checked on save (an admin deleting the file from the Attachments
+ *   page would otherwise make the board unsaveable); the image is fetched
+ *   through the org-scoped attachment route, so a board can only ever show
+ *   its own org's files, and a missing one renders as a placeholder.
+ */
 export const whiteboardNodeDataSchema = z.object({
   text: z.string().max(10_000),
   color: z.enum(COLOR_KEYS),
   shape: z.enum(SHAPE_KINDS).optional(),
   fontSize: z.number().int().min(8).max(96).optional(),
+  points: z
+    .array(z.tuple([finite, finite]))
+    .min(1)
+    .max(MAX_DRAWING_POINTS)
+    .optional(),
+  pathWidth: finite.positive().max(100_000).optional(),
+  pathHeight: finite.positive().max(100_000).optional(),
+  strokeWidth: z.number().min(1).max(64).optional(),
+  highlight: z.boolean().optional(),
+  attachmentId: z.string().uuid().optional(),
 });
 export type WhiteboardNodeData = z.infer<typeof whiteboardNodeDataSchema>;
 
-export const whiteboardNodeSchema = z.object({
-  id,
-  type: z.enum(NODE_KINDS),
-  position: z.object({ x: finite, y: finite }),
-  width: finite.positive().max(10_000),
-  height: finite.positive().max(10_000),
-  zIndex: z.number().int().optional(),
-  data: whiteboardNodeDataSchema,
-});
+export const whiteboardNodeSchema = z
+  .object({
+    id,
+    type: z.enum(NODE_KINDS),
+    position: z.object({ x: finite, y: finite }),
+    width: finite.positive().max(20_000),
+    height: finite.positive().max(20_000),
+    zIndex: z.number().int().optional(),
+    data: whiteboardNodeDataSchema,
+  })
+  .superRefine((node, ctx) => {
+    const { data } = node;
+    if (node.type === "drawing" && (!data.points || !data.pathWidth || !data.pathHeight)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Drawing is missing its stroke" });
+    }
+    if (node.type === "image" && !data.attachmentId) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Image is missing its file" });
+    }
+  });
 export type WhiteboardNode = z.infer<typeof whiteboardNodeSchema>;
 
 export const whiteboardEdgeDataSchema = z.object({
@@ -120,6 +160,11 @@ export const EMPTY_WHITEBOARD_DOC: WhiteboardDoc = { nodes: [], edges: [] };
  * change (or by hand) loads as an empty board rather than crashing the
  * page. Saves still go through the strict schema.
  */
+/** Attachment ids referenced by the board's image nodes. */
+export function whiteboardImageIds(doc: WhiteboardDoc): string[] {
+  return [...new Set(doc.nodes.flatMap((n) => (n.type === "image" && n.data.attachmentId ? [n.data.attachmentId] : [])))];
+}
+
 export function parseStoredWhiteboardDoc(raw: unknown): WhiteboardDoc {
   const parsed = whiteboardDocSchema.safeParse(raw);
   return parsed.success ? parsed.data : EMPTY_WHITEBOARD_DOC;
@@ -152,7 +197,7 @@ export function whiteboardPreview(doc: WhiteboardDoc, limit = 150): WhiteboardPr
     y: (n.position.y - minY + offY) / span,
     w: n.width / span,
     h: n.height / span,
-    fill: n.type === "text" ? "#d3d8dd" : PALETTE[n.data.color].fill,
+    fill: n.type === "text" || n.type === "drawing" ? "#d3d8dd" : n.type === "image" ? "#b3ddf4" : PALETTE[n.data.color].fill,
     round: n.data.shape === "ellipse" || n.data.shape === "rounded",
   }));
 }
@@ -167,4 +212,19 @@ export function formatRelativeTime(date: Date, now = new Date()) {
   const days = Math.round(hours / 24);
   if (days < 7) return `${days}d ago`;
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+/**
+ * Sniffs the real image type from the file's first bytes rather than
+ * trusting the client-sent Content-Type, so an upload labelled image/png
+ * really is one. Only raster formats: SVG is deliberately not accepted,
+ * since it can carry script.
+ */
+export function sniffImageType(bytes: Uint8Array): (typeof WHITEBOARD_IMAGE_TYPES)[number] | null {
+  const starts = (sig: number[], offset = 0) => sig.every((b, i) => bytes[offset + i] === b);
+  if (starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
+  if (starts([0xff, 0xd8, 0xff])) return "image/jpeg";
+  if (starts([0x47, 0x49, 0x46, 0x38])) return "image/gif";
+  if (starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8)) return "image/webp";
+  return null;
 }

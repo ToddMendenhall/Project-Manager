@@ -129,13 +129,18 @@ list/detail — deletes triggered from a list page redirect to that same
 list, which is a no-op navigation, so the same action works from both call
 sites.
 
-### Attachments and comments are polymorphic (task XOR checklist item)
+### Attachments and comments are polymorphic (task XOR checklist item, plus whiteboard for attachments)
 
 `comments` and `attachments` each have nullable `taskId` and
 `checklistItemId` columns plus a DB check constraint
 (`(task_id is not null) <> (checklist_item_id is not null)`) enforcing
-exactly one parent. `getAttachmentForOrg` branches on which one is set to
-walk the right ownership chain. Checklist items reuse this same
+exactly one parent. Attachments also have a nullable `whiteboardId` (images
+placed on a whiteboard canvas), so their check is
+`num_nonnulls(task_id, checklist_item_id, whiteboard_id) = 1`.
+`getAttachmentForOrg` branches on which one is set to walk the right
+ownership chain, and `getOrgAttachmentsDetailed` returns a union row type
+(`itemKind: "whiteboard"` rows have no program/project) for the admin
+Attachments page. Checklist items reuse this same
 infrastructure instead of duplicating comment/attachment tables — if you
 add another commentable/attachable entity, extend this pattern rather than
 creating parallel tables.
@@ -248,7 +253,31 @@ and undoes `main`'s padding so the canvas runs edge to edge.
   are per-viewer state and are never persisted.
 - **Editor:** `components/whiteboards/editor/` is built on React Flow
   (`@xyflow/react`):
-  - Custom `sticky`/`shape`/`text` node types and a `connector` edge.
+  - Custom `sticky`/`shape`/`text`/`frame`/`drawing`/`image` node types and
+    a `connector` edge. Each node kind's data lives in one optional-field
+    `whiteboardNodeDataSchema`, and `whiteboardNodeSchema` enforces which
+    fields a kind requires.
+  - **Frames** (sections, swimlanes) render beneath everything. Stored
+    `zIndex` stays layer-relative, and `FRAME_LAYER_OFFSET` is applied only
+    to the nodes passed to React Flow. Dragging a frame carries every
+    unselected node fully inside its box at drag start (`onNodeDragStart` /
+    `onNodeDrag`). This uses containment at drag time, not React Flow
+    `parentId`, so nothing about membership is stored.
+  - **Pen/highlighter** strokes are captured by `PenOverlay` (a layer that
+    also re-implements wheel pan/zoom while active). Each stroke becomes a
+    `drawing` node whose `points` are relative to its own box.
+  - **Images** are uploaded through
+    `app/api/whiteboards/[whiteboardId]/images` (via file picker, drop or
+    paste) as attachments parented by the board. The route sniffs magic
+    bytes and only accepts PNG/JPEG/GIF/WebP, never SVG. Image nodes
+    reference the attachment id and render through the org-scoped
+    `/api/attachments/[id]` route. Saves deliberately don't verify image
+    ids, so a board whose image an admin deleted still saves and shows a
+    placeholder. `duplicateWhiteboard` copies the image rows and remaps the
+    copy's nodes.
+  - Alignment guides snap a single dragged node to other nodes'
+    edges/centers (`handleNodesChange` + `geometry.ts`). Multi-selection
+    gets align/distribute.
   - Handles run in `ConnectionMode.Loose`, so any side connects to any side.
   - Per-viewer editing state reaches nodes through `EditorContext`, never
     node `data`.
@@ -261,13 +290,31 @@ and undoes `main`'s padding so the canvas runs edge to edge.
   - Open editors also poll `getWhiteboardVersion` to notice others' saves.
   - There is no real-time co-editing or live cursors. Vercel serverless
     can't hold websockets, so that would need an external service.
+  - The history/save baseline is computed with the same `serialize()` as
+    every later snapshot. Comparing against the raw loaded doc would make
+    key-order differences register as an edit and autosave on open.
   - `saveWhiteboard` deliberately doesn't `revalidatePath`. Doing so would
     re-render the page (re-reading the whole board) on every autosave.
 - **Permissions:** any member can create, edit or duplicate a board. Only
   the creator or an admin can delete one (`canDeleteWhiteboard`), the same
   rule as comments and attachments.
+- **Export and thumbnails:** `media.ts`'s `renderBoard` snapshots React
+  Flow's viewport with `html-to-image`, which is pinned to 1.11.11 (the
+  version React Flow's own export example uses; later versions regress).
+  - Export downloads the whole board as PNG/SVG.
+  - After saves (throttled), the editor renders a small PNG and POSTs it to
+    `app/api/whiteboards/[whiteboardId]/thumbnail`, which only accepts a
+    real PNG.
+  - Cards load it as `?v=<thumbnailUpdatedAt>` with immutable caching.
+    Boards with no thumbnail yet fall back to a block preview drawn from
+    their data.
+- **Templates:** `lib/whiteboard-templates.ts` builds plain docs. A
+  templated board is an ordinary board, and nothing records which template
+  it came from. "New whiteboard" (`NewWhiteboardButton`) opens the picker,
+  and `createWhiteboard(templateKey)` validates the key.
 - **Scoping:** `getWhiteboardForOrg` / `getOrgWhiteboards` only load `data`
-  when passed `{ withData: true }`.
+  when passed `{ withData: true }`. `getOrgWhiteboards` gets `itemCount`
+  from SQL, so the list page never loads canvases.
 - **Planned:** a later phase adds an optional Project/Program link.
 
 Portfolio/Program don't have a distinct "Overview" tab the way Project does

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireOrgContext } from "@/lib/org";
-import { getOrgWhiteboards } from "@/lib/queries";
+import { getOrgWhiteboards, getWhiteboardDocsForOrg } from "@/lib/queries";
 import {
   canDeleteWhiteboard,
   formatRelativeTime,
@@ -14,7 +14,13 @@ import { deleteWhiteboard, duplicateWhiteboard } from "./actions";
 
 export default async function WhiteboardsPage() {
   const ctx = await requireOrgContext();
-  const boards = await getOrgWhiteboards(ctx.org.id, { withData: true });
+  const boards = await getOrgWhiteboards(ctx.org.id);
+  // Boards without a rendered thumbnail yet (not opened since thumbnails
+  // were added) fall back to a block preview drawn from their data.
+  const fallbackDocs = await getWhiteboardDocsForOrg(
+    ctx.org.id,
+    boards.filter((b) => b.thumbnailUpdatedAt === null && b.itemCount > 0).map((b) => b.id),
+  );
   const now = new Date();
 
   return (
@@ -38,7 +44,7 @@ export default async function WhiteboardsPage() {
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
           {boards.map((board) => {
             const href = `/dashboard/whiteboards/${board.id}`;
-            const doc = parseStoredWhiteboardDoc(board.data);
+            const fallback = fallbackDocs.get(board.id);
             return (
               <li
                 key={board.id}
@@ -46,14 +52,23 @@ export default async function WhiteboardsPage() {
               >
                 <Link href={href} className="block">
                   <div className="h-36 border-b border-cy-gray-100 bg-cy-gray-025 p-2">
-                    <WhiteboardPreview rects={whiteboardPreview(doc)} />
+                    {board.thumbnailUpdatedAt ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- an authenticated API route
+                      <img
+                        src={`/api/whiteboards/${board.id}/thumbnail?v=${board.thumbnailUpdatedAt.getTime()}`}
+                        alt=""
+                        className="h-full w-full object-contain"
+                      />
+                    ) : (
+                      <WhiteboardPreview rects={fallback ? whiteboardPreview(parseStoredWhiteboardDoc(fallback)) : []} />
+                    )}
                   </div>
                   <div className="px-4 pb-1 pt-3">
                     <p className="truncate font-medium text-cy-gray-900">{board.name}</p>
                     <p className="mt-0.5 truncate text-xs text-cy-gray-400">
                       Edited {formatRelativeTime(board.updatedAt, now)}
                       {board.updatedBy && ` by ${board.updatedBy.name}`}
-                      {` · ${doc.nodes.length} item${doc.nodes.length === 1 ? "" : "s"}`}
+                      {` · ${board.itemCount} item${board.itemCount === 1 ? "" : "s"}`}
                     </p>
                   </div>
                 </Link>

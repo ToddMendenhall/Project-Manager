@@ -286,7 +286,9 @@ export const customFieldDefs = pgTable(
 
 // Comments and attachments can belong to either a task or a checklist item
 // (never both, never neither) — taskId/checklistItemId are both nullable,
-// with a check constraint enforcing exactly one parent is set.
+// with a check constraint enforcing exactly one parent is set. Attachments
+// have a third possible parent, a whiteboard (images placed on the canvas),
+// so theirs is an exactly-one-of-three check instead.
 export const comments = pgTable(
   "comments",
   {
@@ -319,6 +321,9 @@ export const attachments = pgTable(
     checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id, {
       onDelete: "cascade",
     }),
+    whiteboardId: uuid("whiteboard_id").references((): AnyPgColumn => whiteboards.id, {
+      onDelete: "cascade",
+    }),
     uploadedById: uuid("uploaded_by_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -331,9 +336,10 @@ export const attachments = pgTable(
   (table) => ({
     taskIdx: index("attachments_task_idx").on(table.taskId),
     checklistItemIdx: index("attachments_checklist_item_idx").on(table.checklistItemId),
+    whiteboardIdx: index("attachments_whiteboard_idx").on(table.whiteboardId),
     exactlyOneParent: check(
       "attachments_exactly_one_parent",
-      sql`(${table.taskId} is not null) <> (${table.checklistItemId} is not null)`,
+      sql`num_nonnulls(${table.taskId}, ${table.checklistItemId}, ${table.whiteboardId}) = 1`,
     ),
   }),
 );
@@ -385,6 +391,10 @@ export const whiteboards = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     data: jsonb("data").notNull().default({ nodes: [], edges: [] }),
     version: integer("version").notNull().default(1),
+    // PNG snapshot for the list page, rendered by the editor after saves
+    // and uploaded separately (see app/api/whiteboards/.../thumbnail).
+    thumbnail: bytea("thumbnail"),
+    thumbnailUpdatedAt: timestamp("thumbnail_updated_at", { withTimezone: true }),
     createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
     updatedById: uuid("updated_by_id").references(() => users.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -468,6 +478,7 @@ export const commentsRelations = relations(comments, ({ one }) => ({
 
 export const attachmentsRelations = relations(attachments, ({ one }) => ({
   task: one(tasks, { fields: [attachments.taskId], references: [tasks.id] }),
+  whiteboard: one(whiteboards, { fields: [attachments.whiteboardId], references: [whiteboards.id] }),
   checklistItem: one(checklistItems, {
     fields: [attachments.checklistItemId],
     references: [checklistItems.id],
@@ -479,7 +490,8 @@ export const customFieldDefsRelations = relations(customFieldDefs, ({ one }) => 
   program: one(programs, { fields: [customFieldDefs.programId], references: [programs.id] }),
 }));
 
-export const whiteboardsRelations = relations(whiteboards, ({ one }) => ({
+export const whiteboardsRelations = relations(whiteboards, ({ one, many }) => ({
+  images: many(attachments),
   organization: one(organizations, { fields: [whiteboards.orgId], references: [organizations.id] }),
   createdBy: one(users, {
     fields: [whiteboards.createdById],

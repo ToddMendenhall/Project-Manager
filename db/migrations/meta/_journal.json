@@ -57,6 +57,13 @@
       "when": 1791313792608,
       "tag": "0007_nervous_robin_chapel",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791317039611,
+      "tag": "0008_icy_puppet_master",
+      "breakpoints": true
     }
   ]
 }

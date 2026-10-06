@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, ilike, isNull } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -321,6 +321,15 @@ export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
     return item.length > 0 ? attachment : null;
   }
 
+  if (attachment.whiteboardId) {
+    const board = await db
+      .select({ id: whiteboards.id })
+      .from(whiteboards)
+      .where(and(eq(whiteboards.id, attachment.whiteboardId), eq(whiteboards.orgId, orgId)))
+      .limit(1);
+    return board.length > 0 ? attachment : null;
+  }
+
   return null;
 }
 
@@ -434,33 +443,38 @@ export async function getProjectTasksFlat(projectId: string) {
   });
 }
 
-export type OrgAttachmentRow = {
+type OrgAttachmentBase = {
   id: string;
   fileName: string;
   sizeBytes: number | null;
   contentType: string | null;
   createdAt: Date;
   uploadedByName: string;
-  itemKind: "task" | "checklist_item";
   itemTitle: string;
-  itemStatus: string;
-  programId: string;
-  programName: string;
-  projectId: string;
-  projectName: string;
-  taskId: string;
-  checklistItemId: string | null;
 };
+
+export type OrgAttachmentRow =
+  | (OrgAttachmentBase & {
+      itemKind: "task" | "checklist_item";
+      itemStatus: string;
+      programId: string;
+      programName: string;
+      projectId: string;
+      projectName: string;
+      taskId: string;
+      checklistItemId: string | null;
+    })
+  | (OrgAttachmentBase & { itemKind: "whiteboard"; whiteboardId: string });
 
 /**
  * Every attachment across an org, with the task or checklist item it's
  * attached to (and that item's current status) — feeds the admin
  * Attachments page, which exists to find old/large files worth deleting
  * to reclaim storage (attachment bytes live directly in Postgres as
- * bytea, see db/schema.ts). An attachment hangs off either a task or a
- * checklist item, never both (see the exactly-one-parent check
- * constraint), so this runs as two queries and merges them rather than
- * one query with an outer join either way could produce.
+ * bytea, see db/schema.ts). An attachment hangs off exactly one of a
+ * task, a checklist item or a whiteboard (images on the canvas; see the
+ * exactly-one-parent check constraint), so this runs one query per parent
+ * kind and merges them rather than one query with outer joins.
  */
 export async function getOrgAttachmentsDetailed(orgId: string): Promise<OrgAttachmentRow[]> {
   const taskAttachments = await db
@@ -511,9 +525,26 @@ export async function getOrgAttachmentsDetailed(orgId: string): Promise<OrgAttac
     .innerJoin(programs, eq(projects.programId, programs.id))
     .where(eq(programs.orgId, orgId));
 
+  const whiteboardAttachments = await db
+    .select({
+      id: attachments.id,
+      fileName: attachments.fileName,
+      sizeBytes: attachments.sizeBytes,
+      contentType: attachments.contentType,
+      createdAt: attachments.createdAt,
+      uploadedByName: users.name,
+      itemTitle: whiteboards.name,
+      whiteboardId: whiteboards.id,
+    })
+    .from(attachments)
+    .innerJoin(users, eq(attachments.uploadedById, users.id))
+    .innerJoin(whiteboards, eq(attachments.whiteboardId, whiteboards.id))
+    .where(eq(whiteboards.orgId, orgId));
+
   return [
     ...taskAttachments.map((row) => ({ ...row, itemKind: "task" as const, checklistItemId: null })),
     ...checklistItemAttachments.map((row) => ({ ...row, itemKind: "checklist_item" as const })),
+    ...whiteboardAttachments.map((row) => ({ ...row, itemKind: "whiteboard" as const })),
   ];
 }
 
@@ -561,6 +592,7 @@ export async function getWhiteboardForOrg<WithData extends boolean = false>(
       createdById: true,
       createdAt: true,
       updatedAt: true,
+      thumbnailUpdatedAt: true,
       data: (withData ?? false) as WithData,
     },
     with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
@@ -586,9 +618,23 @@ export async function getOrgWhiteboards<WithData extends boolean = false>(
       createdById: true,
       createdAt: true,
       updatedAt: true,
+      thumbnailUpdatedAt: true,
       data: (withData ?? false) as WithData,
+    },
+    extras: {
+      itemCount: sql<number>`coalesce(jsonb_array_length(${whiteboards.data} -> 'nodes'), 0)`.as("item_count"),
     },
     with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
     orderBy: [desc(whiteboards.updatedAt)],
   });
+}
+
+/** `data` for just the given boards (org-checked) — e.g. those with no thumbnail yet. */
+export async function getWhiteboardDocsForOrg(orgId: string, whiteboardIds: string[]) {
+  if (whiteboardIds.length === 0) return new Map<string, unknown>();
+  const rows = await db
+    .select({ id: whiteboards.id, data: whiteboards.data })
+    .from(whiteboards)
+    .where(and(eq(whiteboards.orgId, orgId), inArray(whiteboards.id, whiteboardIds)));
+  return new Map(rows.map((row) => [row.id, row.data as unknown]));
 }

@@ -16,6 +16,7 @@ const SORTS = {
 type SortKey = keyof typeof SORTS;
 
 function itemHref(row: OrgAttachmentRow) {
+  if (row.itemKind === "whiteboard") return `/dashboard/whiteboards/${row.whiteboardId}`;
   const taskPath = `/dashboard/programs/${row.programId}/projects/${row.projectId}/tasks/${row.taskId}`;
   return row.itemKind === "checklist_item" ? `${taskPath}/checklist/${row.checklistItemId}` : taskPath;
 }
@@ -39,7 +40,7 @@ export default async function AttachmentsPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-[-0.01em] text-cy-gray-900">Attachments</h1>
         <p className="text-sm text-cy-gray-500">
-          Every file attached to a task or checklist item across {ctx.org.name}. Delete old ones here to free up
+          Every file attached to a task, checklist item or whiteboard across {ctx.org.name}. Delete old ones here to free up
           database storage.
         </p>
       </div>
@@ -91,10 +92,16 @@ export default async function AttachmentsPage({
                         {row.itemTitle}
                       </Link>
                       <div className="mt-1 flex items-center gap-2">
-                        <StatusBadge status={row.itemStatus} />
-                        <span className="text-xs text-cy-gray-400">
-                          {row.programName} / {row.projectName}
-                        </span>
+                        {row.itemKind === "whiteboard" ? (
+                          <span className="text-xs text-cy-gray-400">Whiteboard image</span>
+                        ) : (
+                          <>
+                            <StatusBadge status={row.itemStatus} />
+                            <span className="text-xs text-cy-gray-400">
+                              {row.programName} / {row.projectName}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
