@@ -19,12 +19,18 @@ export async function GET(
     return NextResponse.json({ error: "Attachment not found" }, { status: 404 });
   }
 
+  // Attachment rows are never updated after upload, so a given id's bytes
+  // never change: let the browser keep them. Whiteboard images otherwise get
+  // re-streamed out of Postgres on every board open, export and thumbnail
+  // render, which is what counts against the database's transfer quota.
+  // `private` keeps shared caches/CDNs from storing org files; the org check
+  // above still runs on every uncached request.
   return new NextResponse(new Uint8Array(attachment.data), {
     headers: {
       "Content-Type": attachment.contentType || "application/octet-stream",
       "Content-Disposition": contentDisposition(attachment.fileName),
       "Content-Length": String(attachment.data.length),
-      "Cache-Control": "private, no-store",
+      "Cache-Control": "private, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
     },
   });
