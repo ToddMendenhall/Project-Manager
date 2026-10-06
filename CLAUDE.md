@@ -150,7 +150,10 @@ in `db/schema.ts`), capped at `MAX_ATTACHMENT_SIZE_BYTES` (4MB,
 `lib/attachments.ts`) to stay under Vercel's request body limits — a
 deliberate simplification so the app needs no object-storage account; a
 later phase can swap this for S3 / Vercel Blob without changing anything
-else about the `attachments` table. Uploads go through a route handler
+else about the `attachments` table. Attachment rows are never updated
+after upload, so `/api/attachments/[id]` serves them with
+`Cache-Control: private, max-age=31536000, immutable`. Keep it that way:
+if an attachment's bytes could ever change, that header must change too. Uploads go through a route handler
 (`app/api/.../attachments/route.ts`) called via client-side `fetch`
 (`AttachmentUploadForm`), not a server action — consistent with the
 one-native-form-per-page rule above, since the upload form always shares a
@@ -271,7 +274,11 @@ and undoes `main`'s padding so the canvas runs edge to edge.
     paste) as attachments parented by the board. The route sniffs magic
     bytes and only accepts PNG/JPEG/GIF/WebP, never SVG. Image nodes
     reference the attachment id and render through the org-scoped
-    `/api/attachments/[id]` route. Saves deliberately don't verify image
+    `/api/attachments/[id]` route. Before upload, `media.ts` downscales
+    images to at most 2000px and re-encodes them as WebP when that's smaller
+    (GIFs pass through so animation survives), since image bytes count
+    against the database's storage and transfer quotas. Saves deliberately
+    don't verify image
     ids, so a board whose image an admin deleted still saves and shows a
     placeholder. `duplicateWhiteboard` copies the image rows and remaps the
     copy's nodes.
@@ -287,7 +294,12 @@ and undoes `main`'s padding so the canvas runs edge to edge.
   - `saveWhiteboard(id, doc, expectedVersion)` only updates if `version`
     still matches. Otherwise it returns a conflict, and the editor offers
     "Load their version" or "Overwrite with mine".
-  - Open editors also poll `getWhiteboardVersion` to notice others' saves.
+  - Open editors also poll `getWhiteboardVersion` to notice others' saves:
+    every 15s while someone is interacting, every 2 min after 3 idle
+    minutes, never while the tab is hidden, and once immediately on return.
+    Each check is a function invocation plus a query, and a fast poll on an
+    untouched board would keep a scale-to-zero database (Neon) awake
+    indefinitely, so keep it backed off.
   - There is no real-time co-editing or live cursors. Vercel serverless
     can't hold websockets, so that would need an external service.
   - The history/save baseline is computed with the same `serialize()` as

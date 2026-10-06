@@ -83,7 +83,16 @@ import { dataUrlToBlob, downloadDataUrl, isSupportedImage, renderBoard, uploadWh
 
 const AUTOSAVE_DELAY_MS = 1200;
 const SAVE_RETRY_MS = 5000;
-const VERSION_POLL_MS = 15000;
+/**
+ * Checking for other people's saves: every 15s while someone is using the
+ * board, every 2 min once nobody has touched it for 3 min, never while the
+ * tab is hidden. Each check is a function call plus a database query, and
+ * a fast check on an untouched board would keep a scale-to-zero database
+ * (Neon) awake for as long as the tab is left open.
+ */
+const VERSION_POLL_ACTIVE_MS = 15_000;
+const VERSION_POLL_IDLE_MS = 120_000;
+const IDLE_AFTER_MS = 180_000;
 const HISTORY_LIMIT = 100;
 const PASTE_OFFSET = 24;
 /** Screen pixels within which a dragged node snaps to another node's edge or center. */
@@ -298,11 +307,15 @@ function Editor({
     };
   }, [whiteboardId]);
 
-  // Notice someone else's save while this board is open.
+  // Notice someone else's save while this board is open (see VERSION_POLL_*).
   useEffect(() => {
-    const timer = setInterval(async () => {
+    let lastActivity = Date.now();
+    let lastCheck = Date.now();
+
+    const check = async () => {
       if (document.visibilityState !== "visible" || savingRef.current || closedRef.current) return;
       if (statusRef.current.kind === "conflict") return;
+      lastCheck = Date.now();
       try {
         const remote = await getWhiteboardVersion(whiteboardId);
         if (remote && remote.version > versionRef.current) {
@@ -311,8 +324,31 @@ function Editor({
       } catch {
         // Transient network error — try again next tick.
       }
-    }, VERSION_POLL_MS);
-    return () => clearInterval(timer);
+    };
+
+    const timer = setInterval(() => {
+      const idle = Date.now() - lastActivity > IDLE_AFTER_MS;
+      if (Date.now() - lastCheck >= (idle ? VERSION_POLL_IDLE_MS : VERSION_POLL_ACTIVE_MS)) void check();
+    }, VERSION_POLL_ACTIVE_MS);
+
+    const onActivity = () => {
+      lastActivity = Date.now();
+    };
+    // Coming back to the tab: catch up right away rather than waiting out an idle interval.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        lastActivity = Date.now();
+        void check();
+      }
+    };
+    const activityEvents = ["pointerdown", "keydown", "wheel"] as const;
+    activityEvents.forEach((type) => window.addEventListener(type, onActivity, { passive: true }));
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      activityEvents.forEach((type) => window.removeEventListener(type, onActivity));
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [whiteboardId]);
 
   function reloadLatest() {
