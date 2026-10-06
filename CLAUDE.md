@@ -30,6 +30,12 @@ npm run db:seed           # seed sample org/admin/portfolio/program/project/task
 npm run db:studio         # Drizzle Studio
 ```
 
+On Vercel, `vercel.json`'s `buildCommand` runs `npm run db:migrate` before
+`npm run build`, so every deploy applies pending migrations to the database
+its `DATABASE_URL` points at. A failed migration fails the deploy, before
+any new code goes live. Local `npm run build` deliberately doesn't migrate,
+so building never needs a database.
+
 `DATABASE_URL` and `AUTH_SECRET` must be set (see `.env.example`) before any
 `db:*` command or the dev server will work — `drizzle.config.ts` and
 `db/index.ts` both throw immediately if `DATABASE_URL` is missing.
