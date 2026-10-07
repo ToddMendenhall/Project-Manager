@@ -294,13 +294,18 @@ export const customFieldDefs = pgTable(
 // (never both, never neither) — taskId/checklistItemId are both nullable,
 // with a check constraint enforcing exactly one parent is set. Attachments
 // have a third possible parent, a whiteboard (images placed on the canvas),
-// so theirs is an exactly-one-of-three check instead.
+// so theirs is an exactly-one-of-three check instead. Comments likewise have
+// a third parent, a whiteboard (board-level discussion), with the same
+// exactly-one-of-three check.
 export const comments = pgTable(
   "comments",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
     checklistItemId: uuid("checklist_item_id").references(() => checklistItems.id, {
+      onDelete: "cascade",
+    }),
+    whiteboardId: uuid("whiteboard_id").references((): AnyPgColumn => whiteboards.id, {
       onDelete: "cascade",
     }),
     authorId: uuid("author_id")
@@ -313,9 +318,10 @@ export const comments = pgTable(
     taskIdx: index("comments_task_idx").on(table.taskId),
     authorIdx: index("comments_author_idx").on(table.authorId),
     checklistItemIdx: index("comments_checklist_item_idx").on(table.checklistItemId),
+    whiteboardIdx: index("comments_whiteboard_idx").on(table.whiteboardId),
     exactlyOneParent: check(
       "comments_exactly_one_parent",
-      sql`(${table.taskId} is not null) <> (${table.checklistItemId} is not null)`,
+      sql`num_nonnulls(${table.taskId}, ${table.checklistItemId}, ${table.whiteboardId}) = 1`,
     ),
   }),
 );
@@ -506,6 +512,7 @@ export const checklistItemsRelations = relations(checklistItems, ({ one, many })
 
 export const commentsRelations = relations(comments, ({ one }) => ({
   task: one(tasks, { fields: [comments.taskId], references: [tasks.id] }),
+  whiteboard: one(whiteboards, { fields: [comments.whiteboardId], references: [whiteboards.id] }),
   checklistItem: one(checklistItems, {
     fields: [comments.checklistItemId],
     references: [checklistItems.id],
@@ -529,6 +536,7 @@ export const customFieldDefsRelations = relations(customFieldDefs, ({ one }) => 
 
 export const whiteboardsRelations = relations(whiteboards, ({ one, many }) => ({
   images: many(attachments),
+  comments: many(comments),
   project: one(projects, { fields: [whiteboards.projectId], references: [projects.id] }),
   program: one(programs, { fields: [whiteboards.programId], references: [programs.id] }),
   organization: one(organizations, { fields: [whiteboards.orgId], references: [organizations.id] }),

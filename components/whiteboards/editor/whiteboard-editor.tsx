@@ -37,7 +37,7 @@ import {
   type OnNodeDrag,
   type OnReconnect,
 } from "@xyflow/react";
-import { Download, Grid3x3 } from "lucide-react";
+import { Download, Grid3x3, MessageSquare } from "lucide-react";
 import {
   PALETTE,
   type ColorKey,
@@ -51,6 +51,8 @@ import { buttonGhost } from "@/components/form-controls";
 import { WhiteboardLinkPicker } from "@/components/whiteboards/link-picker";
 import type { LinkTargetTree, WhiteboardLinkInfo } from "@/lib/whiteboard-links";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { WhiteboardCommentsPanel } from "@/components/whiteboards/comments-panel";
+import type { WhiteboardComment } from "@/lib/queries";
 import {
   duplicateWhiteboard,
   getWhiteboardVersion,
@@ -103,6 +105,8 @@ const GUIDE_SNAP_PX = 6;
 const THUMBNAIL_DELAY_MS = 3000;
 const THUMBNAIL_MIN_INTERVAL_MS = 30_000;
 const NON_TEXT_KINDS = new Set(["drawing", "image"]);
+/** Whether the comments panel is open is remembered per viewer, like the board list's collapse. */
+const COMMENTS_OPEN_STORAGE_KEY = "whiteboards.commentsOpen";
 
 type SaveStatus =
   | { kind: "saved" }
@@ -122,6 +126,10 @@ export type WhiteboardEditorProps = {
   link: WhiteboardLinkInfo | null;
   linkTargets: LinkTargetTree;
   onDelete?: () => Promise<void>;
+  /** Board-level discussion; the comments panel keeps it current from here on. */
+  initialComments: WhiteboardComment[];
+  currentUserId: string;
+  isAdmin: boolean;
 };
 
 export function WhiteboardEditor(props: WhiteboardEditorProps) {
@@ -147,6 +155,9 @@ function Editor({
   link,
   linkTargets,
   onDelete,
+  initialComments,
+  currentUserId,
+  isAdmin,
 }: WhiteboardEditorProps) {
   const initialFlow = useMemo(() => docToFlow(initialDoc), [initialDoc]);
   const [nodes, setNodes, onNodesChange] = useNodesState<WbNode>(initialFlow.nodes);
@@ -848,11 +859,30 @@ function Editor({
     };
   }, [selectedNodes, selectedEdges]);
 
+  const [comments, setComments] = useState(initialComments);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setCommentsOpen(window.localStorage.getItem(COMMENTS_OPEN_STORAGE_KEY) === "1");
+    } catch {
+      // Storage unavailable — start closed.
+    }
+  }, []);
+  const toggleComments = useCallback((open: boolean) => {
+    setCommentsOpen(open);
+    try {
+      window.localStorage.setItem(COMMENTS_OPEN_STORAGE_KEY, open ? "1" : "0");
+    } catch {
+      // Not persisted; the toggle still works for this page view.
+    }
+  }, []);
+
   const placing = isPlacementTool(tool);
   const drawing = isPenTool(tool);
 
   return (
-    <div className="flex h-full flex-col">
+    // Header across the top; the canvas and the optional comments panel side by side beneath it.
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_auto] grid-rows-[auto_minmax(0,1fr)]">
       <EditorHeader
         whiteboardId={whiteboardId}
         link={link}
@@ -865,6 +895,9 @@ function Editor({
         }}
         exporting={exporting}
         onExport={exportBoard}
+        commentCount={comments.length}
+        commentsOpen={commentsOpen}
+        onToggleComments={() => toggleComments(!commentsOpen)}
         onDelete={
           onDelete &&
           (async () => {
@@ -881,7 +914,7 @@ function Editor({
       />
       <div
         ref={canvasRef}
-        className={`wb-canvas relative min-h-0 flex-1 ${placing ? "wb-placing" : ""} ${connecting ? "wb-connecting" : ""}`}
+        className={`wb-canvas relative min-h-0 min-w-0 ${placing ? "wb-placing" : ""} ${connecting ? "wb-connecting" : ""}`}
         onDragOver={(e) => {
           if (Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
         }}
@@ -1071,6 +1104,16 @@ function Editor({
           )
         )}
       </div>
+      {commentsOpen && (
+        <WhiteboardCommentsPanel
+          whiteboardId={whiteboardId}
+          comments={comments}
+          onComments={setComments}
+          currentUserId={currentUserId}
+          isAdmin={isAdmin}
+          onClose={() => toggleComments(false)}
+        />
+      )}
     </div>
   );
 }
@@ -1129,6 +1172,9 @@ function EditorHeader({
   onRenamed,
   exporting,
   onExport,
+  commentCount,
+  commentsOpen,
+  onToggleComments,
   onDelete,
 }: {
   whiteboardId: string;
@@ -1140,6 +1186,9 @@ function EditorHeader({
   onRenamed: (name: string) => void;
   exporting: boolean;
   onExport: (format: "png" | "svg") => void;
+  commentCount: number;
+  commentsOpen: boolean;
+  onToggleComments: () => void;
   onDelete?: () => Promise<void>;
 }) {
   const [exportOpen, setExportOpen] = useState(false);
@@ -1170,7 +1219,7 @@ function EditorHeader({
   }
 
   return (
-    <div className="flex h-12 shrink-0 items-center gap-3 border-b border-cy-gray-100 bg-white px-4">
+    <div className="col-span-2 flex h-12 shrink-0 items-center gap-3 border-b border-cy-gray-100 bg-white px-4">
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
@@ -1196,6 +1245,17 @@ function EditorHeader({
       </span>
       <WhiteboardLinkPicker whiteboardId={whiteboardId} link={link} targets={linkTargets} />
       <div className="ml-auto flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onToggleComments}
+          aria-pressed={commentsOpen}
+          className={`${buttonGhost} flex items-center gap-1 px-2.5 py-1.5 text-xs ${
+            commentsOpen ? "bg-cy-blue-100 text-cy-blue-800" : ""
+          }`}
+        >
+          <MessageSquare size={13} />
+          Comments{commentCount > 0 ? ` (${commentCount})` : ""}
+        </button>
         <div className="relative">
           <button
             type="button"

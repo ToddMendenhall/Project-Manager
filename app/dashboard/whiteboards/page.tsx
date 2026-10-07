@@ -76,6 +76,8 @@ export default async function WhiteboardsPage() {
                       Edited {formatRelativeTime(board.updatedAt, now)}
                       {board.updatedBy && ` by ${board.updatedBy.name}`}
                       {` · ${board.itemCount} item${board.itemCount === 1 ? "" : "s"}`}
+                      {board.commentCount > 0 &&
+                        ` · ${board.commentCount} comment${board.commentCount === 1 ? "" : "s"}`}
                     </p>
                     {linkLabel(board) && (
                       <p className="mt-1 flex items-center gap-1 truncate text-xs font-medium text-cy-blue-700">

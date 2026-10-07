@@ -181,14 +181,13 @@ list/detail — deletes triggered from a list page redirect to that same
 list, which is a no-op navigation, so the same action works from both call
 sites.
 
-### Attachments and comments are polymorphic (task XOR checklist item, plus whiteboard for attachments)
+### Attachments and comments are polymorphic (task, checklist item or whiteboard)
 
-`comments` and `attachments` each have nullable `taskId` and
-`checklistItemId` columns plus a DB check constraint
-(`(task_id is not null) <> (checklist_item_id is not null)`) enforcing
-exactly one parent. Attachments also have a nullable `whiteboardId` (images
-placed on a whiteboard canvas), so their check is
-`num_nonnulls(task_id, checklist_item_id, whiteboard_id) = 1`.
+`comments` and `attachments` each have nullable `taskId`,
+`checklistItemId` and `whiteboardId` columns plus a DB check constraint
+(`num_nonnulls(task_id, checklist_item_id, whiteboard_id) = 1`) enforcing
+exactly one parent. A whiteboard parent means images placed on its canvas
+(attachments) or board-level discussion (comments).
 `getAttachmentForOrg` branches on which one is set to walk the right
 ownership chain, and `getOrgAttachmentsDetailed` returns a union row type
 (`itemKind: "whiteboard"` rows have no program/project) for the admin
@@ -375,6 +374,22 @@ and undoes `main`'s padding so the canvas runs edge to edge.
 - **Permissions:** any member can create, edit or duplicate a board. Only
   the creator or an admin can delete one (`canDeleteWhiteboard`), the same
   rule as comments and attachments.
+- **Comments:** board-level discussion in a side panel
+  (`components/whiteboards/comments-panel.tsx`), toggled from the header's
+  "Comments (n)" button. Rows are ordinary `comments` with `whiteboardId` set,
+  so they cascade with the board, and the author-or-admin delete rule matches
+  task comments.
+  - The editor owns the list. `createWhiteboardComment` /
+    `deleteWhiteboardComment` / `listWhiteboardComments` return the fresh list
+    instead of revalidating or calling `router.refresh()`, which would
+    re-render the page and re-read the whole canvas.
+  - The panel re-reads the list each time it opens, to pick up others'
+    comments. It never polls.
+  - Whether the panel is open persists per viewer in `localStorage`.
+  - The editor is a grid: the header spans both columns, and the canvas and
+    panel share the row beneath it.
+  - Index cards show `commentCount` (an indexed count subquery in
+    `getOrgWhiteboards`).
 - **Export and thumbnails:** `media.ts`'s `renderBoard` snapshots React
   Flow's viewport with `html-to-image`, which is pinned to 1.11.11 (the
   version React Flow's own export example uses; later versions regress).
