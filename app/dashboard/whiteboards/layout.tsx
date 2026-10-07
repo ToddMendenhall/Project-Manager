@@ -19,6 +19,7 @@ export default async function WhiteboardsLayout({ children }: { children: ReactN
   return (
     <div className="-mx-6 -my-8 flex h-[calc(100vh-96px)] min-h-[480px]">
       <WhiteboardListPanel
+        currentUserName={ctx.user.name}
         boards={boards.map((board) => ({
           id: board.id,
           name: board.name,
