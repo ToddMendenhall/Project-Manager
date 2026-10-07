@@ -10,6 +10,7 @@ import {
   type LinkTargetTree,
   type WhiteboardLinkInfo,
 } from "@/lib/whiteboard-links";
+import { projectPath } from "@/lib/paths";
 
 /**
  * Shows which Project or Program a board belongs to (linking to that page)
@@ -42,7 +43,7 @@ export function WhiteboardLinkPicker({
           ...next,
           name: project.name,
           programName: program.name,
-          href: `/dashboard/programs/${program.id}/projects/${project.id}`,
+          href: projectPath(program.id, project.id),
         };
       }
     }

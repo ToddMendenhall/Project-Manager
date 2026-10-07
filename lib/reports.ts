@@ -1,6 +1,7 @@
 import "server-only";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "@/lib/fields";
 import { calendarDateKey, todayKey } from "@/lib/dates";
+import { projectPath } from "@/lib/paths";
 
 const OPEN_STATUSES = new Set(["not_started", "in_progress", "blocked"]);
 
@@ -112,7 +113,7 @@ type ProjectAgg = {
 function toProjectRow(p: ProjectAgg) {
   return {
     id: p.projectId,
-    href: `/dashboard/programs/${p.programId}/projects/${p.projectId}`,
+    href: projectPath(p.programId, p.projectId),
     name: p.projectName,
     total: p.total,
     completed: p.completed,

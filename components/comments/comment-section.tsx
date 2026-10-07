@@ -88,6 +88,7 @@ export function CommentSection({
           name="body"
           required
           placeholder="Add a comment..."
+          aria-label="Add a comment"
           className="min-h-[80px] rounded border border-cy-gray-200 px-3 py-2 text-sm leading-relaxed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cy-cyan-500"
         />
         <button type="submit" disabled={isPending} className={`w-fit ${buttonPrimary}`}>

@@ -15,6 +15,7 @@ import { ItemHeader } from "@/components/views/item-header";
 import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProject } from "../actions";
+import { projectPath, taskPath } from "@/lib/paths";
 
 export default async function ProjectDetailPage({
   params,
@@ -61,7 +62,7 @@ export default async function ProjectDetailPage({
         action={
           <>
             <Link
-              href={`/dashboard/programs/${programId}/projects/${project.id}/edit`}
+              href={`${projectPath(programId, project.id)}/edit`}
               className="text-sm underline"
             >
               Edit
@@ -75,16 +76,16 @@ export default async function ProjectDetailPage({
       />
 
       <ViewTabs
-        basePath={`/dashboard/programs/${programId}/projects/${project.id}`}
+        basePath={projectPath(programId, project.id)}
         active="overview"
-        hrefs={{ list: `/dashboard/programs/${programId}/projects/${project.id}/tasks` }}
+        hrefs={{ list: `${projectPath(programId, project.id)}/tasks` }}
       />
 
       <div>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Tasks ({taskCount})</h2>
           <Link
-            href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/new`}
+            href={`${projectPath(programId, project.id)}/tasks/new`}
             className="rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
           >
             New Task
@@ -97,7 +98,7 @@ export default async function ProjectDetailPage({
             {project.tasks.map((task) => (
               <li key={task.id}>
                 <Link
-                  href={`/dashboard/programs/${programId}/projects/${project.id}/tasks/${task.id}`}
+                  href={taskPath(programId, project.id, task.id)}
                   className="flex items-center justify-between rounded border border-cy-gray-100 bg-white p-3 text-sm hover:border-cy-gray-400"
                 >
                   <span>{task.title}</span>

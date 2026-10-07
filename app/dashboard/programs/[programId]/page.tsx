@@ -15,6 +15,7 @@ import { ItemHeader } from "@/components/views/item-header";
 import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProgram } from "../actions";
+import { projectPath } from "@/lib/paths";
 
 export default async function ProgramDetailPage({
   params,
@@ -89,7 +90,7 @@ export default async function ProgramDetailPage({
             {program.projects.map((project) => (
               <li key={project.id}>
                 <Link
-                  href={`/dashboard/programs/${program.id}/projects/${project.id}`}
+                  href={projectPath(program.id, project.id)}
                   className="block rounded border border-cy-gray-100 bg-white p-4 hover:border-cy-gray-400"
                 >
                   <div className="flex items-center justify-between">

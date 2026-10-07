@@ -12,6 +12,7 @@ import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
 import { taskNode, GANTT_CHECKLIST_COLUMNS, GANTT_TASK_COLUMNS } from "@/lib/gantt-tree";
 import { updateTaskDates } from "../tasks/actions";
+import { projectPath } from "@/lib/paths";
 
 export default async function TaskGanttPage({
   params,
@@ -41,7 +42,7 @@ export default async function TaskGanttPage({
     },
   });
 
-  const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
+  const basePath = projectPath(programId, projectId);
   const items = allTasks.map((t) => taskNode(t, basePath));
   const meta = await itemHeaderMeta("project", project.id);
 

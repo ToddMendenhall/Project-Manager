@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useId, useState, useTransition, type KeyboardEvent, type ReactNode } from "react";
 import { STATUS_OPTIONS, type StatusValue } from "@/lib/fields";
 import { SAVE_FAILED, showNotice } from "@/components/notice";
 
@@ -66,6 +66,9 @@ export function BoardView({
   const [columnOrder, setColumnOrder] = useState<string[]>(() => STATUS_OPTIONS.map((o) => o.value));
   const [dragOverColumnHeader, setDragOverColumnHeader] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  // Spoken after a keyboard move ("Moved to In Progress, position 2 of 3").
+  const [announcement, setAnnouncement] = useState("");
+  const hintId = useId();
 
   // Re-sync when the server sends fresh items (e.g. after a filter change).
   useEffect(() => {
@@ -80,21 +83,29 @@ export function BoardView({
 
   const draggable = !readOnly && !!onReorder;
 
+  /** The other cards in a column, in display order. */
+  function othersInColumn(status: string, exceptId: string) {
+    return items.filter((i) => i.status === status && i.id !== exceptId).sort((a, b) => a.sortOrder - b.sortOrder);
+  }
+
   function handleCardDrop(targetStatus: StatusValue, droppedId: string, beforeId: string | null) {
     setDragOverColumn(null);
     setDragOverCardId(null);
-    if (!draggable || !onReorder) return;
+    const columnItems = othersInColumn(targetStatus, droppedId);
+    const targetIndex = beforeId ? columnItems.findIndex((i) => i.id === beforeId) : columnItems.length;
+    moveCard(droppedId, targetStatus, targetIndex === -1 ? columnItems.length : targetIndex);
+  }
+
+  /** Moves a card to `index` among the target column's other cards and saves it. Returns whether anything changed. */
+  function moveCard(droppedId: string, targetStatus: StatusValue, index: number) {
+    if (!draggable || !onReorder) return false;
 
     const dragged = items.find((i) => i.id === droppedId);
-    if (!dragged) return;
+    if (!dragged) return false;
 
-    const columnItems = items
-      .filter((i) => i.status === targetStatus && i.id !== droppedId)
-      .sort((a, b) => a.sortOrder - b.sortOrder);
-    const targetIndex = beforeId ? columnItems.findIndex((i) => i.id === beforeId) : columnItems.length;
-    const newSortOrder = sortOrderForIndex(columnItems, targetIndex === -1 ? columnItems.length : targetIndex);
+    const newSortOrder = sortOrderForIndex(othersInColumn(targetStatus, droppedId), index);
 
-    if (dragged.status === targetStatus && dragged.sortOrder === newSortOrder) return;
+    if (dragged.status === targetStatus && dragged.sortOrder === newSortOrder) return false;
 
     const previousStatus = dragged.status;
     const previousSortOrder = dragged.sortOrder;
@@ -112,6 +123,53 @@ export function BoardView({
         showNotice(SAVE_FAILED);
       }
     });
+    return true;
+  }
+
+  /**
+   * The keyboard alternative to dragging: each card is a tab stop, and while
+   * the card itself has focus, ←/→ move it to the previous/next column (as
+   * the viewer has them ordered) and ↑/↓ move it within its column. Enter
+   * opens it (its first link). Keys pressed on a link inside the card keep
+   * their usual meaning. Focus follows the card, since changing columns
+   * remounts it.
+   */
+  function handleCardKeyDown(e: KeyboardEvent<HTMLDivElement>, item: BoardItem) {
+    if (e.target !== e.currentTarget || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (e.key === "Enter") {
+      e.currentTarget.querySelector<HTMLAnchorElement>("a[href]")?.click();
+      return;
+    }
+    const visibleColumns = columnOrder.filter((v) => STATUS_OPTIONS.some((o) => o.value === v)) as StatusValue[];
+    const columnIndex = visibleColumns.indexOf(item.status as StatusValue);
+    const siblings = othersInColumn(item.status, item.id);
+    const position = items
+      .filter((i) => i.status === item.status)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .findIndex((i) => i.id === item.id);
+
+    let target: { status: StatusValue; index: number } | null = null;
+    if (e.key === "ArrowLeft" && columnIndex > 0) {
+      target = { status: visibleColumns[columnIndex - 1], index: Number.MAX_SAFE_INTEGER };
+    } else if (e.key === "ArrowRight" && columnIndex >= 0 && columnIndex < visibleColumns.length - 1) {
+      target = { status: visibleColumns[columnIndex + 1], index: Number.MAX_SAFE_INTEGER };
+    } else if (e.key === "ArrowUp" && position > 0) {
+      target = { status: item.status as StatusValue, index: position - 1 };
+    } else if (e.key === "ArrowDown" && position < siblings.length) {
+      target = { status: item.status as StatusValue, index: position + 1 };
+    }
+    if (!target) return;
+    e.preventDefault();
+
+    const targetOthers = othersInColumn(target.status, item.id);
+    const index = Math.min(target.index, targetOthers.length);
+    if (!moveCard(item.id, target.status, index)) return;
+
+    const label = STATUS_OPTIONS.find((o) => o.value === target.status)?.label ?? target.status;
+    setAnnouncement(`Moved to ${label}, position ${index + 1} of ${targetOthers.length + 1}`);
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-board-card="${CSS.escape(item.id)}"]`)?.focus();
+    });
   }
 
   function handleColumnReorder(draggedValue: string, targetValue: string) {
@@ -128,6 +186,16 @@ export function BoardView({
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
+      {draggable && (
+        <>
+          <p id={hintId} className="sr-only">
+            Use the arrow keys to move this card between columns or up and down. Press Enter to open it.
+          </p>
+          <p role="status" className="sr-only">
+            {announcement}
+          </p>
+        </>
+      )}
       {columnOrder.map((columnValue) => {
         const column = STATUS_OPTIONS.find((o) => o.value === columnValue);
         if (!column) return null;
@@ -190,6 +258,10 @@ export function BoardView({
               {columnItems.map((item) => (
                 <div
                   key={item.id}
+                  data-board-card={item.id}
+                  tabIndex={draggable ? 0 : undefined}
+                  aria-describedby={draggable ? hintId : undefined}
+                  onKeyDown={draggable ? (e) => handleCardKeyDown(e, item) : undefined}
                   draggable={draggable}
                   onDragStart={
                     draggable
@@ -223,7 +295,7 @@ export function BoardView({
                         }
                       : undefined
                   }
-                  className={`rounded-card border bg-white p-3 text-sm shadow-xs transition-colors duration-fast hover:shadow-md ${
+                  className={`rounded-card border bg-white p-3 text-sm shadow-xs transition-colors duration-fast hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cy-cyan-500 ${
                     draggable ? "cursor-grab active:cursor-grabbing" : ""
                   } ${dragOverCardId === item.id ? "border-t-2 border-t-cy-blue-600 border-x-cy-gray-200 border-b-cy-gray-200" : "border-cy-gray-200"}`}
                 >

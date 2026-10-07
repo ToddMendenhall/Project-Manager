@@ -46,6 +46,7 @@ export function AttachmentUploadForm({ uploadUrl }: { uploadUrl: string }) {
       <input
         type="file"
         name="file"
+        aria-label="File to upload"
         required
         disabled={uploading}
         className="text-sm text-cy-gray-700 file:mr-3 file:rounded file:border-0 file:bg-cy-gray-050 file:px-3 file:py-1.5 file:text-sm file:text-cy-gray-700"

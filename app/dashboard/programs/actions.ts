@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { statusSchema } from "@/lib/field-schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -19,7 +20,7 @@ const programSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
   portfolioId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
-  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
+  status: statusSchema,
   ownerId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   startDate: z.preprocess(emptyToUndefined, z.string().optional()),
   targetEndDate: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -151,7 +152,6 @@ export async function deleteProgram(programId: string) {
   redirect("/dashboard/programs");
 }
 
-const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
 /** Lightweight status+order update, used by the Board view's drag-and-drop. */
 export async function updateProgramOrder(programId: string, status: string, sortOrder: number) {
@@ -162,7 +162,7 @@ export async function updateProgramOrder(programId: string, status: string, sort
     throw new Error("Program not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const parsedSortOrder = z.number().finite().parse(sortOrder);
 
   await db
@@ -174,7 +174,11 @@ export async function updateProgramOrder(programId: string, status: string, sort
   revalidatePath("/dashboard/programs");
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/board`);
-  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
+  revalidatePath("/dashboard/programs/board");
+  if (existing.portfolioId) {
+    revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
+    revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/board`);
+  }
 }
 
 /** Lightweight start+due date update, used by the Gantt view's drag-to-resize handles. */

@@ -3,6 +3,7 @@ import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { activityLog, checklistItems, programs, projects, tasks, users, whiteboards } from "@/db/schema";
 import { dateInputValue } from "@/lib/fields";
+import { checklistItemPath, projectPath, taskPath } from "@/lib/paths";
 
 /**
  * Activity history (the `activity_log` table) for Program, Project and Task
@@ -156,12 +157,19 @@ export function commentExcerpt(body: string) {
   return firstLine.length > 140 ? `${firstLine.slice(0, 139)}…` : firstLine;
 }
 
-export type ActivityTarget = { programId: string } | { projectId: string } | { taskId: string };
+export type ActivityTarget =
+  | { portfolioId: string }
+  | { programId: string }
+  | { projectId: string }
+  | { taskId: string };
 
 /**
  * A page's history, newest first, within the retention window. Callers must
- * have org-checked the program/project/task; the org filter is a second
- * guard. Returns one extra row's worth of information as `hasMore`.
+ * have org-checked the portfolio/program/project/task; the org filter is a
+ * second guard. Returns one extra row's worth of information as `hasMore`.
+ *
+ * A Portfolio has no rows of its own (every row belongs to a program): its
+ * history is that of the programs it holds now.
  */
 export async function getActivity(orgId: string, target: ActivityTarget, limit = ACTIVITY_PAGE_SIZE) {
   const scope =
@@ -169,7 +177,15 @@ export async function getActivity(orgId: string, target: ActivityTarget, limit =
       ? eq(activityLog.taskId, target.taskId)
       : "projectId" in target
         ? eq(activityLog.projectId, target.projectId)
-        : eq(activityLog.programId, target.programId);
+        : "programId" in target
+          ? eq(activityLog.programId, target.programId)
+          : inArray(
+              activityLog.programId,
+              db
+                .select({ id: programs.id })
+                .from(programs)
+                .where(and(eq(programs.orgId, orgId), eq(programs.portfolioId, target.portfolioId))),
+            );
 
   const rows = await db.query.activityLog.findMany({
     where: and(
@@ -265,12 +281,12 @@ async function currentHrefs(orgId: string, entries: { entityType: ActivityEntity
 
   const hrefs = new Map<string, string>();
   for (const p of programRows) hrefs.set(p.id, `/dashboard/programs/${p.id}`);
-  for (const p of projectRows) hrefs.set(p.id, `/dashboard/programs/${p.programId}/projects/${p.id}`);
+  for (const p of projectRows) hrefs.set(p.id, projectPath(p.programId, p.id));
   for (const t of taskRows) {
-    hrefs.set(t.id, `/dashboard/programs/${t.programId}/projects/${t.projectId}/tasks/${t.id}`);
+    hrefs.set(t.id, taskPath(t.programId, t.projectId, t.id));
   }
   for (const i of itemRows) {
-    hrefs.set(i.id, `/dashboard/programs/${i.programId}/projects/${i.projectId}/tasks/${i.taskId}/checklist/${i.id}`);
+    hrefs.set(i.id, checklistItemPath(i.programId, i.projectId, i.taskId, i.id));
   }
   for (const b of boardRows) hrefs.set(b.id, `/dashboard/whiteboards/${b.id}`);
   return hrefs;

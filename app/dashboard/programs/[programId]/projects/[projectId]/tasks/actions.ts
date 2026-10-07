@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { prioritySchema, statusSchema } from "@/lib/field-schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -13,6 +14,7 @@ import { parseCustomFieldValues } from "@/lib/custom-fields";
 import { fieldChanges, logActivity } from "@/lib/activity";
 import { formErrorState } from "@/lib/form-errors";
 import type { FormState } from "@/lib/form-state";
+import { projectPath } from "@/lib/paths";
 
 // Like every level of the hierarchy, any org member (not just admins) can
 // create, edit, or delete tasks.
@@ -22,8 +24,8 @@ const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const taskSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(500),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
-  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
+  status: statusSchema,
+  priority: prioritySchema,
   assigneeId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   startDate: z.preprocess(emptyToUndefined, z.string().optional()),
   dueDate: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -42,7 +44,7 @@ function parseTaskForm(formData: FormData) {
 }
 
 const basePath = (programId: string, projectId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}`;
+  projectPath(programId, projectId);
 
 /** Records a task event in the task's, its project's and its program's history. */
 async function logTaskActivity(
@@ -152,7 +154,6 @@ export async function updateTask(
   }
 }
 
-const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
 /** Lightweight status-only update, used by the Board view's drag-and-drop. */
 export async function updateTaskStatus(
@@ -168,7 +169,7 @@ export async function updateTaskStatus(
     throw new Error("Task not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
   const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
 
@@ -201,7 +202,7 @@ export async function updateTaskOrder(
     throw new Error("Task not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const parsedSortOrder = z.number().finite().parse(sortOrder);
   const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
   const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
@@ -221,7 +222,6 @@ export async function updateTaskOrder(
   revalidatePath(`${basePath(programId, projectId)}/board`);
 }
 
-const priorityEnum = z.enum(["low", "medium", "high", "urgent"]);
 
 /** Lightweight priority-only update, used by the List view's inline editor. */
 export async function updateTaskPriority(
@@ -237,7 +237,7 @@ export async function updateTaskPriority(
     throw new Error("Task not found");
   }
 
-  const parsedPriority = priorityEnum.parse(priority);
+  const parsedPriority = prioritySchema.parse(priority);
   await db.update(tasks).set({ priority: parsedPriority, updatedAt: new Date() }).where(eq(tasks.id, taskId));
   await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { priority: parsedPriority }));
 

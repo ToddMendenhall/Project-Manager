@@ -18,6 +18,7 @@ import {
   users,
   whiteboards,
 } from "@/db/schema";
+import { projectPath, taskPath } from "@/lib/paths";
 
 export type SearchResult = { id: string; title: string; path: string; href: string };
 export type SearchResults = {
@@ -77,13 +78,13 @@ export async function searchOrg(orgId: string, query: string): Promise<SearchRes
       id: t.id,
       title: t.title,
       path: `${t.programName} / ${t.projectName}`,
-      href: `/dashboard/programs/${t.programId}/projects/${t.projectId}/tasks/${t.id}`,
+      href: taskPath(t.programId, t.projectId, t.id),
     })),
     projects: projectRows.map((p) => ({
       id: p.id,
       title: p.name,
       path: p.programName,
-      href: `/dashboard/programs/${p.programId}/projects/${p.id}`,
+      href: projectPath(p.programId, p.id),
     })),
     programs: programRows.map((p) => ({
       id: p.id,
@@ -799,10 +800,21 @@ export async function getWhiteboardDocsForOrg(orgId: string, whiteboardIds: stri
  */
 export async function getLinkedWhiteboards(
   orgId: string,
-  target: { projectId: string } | { programId: string; includeProjects?: boolean },
+  target: { projectId: string } | { programId: string; includeProjects?: boolean } | { portfolioId: string },
 ) {
   let condition;
-  if ("projectId" in target) {
+  if ("portfolioId" in target) {
+    // Boards linked to any of the portfolio's programs or their projects.
+    const portfolioPrograms = db
+      .select({ id: programs.id })
+      .from(programs)
+      .where(and(eq(programs.orgId, orgId), eq(programs.portfolioId, target.portfolioId)));
+    const portfolioProjects = db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(inArray(projects.programId, portfolioPrograms));
+    condition = or(inArray(whiteboards.programId, portfolioPrograms), inArray(whiteboards.projectId, portfolioProjects));
+  } else if ("projectId" in target) {
     condition = eq(whiteboards.projectId, target.projectId);
   } else if (target.includeProjects) {
     const programProjects = db.select({ id: projects.id }).from(projects).where(eq(projects.programId, target.programId));

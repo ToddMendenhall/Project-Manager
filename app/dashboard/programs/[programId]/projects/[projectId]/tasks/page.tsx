@@ -14,6 +14,7 @@ import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { TaskListView } from "@/components/tasks/task-list-view";
 import { isUuid } from "@/lib/ids";
+import { projectPath } from "@/lib/paths";
 
 export default async function TaskListPage({
   params,
@@ -84,7 +85,7 @@ export default async function TaskListPage({
         meta={meta}
         action={
           <Link
-            href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/new`}
+            href={`${projectPath(programId, projectId)}/tasks/new`}
             className={buttonPrimary}
           >
             New Task
@@ -93,13 +94,13 @@ export default async function TaskListPage({
       />
 
       <ViewTabs
-        basePath={`/dashboard/programs/${programId}/projects/${projectId}`}
+        basePath={projectPath(programId, projectId)}
         active="list"
-        hrefs={{ list: `/dashboard/programs/${programId}/projects/${projectId}/tasks` }}
+        hrefs={{ list: `${projectPath(programId, projectId)}/tasks` }}
       />
 
       <form method="get" className="flex flex-wrap items-center gap-3">
-        <select name="status" defaultValue={sp.status ?? ""} className={selectClass}>
+        <select name="status" aria-label="Filter by status" defaultValue={sp.status ?? ""} className={selectClass}>
           <option value="">All statuses</option>
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
@@ -107,7 +108,7 @@ export default async function TaskListPage({
             </option>
           ))}
         </select>
-        <select name="assigneeId" defaultValue={sp.assigneeId ?? ""} className={selectClass}>
+        <select name="assigneeId" aria-label="Filter by assignee" defaultValue={sp.assigneeId ?? ""} className={selectClass}>
           <option value="">All assignees</option>
           <option value="unassigned">Unassigned</option>
           {members.map((m) => (
@@ -121,7 +122,7 @@ export default async function TaskListPage({
         </button>
         {(sp.status || sp.assigneeId) && (
           <Link
-            href={`/dashboard/programs/${programId}/projects/${projectId}/tasks`}
+            href={`${projectPath(programId, projectId)}/tasks`}
             className="rounded px-3 py-2 text-[13px] font-semibold text-cy-blue-600 hover:bg-cy-blue-100"
           >
             Clear

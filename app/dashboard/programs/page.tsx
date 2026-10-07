@@ -4,13 +4,19 @@ import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
+import { ViewTabs } from "@/components/views/view-tabs";
 
 export default async function ProgramsPage() {
   const ctx = await requireOrgContext();
 
   const orgPrograms = await db.query.programs.findMany({
     where: eq(programs.orgId, ctx.org.id),
-    with: { projects: true, owner: { columns: { id: true, name: true } }, portfolio: true },
+    // Project ids only: the list just shows a count per program.
+    with: {
+      projects: { columns: { id: true } },
+      owner: { columns: { id: true, name: true } },
+      portfolio: { columns: { name: true } },
+    },
     orderBy: (program, { desc }) => [desc(program.createdAt)],
   });
 
@@ -25,6 +31,13 @@ export default async function ProgramsPage() {
           New Program
         </Link>
       </div>
+
+      <ViewTabs
+        basePath="/dashboard/programs"
+        active="list"
+        views={["list", "board", "calendar", "gantt", "reports"]}
+        hrefs={{ list: "/dashboard/programs" }}
+      />
 
       {orgPrograms.length === 0 ? (
         <p className="text-sm text-cy-gray-500">No programs yet.</p>

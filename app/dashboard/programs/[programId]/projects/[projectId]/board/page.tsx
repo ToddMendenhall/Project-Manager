@@ -12,6 +12,7 @@ import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { updateTaskOrder } from "../tasks/actions";
 import { formatCalendarDate } from "@/lib/dates";
+import { projectPath } from "@/lib/paths";
 
 export default async function TaskBoardPage({
   params,
@@ -38,7 +39,7 @@ export default async function TaskBoardPage({
   });
   if (!project) notFound();
 
-  const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
+  const basePath = projectPath(programId, projectId);
   const meta = await itemHeaderMeta("project", project.id);
 
   return (

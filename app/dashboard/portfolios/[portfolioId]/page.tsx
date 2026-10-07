@@ -4,6 +4,10 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
+import { getLinkedWhiteboards } from "@/lib/queries";
+import { getActivity } from "@/lib/activity";
+import { ActivityFeed } from "@/components/activity/activity-feed";
+import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
@@ -25,14 +29,19 @@ export default async function PortfolioDetailPage({
     with: {
       programs: {
         orderBy: (program, { desc }) => [desc(program.createdAt)],
-        with: { projects: true, owner: { columns: { id: true, name: true } } },
+        // Project ids only: the list just shows a count per program.
+        with: { projects: { columns: { id: true } }, owner: { columns: { id: true, name: true } } },
       },
     },
   });
 
   if (!portfolio) notFound();
 
-  const meta = await itemHeaderMeta("portfolio", portfolio.id);
+  const [meta, linkedBoards, activity] = await Promise.all([
+    itemHeaderMeta("portfolio", portfolio.id),
+    getLinkedWhiteboards(ctx.org.id, { portfolioId: portfolio.id }),
+    getActivity(ctx.org.id, { portfolioId: portfolio.id }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,6 +108,10 @@ export default async function PortfolioDetailPage({
           </ul>
         )}
       </div>
+
+      <LinkedWhiteboards boards={linkedBoards} />
+
+      <ActivityFeed {...activity} selfId={portfolio.id} />
     </div>
   );
 }

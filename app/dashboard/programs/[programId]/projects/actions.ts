@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { prioritySchema, statusSchema } from "@/lib/field-schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -12,14 +13,15 @@ import { getProgramForOrg, getProjectForOrg, getProjectForProgram, resolveOrgMem
 import { fieldChanges, logActivity } from "@/lib/activity";
 import { formErrorState } from "@/lib/form-errors";
 import type { FormState } from "@/lib/form-state";
+import { projectPath } from "@/lib/paths";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
 const projectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
-  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
+  status: statusSchema,
+  priority: prioritySchema,
   leadId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   startDate: z.preprocess(emptyToUndefined, z.string().optional()),
   dueDate: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -82,7 +84,7 @@ export async function createProject(programId: string, formData: FormData): Prom
 
     await logProjectActivity(ctx, project, [{ action: "created" }]);
     revalidatePath(`/dashboard/programs/${programId}`);
-    redirect(`/dashboard/programs/${programId}/projects/${project.id}`);
+    redirect(projectPath(programId, project.id));
   } catch (err) {
     return formErrorState(err);
   }
@@ -117,8 +119,8 @@ export async function updateProject(programId: string, projectId: string, formDa
     await logProjectActivity(ctx, { ...existing, name: data.name }, await fieldChanges(existing, tracked));
 
     revalidatePath(`/dashboard/programs/${programId}`);
-    revalidatePath(`/dashboard/programs/${programId}/projects/${projectId}`);
-    redirect(`/dashboard/programs/${programId}/projects/${projectId}`);
+    revalidatePath(projectPath(programId, projectId));
+    redirect(projectPath(programId, projectId));
   } catch (err) {
     return formErrorState(err);
   }
@@ -139,7 +141,6 @@ export async function deleteProject(programId: string, projectId: string) {
   redirect(`/dashboard/programs/${programId}`);
 }
 
-const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
 /** Lightweight status+order update, used by the Board view's drag-and-drop. */
 export async function updateProjectOrder(
@@ -155,7 +156,7 @@ export async function updateProjectOrder(
     throw new Error("Project not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const parsedSortOrder = z.number().finite().parse(sortOrder);
 
   await db

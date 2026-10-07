@@ -8,13 +8,11 @@ import { comments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getTaskForProject } from "@/lib/queries";
 import { commentExcerpt, logActivity } from "@/lib/activity";
+import { taskPath } from "@/lib/paths";
 
 const commentSchema = z.object({
   body: z.string().trim().min(1, "Comment can't be empty").max(5000),
 });
-
-const taskPath = (programId: string, projectId: string, taskId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}`;
 
 export async function createComment(
   programId: string,

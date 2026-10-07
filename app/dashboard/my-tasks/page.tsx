@@ -3,6 +3,7 @@ import { requireOrgContext } from "@/lib/org";
 import { getAssignedTasks } from "@/lib/queries";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { formatCalendarDate } from "@/lib/dates";
+import { taskPath } from "@/lib/paths";
 
 type AssignedTask = Awaited<ReturnType<typeof getAssignedTasks>>["open"][number];
 
@@ -24,7 +25,7 @@ function TaskTable({ tasks }: { tasks: AssignedTask[] }) {
             <tr key={task.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
               <td className="px-4 py-3">
                 <Link
-                  href={`/dashboard/programs/${task.programId}/projects/${task.projectId}/tasks/${task.id}`}
+                  href={taskPath(task.programId, task.projectId, task.id)}
                   className="font-medium text-cy-gray-900 hover:underline"
                 >
                   {task.title}

@@ -8,13 +8,14 @@ import { comments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask } from "@/lib/queries";
 import { commentExcerpt, logActivity } from "@/lib/activity";
+import { checklistItemPath } from "@/lib/paths";
 
 const commentSchema = z.object({
   body: z.string().trim().min(1, "Comment can't be empty").max(5000),
 });
 
 const itemPath = (programId: string, projectId: string, taskId: string, itemId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${itemId}`;
+  checklistItemPath(programId, projectId, taskId, itemId);
 
 export async function createChecklistItemComment(
   programId: string,

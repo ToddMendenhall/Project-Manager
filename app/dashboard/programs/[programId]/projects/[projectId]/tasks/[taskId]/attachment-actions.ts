@@ -6,9 +6,7 @@ import { db } from "@/db";
 import { attachments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getTaskForProject } from "@/lib/queries";
-
-const taskPath = (programId: string, projectId: string, taskId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}`;
+import { taskPath } from "@/lib/paths";
 
 export async function deleteAttachment(
   programId: string,

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight, Plus } from "lucide-react";
+import { projectPath } from "@/lib/paths";
 
 export type ProjectNode = { id: string; name: string; taskCount: number };
 export type ProgramNode = { id: string; name: string; projects: ProjectNode[] };
@@ -151,7 +152,7 @@ function ProgramRow({ program }: { program: ProgramNode }) {
 
 function ProjectRow({ programId, project }: { programId: string; project: ProjectNode }) {
   const pathname = usePathname();
-  const href = `/dashboard/programs/${programId}/projects/${project.id}`;
+  const href = projectPath(programId, project.id);
   const active = pathname?.startsWith(href) ?? false;
 
   return (

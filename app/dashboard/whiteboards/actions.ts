@@ -26,6 +26,7 @@ import {
 } from "@/lib/whiteboard";
 import { WHITEBOARD_TEMPLATES, WHITEBOARD_TEMPLATE_KEYS } from "@/lib/whiteboard-templates";
 import { logActivity, type ActivityAction } from "@/lib/activity";
+import { projectPath } from "@/lib/paths";
 
 const nameSchema = z.string().trim().min(1, "Name is required").max(255);
 
@@ -92,8 +93,7 @@ function linkedPagePaths(board: {
   program?: { id: string } | null;
 }): string[] {
   if (board.project) {
-    const programPath = `/dashboard/programs/${board.project.programId}`;
-    return [`${programPath}/projects/${board.project.id}`, programPath];
+    return [projectPath(board.project.programId, board.project.id), `/dashboard/programs/${board.project.programId}`];
   }
   if (board.program) return [`/dashboard/programs/${board.program.id}`];
   return [];

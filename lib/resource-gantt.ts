@@ -1,5 +1,6 @@
 import "server-only";
 import type { GanttNode } from "@/lib/gantt-types";
+import { projectPath, taskPath } from "@/lib/paths";
 
 /**
  * Builds the Resources view's member -> project -> task -> subtask tree.
@@ -28,11 +29,11 @@ type ResourceTask = {
 type Member = { userId: string; name: string };
 
 function taskHref(task: ResourceTask) {
-  return `/dashboard/programs/${task.programId}/projects/${task.projectId}/tasks/${task.id}`;
+  return taskPath(task.programId, task.projectId, task.id);
 }
 
 function projectHref(task: ResourceTask) {
-  return `/dashboard/programs/${task.programId}/projects/${task.projectId}`;
+  return projectPath(task.programId, task.projectId);
 }
 
 /**
