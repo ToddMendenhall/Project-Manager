@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getLinkedWhiteboards } from "@/lib/queries";
+import { getActivity } from "@/lib/activity";
+import { ActivityFeed } from "@/components/activity/activity-feed";
 import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
@@ -118,6 +120,8 @@ export default async function ProjectDetailPage({
         link={{ kind: "project", id: project.id }}
         linkName={project.name}
       />
+
+      <ActivityFeed {...await getActivity(ctx.org.id, { projectId: project.id })} selfId={project.id} />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { programs } from "@/db/schema";
 import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getPortfolioForOrg, getProgramForOrg, resolveOrgMemberId } from "@/lib/queries";
+import { fieldChanges, logActivity } from "@/lib/activity";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -32,6 +33,23 @@ function parseProgramForm(formData: FormData) {
     startDate: formData.get("startDate"),
     targetEndDate: formData.get("targetEndDate"),
   });
+}
+
+/**
+ * Records a program event in its history. Deleting a program isn't recorded:
+ * its history is deleted with it, and nothing above a program shows history.
+ */
+async function logProgramActivity(
+  ctx: { user: { id: string }; org: { id: string } },
+  program: { id: string; name: string },
+  events: Parameters<typeof logActivity>[3],
+) {
+  await logActivity(
+    ctx.user.id,
+    { orgId: ctx.org.id, programId: program.id },
+    { type: "program", id: program.id, name: program.name },
+    events,
+  );
 }
 
 /** Validates a submitted portfolioId actually belongs to this org, rather than trusting the form value outright. */
@@ -63,6 +81,7 @@ export async function createProgram(formData: FormData) {
     })
     .returning();
 
+  await logProgramActivity(ctx, program, [{ action: "created" }]);
   revalidatePath("/dashboard/programs");
   revalidatePath("/dashboard/portfolios");
   redirect(`/dashboard/programs/${program.id}`);
@@ -80,19 +99,18 @@ export async function updateProgram(programId: string, formData: FormData) {
   const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
   const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
 
+  const tracked = {
+    name: data.name,
+    status: data.status,
+    ownerId,
+    startDate: toDateOrNull(data.startDate),
+    targetEndDate: toDateOrNull(data.targetEndDate),
+  };
   await db
     .update(programs)
-    .set({
-      portfolioId,
-      name: data.name,
-      description: data.description ?? null,
-      status: data.status,
-      ownerId,
-      startDate: toDateOrNull(data.startDate),
-      targetEndDate: toDateOrNull(data.targetEndDate),
-      updatedAt: new Date(),
-    })
+    .set({ ...tracked, portfolioId, description: data.description ?? null, updatedAt: new Date() })
     .where(eq(programs.id, programId));
+  await logProgramActivity(ctx, { id: programId, name: data.name }, await fieldChanges(existing, tracked));
 
   revalidatePath("/dashboard/programs");
   revalidatePath(`/dashboard/programs/${programId}`);
@@ -137,6 +155,7 @@ export async function updateProgramOrder(programId: string, status: string, sort
     .update(programs)
     .set({ status: parsedStatus, sortOrder: parsedSortOrder, updatedAt: new Date() })
     .where(eq(programs.id, programId));
+  await logProgramActivity(ctx, existing, await fieldChanges(existing, { status: parsedStatus }));
 
   revalidatePath("/dashboard/programs");
   revalidatePath(`/dashboard/programs/${programId}`);
@@ -153,14 +172,12 @@ export async function updateProgramDates(programId: string, startDate: string, t
     throw new Error("Program not found");
   }
 
+  const dates = { startDate: toDateOrNull(startDate), targetEndDate: toDateOrNull(targetEndDate) };
   await db
     .update(programs)
-    .set({
-      startDate: toDateOrNull(startDate),
-      targetEndDate: toDateOrNull(targetEndDate),
-      updatedAt: new Date(),
-    })
+    .set({ ...dates, updatedAt: new Date() })
     .where(eq(programs.id, programId));
+  await logProgramActivity(ctx, existing, await fieldChanges(existing, dates));
 
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/gantt`);

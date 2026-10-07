@@ -9,6 +9,7 @@ import { projects } from "@/db/schema";
 import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getProgramForOrg, getProjectForOrg, getProjectForProgram, resolveOrgMemberId } from "@/lib/queries";
+import { fieldChanges, logActivity } from "@/lib/activity";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -32,6 +33,20 @@ function parseProjectForm(formData: FormData) {
     startDate: formData.get("startDate"),
     dueDate: formData.get("dueDate"),
   });
+}
+
+/** Records a project event in the project's and its program's history. */
+async function logProjectActivity(
+  ctx: { user: { id: string }; org: { id: string } },
+  project: { id: string; name: string; programId: string },
+  events: Parameters<typeof logActivity>[3],
+) {
+  await logActivity(
+    ctx.user.id,
+    { orgId: ctx.org.id, programId: project.programId, projectId: project.id },
+    { type: "project", id: project.id, name: project.name },
+    events,
+  );
 }
 
 export async function createProject(programId: string, formData: FormData) {
@@ -60,6 +75,7 @@ export async function createProject(programId: string, formData: FormData) {
     })
     .returning();
 
+  await logProjectActivity(ctx, project, [{ action: "created" }]);
   revalidatePath(`/dashboard/programs/${programId}`);
   redirect(`/dashboard/programs/${programId}/projects/${project.id}`);
 }
@@ -75,19 +91,19 @@ export async function updateProject(programId: string, projectId: string, formDa
   const data = parseProjectForm(formData);
   const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
 
+  const tracked = {
+    name: data.name,
+    status: data.status,
+    priority: data.priority,
+    leadId,
+    startDate: toDateOrNull(data.startDate),
+    dueDate: toDateOrNull(data.dueDate),
+  };
   await db
     .update(projects)
-    .set({
-      name: data.name,
-      description: data.description ?? null,
-      status: data.status,
-      priority: data.priority,
-      leadId,
-      startDate: toDateOrNull(data.startDate),
-      dueDate: toDateOrNull(data.dueDate),
-      updatedAt: new Date(),
-    })
+    .set({ ...tracked, description: data.description ?? null, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
+  await logProjectActivity(ctx, { ...existing, name: data.name }, await fieldChanges(existing, tracked));
 
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/projects/${projectId}`);
@@ -103,6 +119,7 @@ export async function deleteProject(programId: string, projectId: string) {
   }
 
   await db.delete(projects).where(eq(projects.id, projectId));
+  await logProjectActivity(ctx, existing, [{ action: "deleted" }]);
 
   revalidatePath(`/dashboard/programs/${programId}`);
   redirect(`/dashboard/programs/${programId}`);
@@ -131,6 +148,7 @@ export async function updateProjectOrder(
     .update(projects)
     .set({ status: parsedStatus, sortOrder: parsedSortOrder, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
+  await logProjectActivity(ctx, existing, await fieldChanges(existing, { status: parsedStatus }));
 
   revalidatePath(`/dashboard/programs/${programId}`);
   revalidatePath(`/dashboard/programs/${programId}/board`);
@@ -149,14 +167,12 @@ export async function updateProjectDates(projectId: string, startDate: string, d
     throw new Error("Project not found");
   }
 
+  const dates = { startDate: toDateOrNull(startDate), dueDate: toDateOrNull(dueDate) };
   await db
     .update(projects)
-    .set({
-      startDate: toDateOrNull(startDate),
-      dueDate: toDateOrNull(dueDate),
-      updatedAt: new Date(),
-    })
+    .set({ ...dates, updatedAt: new Date() })
     .where(eq(projects.id, projectId));
+  await logProjectActivity(ctx, existing, await fieldChanges(existing, dates));
 
   revalidatePath(`/dashboard/programs/${existing.programId}`);
   revalidatePath(`/dashboard/programs/${existing.programId}/gantt`);

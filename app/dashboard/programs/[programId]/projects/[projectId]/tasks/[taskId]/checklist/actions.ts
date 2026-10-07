@@ -9,6 +9,7 @@ import { checklistItems } from "@/db/schema";
 import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
+import { fieldChanges, logActivity } from "@/lib/activity";
 
 // Checklist items follow the same permission model as tasks — any org
 // member (not just admins) can create, edit, or delete them.
@@ -44,6 +45,21 @@ const itemPath = (programId: string, projectId: string, taskId: string, itemId: 
 const listPath = (programId: string, projectId: string) =>
   `/dashboard/programs/${programId}/projects/${projectId}/tasks`;
 
+/** Records a checklist item event in its task's (and so its project's and program's) history. */
+async function logItemActivity(
+  ctx: { user: { id: string }; org: { id: string } },
+  ids: { programId: string; projectId: string; taskId: string },
+  item: { id: string; title: string },
+  events: Parameters<typeof logActivity>[3],
+) {
+  await logActivity(
+    ctx.user.id,
+    { orgId: ctx.org.id, ...ids },
+    { type: "checklist_item", id: item.id, name: item.title },
+    events,
+  );
+}
+
 /** Quick-add: only a title is required — the rest is filled in from the item's own detail page. */
 export async function createChecklistItem(
   programId: string,
@@ -60,7 +76,8 @@ export async function createChecklistItem(
 
   const title = z.string().trim().min(1).max(500).parse(formData.get("title"));
 
-  await db.insert(checklistItems).values({ taskId, title });
+  const [item] = await db.insert(checklistItems).values({ taskId, title }).returning();
+  await logItemActivity(ctx, { programId, projectId, taskId }, item, [{ action: "created" }]);
 
   revalidatePath(taskPath(programId, projectId, taskId));
 }
@@ -85,19 +102,28 @@ export async function updateChecklistItem(
   const justCompleted = data.status === "completed" && existing.status !== "completed";
   const unCompleted = data.status !== "completed" && existing.status === "completed";
 
+  const tracked = {
+    title: data.title,
+    status: data.status,
+    priority: data.priority,
+    assigneeId,
+    dueDate: toDateOrNull(data.dueDate),
+  };
   await db
     .update(checklistItems)
     .set({
-      title: data.title,
+      ...tracked,
       description: data.description ?? null,
-      status: data.status,
-      priority: data.priority,
-      assigneeId,
-      dueDate: toDateOrNull(data.dueDate),
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       updatedAt: new Date(),
     })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(
+    ctx,
+    { programId, projectId, taskId },
+    { id: itemId, title: data.title },
+    await fieldChanges(existing, tracked),
+  );
 
   revalidatePath(taskPath(programId, projectId, taskId));
   revalidatePath(itemPath(programId, projectId, taskId, itemId));
@@ -119,14 +145,12 @@ export async function toggleChecklistItem(
     throw new Error("Checklist item not found");
   }
 
+  const status = checked ? "completed" : "not_started";
   await db
     .update(checklistItems)
-    .set({
-      status: checked ? "completed" : "not_started",
-      completedAt: checked ? new Date() : null,
-      updatedAt: new Date(),
-    })
+    .set({ status, completedAt: checked ? new Date() : null, updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(ctx, { programId, projectId, taskId }, existing, await fieldChanges(existing, { status }));
 
   revalidatePath(taskPath(programId, projectId, taskId));
   revalidatePath(itemPath(programId, projectId, taskId, itemId));
@@ -162,6 +186,12 @@ export async function updateChecklistItemStatus(
       updatedAt: new Date(),
     })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(
+    ctx,
+    { programId, projectId, taskId },
+    existing,
+    await fieldChanges(existing, { status: parsedStatus }),
+  );
 
   revalidatePath(listPath(programId, projectId));
 }
@@ -181,10 +211,17 @@ export async function updateChecklistItemPriority(
     throw new Error("Checklist item not found");
   }
 
+  const parsedPriority = priorityEnum.parse(priority);
   await db
     .update(checklistItems)
-    .set({ priority: priorityEnum.parse(priority), updatedAt: new Date() })
+    .set({ priority: parsedPriority, updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(
+    ctx,
+    { programId, projectId, taskId },
+    existing,
+    await fieldChanges(existing, { priority: parsedPriority }),
+  );
 
   revalidatePath(listPath(programId, projectId));
 }
@@ -204,10 +241,17 @@ export async function updateChecklistItemAssignee(
     throw new Error("Checklist item not found");
   }
 
+  const resolvedAssigneeId = await resolveOrgMemberId(assigneeId, ctx.org.id);
   await db
     .update(checklistItems)
-    .set({ assigneeId: await resolveOrgMemberId(assigneeId, ctx.org.id), updatedAt: new Date() })
+    .set({ assigneeId: resolvedAssigneeId, updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(
+    ctx,
+    { programId, projectId, taskId },
+    existing,
+    await fieldChanges(existing, { assigneeId: resolvedAssigneeId }),
+  );
 
   revalidatePath(listPath(programId, projectId));
 }
@@ -227,10 +271,17 @@ export async function updateChecklistItemDueDate(
     throw new Error("Checklist item not found");
   }
 
+  const parsedDueDate = toDateOrNull(dueDate);
   await db
     .update(checklistItems)
-    .set({ dueDate: toDateOrNull(dueDate), updatedAt: new Date() })
+    .set({ dueDate: parsedDueDate, updatedAt: new Date() })
     .where(eq(checklistItems.id, itemId));
+  await logItemActivity(
+    ctx,
+    { programId, projectId, taskId },
+    existing,
+    await fieldChanges(existing, { dueDate: parsedDueDate }),
+  );
 
   revalidatePath(listPath(programId, projectId));
 }
@@ -249,6 +300,7 @@ export async function deleteChecklistItem(
   }
 
   await db.delete(checklistItems).where(eq(checklistItems.id, itemId));
+  await logItemActivity(ctx, { programId, projectId, taskId }, existing, [{ action: "deleted" }]);
 
   // Redirects to the task (not just revalidates) because this same action
   // is used from the item's own detail page, which would otherwise 404 on

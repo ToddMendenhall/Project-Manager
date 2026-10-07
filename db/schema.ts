@@ -48,12 +48,20 @@ export const statusEnum = pgEnum("status", [
 export const priorityEnum = pgEnum("priority", ["low", "medium", "high", "urgent"]);
 export const fieldTypeEnum = pgEnum("field_type", ["text", "number", "date", "boolean", "select"]);
 export const customFieldEntityEnum = pgEnum("custom_field_entity", ["program", "project", "task"]);
-export const activityEntityEnum = pgEnum("activity_entity", ["program", "project", "task"]);
+export const activityEntityEnum = pgEnum("activity_entity", [
+  "program",
+  "project",
+  "task",
+  "checklist_item",
+  "whiteboard",
+]);
 export const activityActionEnum = pgEnum("activity_action", [
   "created",
   "updated",
   "deleted",
   "commented",
+  "linked",
+  "unlinked",
 ]);
 
 export const organizations = pgTable("organizations", {
@@ -358,6 +366,19 @@ export const attachments = pgTable(
   }),
 );
 
+/**
+ * History shown on Program, Project and Task pages (written by
+ * `logActivity`, lib/activity.ts). Each row is one event: created/deleted,
+ * one field's old → new change, a comment, or a whiteboard (un)linked.
+ *
+ * Rows outlive what they describe, so the history can still say "deleted
+ * task X": `entityName` and the old/new values are display snapshots (names,
+ * not ids), and `projectId`/`taskId` are deliberately plain uuids with no
+ * foreign key. They and `programId` say which pages' histories a row appears
+ * in (a Program's history rolls up its projects and tasks). Only `programId`
+ * cascades: once the program is gone, nothing shows its history. Rows older
+ * than `ACTIVITY_RETENTION_DAYS` are pruned.
+ */
 export const activityLog = pgTable(
   "activity_log",
   {
@@ -365,8 +386,14 @@ export const activityLog = pgTable(
     orgId: uuid("org_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    projectId: uuid("project_id"),
+    taskId: uuid("task_id"),
     entityType: activityEntityEnum("entity_type").notNull(),
     entityId: uuid("entity_id").notNull(),
+    entityName: varchar("entity_name", { length: 500 }).notNull().default(""),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
     action: activityActionEnum("action").notNull(),
     field: varchar("field", { length: 100 }),
@@ -375,10 +402,16 @@ export const activityLog = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    entityIdx: index("activity_log_entity_idx").on(table.entityType, table.entityId),
-    orgIdx: index("activity_log_org_idx").on(table.orgId),
+    orgCreatedIdx: index("activity_log_org_created_idx").on(table.orgId, table.createdAt),
+    programCreatedIdx: index("activity_log_program_created_idx").on(table.programId, table.createdAt),
+    projectCreatedIdx: index("activity_log_project_created_idx").on(table.projectId, table.createdAt),
+    taskCreatedIdx: index("activity_log_task_created_idx").on(table.taskId, table.createdAt),
   }),
 );
+
+export const activityLogRelations = relations(activityLog, ({ one }) => ({
+  actor: one(users, { fields: [activityLog.actorId], references: [users.id] }),
+}));
 
 /**
  * A free-form canvas (process maps, brainstorms) shared across the org.

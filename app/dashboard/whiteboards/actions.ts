@@ -24,6 +24,7 @@ import {
   type WhiteboardDoc,
 } from "@/lib/whiteboard";
 import { WHITEBOARD_TEMPLATES, WHITEBOARD_TEMPLATE_KEYS } from "@/lib/whiteboard-templates";
+import { logActivity, type ActivityAction } from "@/lib/activity";
 
 const nameSchema = z.string().trim().min(1, "Name is required").max(255);
 
@@ -45,18 +46,40 @@ const linkSchema = z
  */
 async function resolveLink(link: unknown, orgId: string) {
   const parsed = linkSchema.parse(link) ?? null;
-  if (!parsed) return { columns: { projectId: null, programId: null }, paths: [] };
+  if (!parsed) return { columns: { projectId: null, programId: null }, target: {}, paths: [] };
   if (parsed.kind === "project") {
     const project = await getProjectForOrg(parsed.id, orgId);
     if (!project) throw new Error("Project not found");
-    return {
-      columns: { projectId: project.id, programId: null },
-      paths: linkedPagePaths({ project: { id: project.id, programId: project.programId } }),
-    };
+    const target = { project: { id: project.id, programId: project.programId } };
+    return { columns: { projectId: project.id, programId: null }, target, paths: linkedPagePaths(target) };
   }
   const program = await getProgramForOrg(parsed.id, orgId);
   if (!program) throw new Error("Program not found");
-  return { columns: { projectId: null, programId: program.id }, paths: linkedPagePaths({ program }) };
+  return { columns: { projectId: null, programId: program.id }, target: { program }, paths: linkedPagePaths({ program }) };
+}
+
+type BoardLink = { project?: { id: string; programId: string } | null; program?: { id: string } | null };
+
+const linkKey = (link: BoardLink) => link.project?.id ?? link.program?.id ?? null;
+
+/**
+ * Records a board event in the history of the project or program it's
+ * linked to (and so that project's program). Unlinked boards have no
+ * history: nothing shows one.
+ */
+async function logBoardActivity(
+  ctx: { user: { id: string }; org: { id: string } },
+  board: { id: string; name: string },
+  link: BoardLink,
+  action: ActivityAction,
+) {
+  const scope = link.project
+    ? { orgId: ctx.org.id, programId: link.project.programId, projectId: link.project.id }
+    : link.program
+      ? { orgId: ctx.org.id, programId: link.program.id }
+      : null;
+  if (!scope) return;
+  await logActivity(ctx.user.id, scope, { type: "whiteboard", id: board.id, name: board.name }, [{ action }]);
 }
 
 /**
@@ -96,8 +119,9 @@ export async function createWhiteboard(templateKey: string = "blank", link?: Whi
       createdById: ctx.user.id,
       updatedById: ctx.user.id,
     })
-    .returning({ id: whiteboards.id });
+    .returning({ id: whiteboards.id, name: whiteboards.name });
 
+  await logBoardActivity(ctx, board, resolved.target, "created");
   revalidateWhiteboards();
   revalidateLinkedPages(resolved.paths);
   redirect(`/dashboard/whiteboards/${board.id}`);
@@ -122,6 +146,10 @@ export async function setWhiteboardLink(whiteboardId: string, link: WhiteboardLi
     .set({ ...resolved.columns, updatedAt: new Date(), updatedById: ctx.user.id })
     .where(eq(whiteboards.id, whiteboardId));
 
+  if (linkKey(existing) !== linkKey(resolved.target)) {
+    await logBoardActivity(ctx, existing, existing, "unlinked");
+    await logBoardActivity(ctx, existing, resolved.target, "linked");
+  }
   revalidateWhiteboards();
   revalidateLinkedPages(linkedPagePaths(existing), resolved.paths);
 }
@@ -199,6 +227,8 @@ export async function duplicateWhiteboard(whiteboardId: string) {
     return created;
   });
 
+  await logBoardActivity(ctx, { id: copy.id, name: `Copy of ${existing.name}`.slice(0, 255) }, existing, "created");
+
   revalidateWhiteboards();
   revalidateLinkedPages(linkedPagePaths(existing));
   redirect(`/dashboard/whiteboards/${copy.id}`);
@@ -217,6 +247,7 @@ export async function deleteWhiteboard(whiteboardId: string) {
   }
 
   await db.delete(whiteboards).where(eq(whiteboards.id, whiteboardId));
+  await logBoardActivity(ctx, existing, existing, "deleted");
 
   revalidateWhiteboards();
   revalidateLinkedPages(linkedPagePaths(existing));

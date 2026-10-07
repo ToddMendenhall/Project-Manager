@@ -5,6 +5,8 @@ import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getLinkedWhiteboards } from "@/lib/queries";
+import { getActivity } from "@/lib/activity";
+import { ActivityFeed } from "@/components/activity/activity-feed";
 import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
@@ -116,6 +118,8 @@ export default async function ProgramDetailPage({
         link={{ kind: "program", id: program.id }}
         linkName={program.name}
       />
+
+      <ActivityFeed {...await getActivity(ctx.org.id, { programId: program.id })} selfId={program.id} />
     </div>
   );
 }
