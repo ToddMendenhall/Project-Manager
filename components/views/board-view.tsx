@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { STATUS_OPTIONS, type StatusValue } from "@/lib/fields";
+import { SAVE_FAILED, showNotice } from "@/components/notice";
 
 // `card` is pre-rendered server-side JSX, not a render-prop function — a
 // Server Component page can pass rendered ReactNode into a Client
@@ -108,6 +109,7 @@ export function BoardView({
         setItems((prev) =>
           prev.map((i) => (i.id === droppedId ? { ...i, status: previousStatus, sortOrder: previousSortOrder } : i)),
         );
+        showNotice(SAVE_FAILED);
       }
     });
   }

@@ -10,6 +10,8 @@ import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getProgramForOrg, getProjectForOrg, getProjectForProgram, resolveOrgMemberId } from "@/lib/queries";
 import { fieldChanges, logActivity } from "@/lib/activity";
+import { formErrorState } from "@/lib/form-errors";
+import type { FormState } from "@/lib/form-state";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -49,65 +51,77 @@ async function logProjectActivity(
   );
 }
 
-export async function createProject(programId: string, formData: FormData) {
-  const ctx = await requireOrgContext();
+export async function createProject(programId: string, formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const program = await getProgramForOrg(programId, ctx.org.id);
-  if (!program) {
-    throw new Error("Program not found");
+    const program = await getProgramForOrg(programId, ctx.org.id);
+    if (!program) {
+      throw new Error("Program not found");
+    }
+
+    const data = parseProjectForm(formData);
+    const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
+
+    const [project] = await db
+      .insert(projects)
+      .values({
+        programId: program.id,
+        name: data.name,
+        description: data.description ?? null,
+        status: data.status,
+        priority: data.priority,
+        leadId,
+        startDate: toDateOrNull(data.startDate),
+        dueDate: toDateOrNull(data.dueDate),
+        sortOrder: Date.now(),
+      })
+      .returning();
+
+    await logProjectActivity(ctx, project, [{ action: "created" }]);
+    revalidatePath(`/dashboard/programs/${programId}`);
+    redirect(`/dashboard/programs/${programId}/projects/${project.id}`);
+  } catch (err) {
+    return formErrorState(err);
   }
+}
 
-  const data = parseProjectForm(formData);
-  const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
+export async function updateProject(programId: string, projectId: string, formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const [project] = await db
-    .insert(projects)
-    .values({
-      programId: program.id,
+    const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
+    if (!existing) {
+      throw new Error("Project not found");
+    }
+
+    const data = parseProjectForm(formData);
+    const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
+
+    const tracked = {
       name: data.name,
-      description: data.description ?? null,
       status: data.status,
       priority: data.priority,
       leadId,
       startDate: toDateOrNull(data.startDate),
       dueDate: toDateOrNull(data.dueDate),
-      sortOrder: Date.now(),
-    })
-    .returning();
+    };
+    await db
+      .update(projects)
+      .set({ ...tracked, description: data.description ?? null, updatedAt: new Date() })
+      .where(eq(projects.id, projectId));
+    await logProjectActivity(ctx, { ...existing, name: data.name }, await fieldChanges(existing, tracked));
 
-  await logProjectActivity(ctx, project, [{ action: "created" }]);
-  revalidatePath(`/dashboard/programs/${programId}`);
-  redirect(`/dashboard/programs/${programId}/projects/${project.id}`);
-}
-
-export async function updateProject(programId: string, projectId: string, formData: FormData) {
-  const ctx = await requireOrgContext();
-
-  const existing = await getProjectForProgram(projectId, programId, ctx.org.id);
-  if (!existing) {
-    throw new Error("Project not found");
+    revalidatePath(`/dashboard/programs/${programId}`);
+    revalidatePath(`/dashboard/programs/${programId}/projects/${projectId}`);
+    redirect(`/dashboard/programs/${programId}/projects/${projectId}`);
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parseProjectForm(formData);
-  const leadId = await resolveOrgMemberId(data.leadId, ctx.org.id);
-
-  const tracked = {
-    name: data.name,
-    status: data.status,
-    priority: data.priority,
-    leadId,
-    startDate: toDateOrNull(data.startDate),
-    dueDate: toDateOrNull(data.dueDate),
-  };
-  await db
-    .update(projects)
-    .set({ ...tracked, description: data.description ?? null, updatedAt: new Date() })
-    .where(eq(projects.id, projectId));
-  await logProjectActivity(ctx, { ...existing, name: data.name }, await fieldChanges(existing, tracked));
-
-  revalidatePath(`/dashboard/programs/${programId}`);
-  revalidatePath(`/dashboard/programs/${programId}/projects/${projectId}`);
-  redirect(`/dashboard/programs/${programId}/projects/${projectId}`);
 }
 
 export async function deleteProject(programId: string, projectId: string) {

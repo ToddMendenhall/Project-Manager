@@ -8,6 +8,8 @@ import { WHITEBOARD_TEMPLATES, WHITEBOARD_TEMPLATE_KEYS, type WhiteboardTemplate
 import { whiteboardPreview } from "@/lib/whiteboard";
 import type { WhiteboardLink } from "@/lib/whiteboard-links";
 import { WhiteboardPreview } from "./whiteboard-preview";
+import { unstable_rethrow } from "next/navigation";
+import { showNotice } from "@/components/notice";
 
 // Templates are static, so their previews are computed once per page load.
 const PREVIEWS = Object.fromEntries(
@@ -49,6 +51,9 @@ export function NewWhiteboardButton({
     startTransition(async () => {
       try {
         await createWhiteboard(key, link ?? null);
+      } catch (err) {
+        unstable_rethrow(err); // success ends in redirect() to the new board
+        showNotice("Couldn't create the whiteboard. Try again.");
       } finally {
         setPending(null);
       }

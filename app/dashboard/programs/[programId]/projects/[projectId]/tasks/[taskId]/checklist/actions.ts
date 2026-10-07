@@ -10,6 +10,8 @@ import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
 import { fieldChanges, logActivity } from "@/lib/activity";
+import { formErrorState } from "@/lib/form-errors";
+import type { FormState } from "@/lib/form-state";
 
 // Checklist items follow the same permission model as tasks — any org
 // member (not just admins) can create, edit, or delete them.
@@ -88,46 +90,52 @@ export async function updateChecklistItem(
   taskId: string,
   itemId: string,
   formData: FormData,
-) {
-  const ctx = await requireOrgContext();
+): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
-  if (!existing) {
-    throw new Error("Checklist item not found");
+    const existing = await getChecklistItemForTask(itemId, taskId, projectId, programId, ctx.org.id);
+    if (!existing) {
+      throw new Error("Checklist item not found");
+    }
+
+    const data = parseChecklistItemForm(formData);
+    const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
+
+    const justCompleted = data.status === "completed" && existing.status !== "completed";
+    const unCompleted = data.status !== "completed" && existing.status === "completed";
+
+    const tracked = {
+      title: data.title,
+      status: data.status,
+      priority: data.priority,
+      assigneeId,
+      dueDate: toDateOrNull(data.dueDate),
+    };
+    await db
+      .update(checklistItems)
+      .set({
+        ...tracked,
+        description: data.description ?? null,
+        completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(checklistItems.id, itemId));
+    await logItemActivity(
+      ctx,
+      { programId, projectId, taskId },
+      { id: itemId, title: data.title },
+      await fieldChanges(existing, tracked),
+    );
+
+    revalidatePath(taskPath(programId, projectId, taskId));
+    revalidatePath(itemPath(programId, projectId, taskId, itemId));
+    redirect(itemPath(programId, projectId, taskId, itemId));
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parseChecklistItemForm(formData);
-  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
-
-  const justCompleted = data.status === "completed" && existing.status !== "completed";
-  const unCompleted = data.status !== "completed" && existing.status === "completed";
-
-  const tracked = {
-    title: data.title,
-    status: data.status,
-    priority: data.priority,
-    assigneeId,
-    dueDate: toDateOrNull(data.dueDate),
-  };
-  await db
-    .update(checklistItems)
-    .set({
-      ...tracked,
-      description: data.description ?? null,
-      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
-      updatedAt: new Date(),
-    })
-    .where(eq(checklistItems.id, itemId));
-  await logItemActivity(
-    ctx,
-    { programId, projectId, taskId },
-    { id: itemId, title: data.title },
-    await fieldChanges(existing, tracked),
-  );
-
-  revalidatePath(taskPath(programId, projectId, taskId));
-  revalidatePath(itemPath(programId, projectId, taskId, itemId));
-  redirect(itemPath(programId, projectId, taskId, itemId));
 }
 
 /** Lightweight status-only update, used by the checklist checkbox. */

@@ -3,6 +3,7 @@
 import { useRef, useTransition } from "react";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { buttonPrimary } from "@/components/form-controls";
+import { showNotice } from "@/components/notice";
 
 type CommentWithAuthor = {
   id: string;
@@ -44,8 +45,13 @@ export function CommentSection({
       // The action revalidates this page, and that already sends the fresh
       // render back with its response; a router.refresh() here would render
       // (and query) the whole page a second time.
-      await createAction(formData);
-      formRef.current?.reset();
+      try {
+        await createAction(formData);
+        formRef.current?.reset();
+      } catch {
+        // The comment stays in the box so it can be retried.
+        showNotice("Couldn't post your comment. Try again.");
+      }
     });
   }
 

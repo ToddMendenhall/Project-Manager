@@ -10,6 +10,8 @@ import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getPortfolioForOrg, getProgramForOrg, resolveOrgMemberId } from "@/lib/queries";
 import { fieldChanges, logActivity } from "@/lib/activity";
+import { formErrorState } from "@/lib/form-errors";
+import type { FormState } from "@/lib/form-state";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -59,67 +61,79 @@ async function resolvePortfolioId(portfolioId: string | undefined, orgId: string
   return portfolio ? portfolio.id : null;
 }
 
-export async function createProgram(formData: FormData) {
-  const ctx = await requireOrgContext();
+export async function createProgram(formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const data = parseProgramForm(formData);
-  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
-  const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
+    const data = parseProgramForm(formData);
+    const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
+    const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
 
-  const [program] = await db
-    .insert(programs)
-    .values({
-      orgId: ctx.org.id,
-      portfolioId,
+    const [program] = await db
+      .insert(programs)
+      .values({
+        orgId: ctx.org.id,
+        portfolioId,
+        name: data.name,
+        description: data.description ?? null,
+        status: data.status,
+        ownerId,
+        startDate: toDateOrNull(data.startDate),
+        targetEndDate: toDateOrNull(data.targetEndDate),
+        sortOrder: Date.now(),
+      })
+      .returning();
+
+    await logProgramActivity(ctx, program, [{ action: "created" }]);
+    revalidatePath("/dashboard/programs");
+    revalidatePath("/dashboard/portfolios");
+    redirect(`/dashboard/programs/${program.id}`);
+  } catch (err) {
+    return formErrorState(err);
+  }
+}
+
+export async function updateProgram(programId: string, formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
+
+    const existing = await getProgramForOrg(programId, ctx.org.id);
+    if (!existing) {
+      throw new Error("Program not found");
+    }
+
+    const data = parseProgramForm(formData);
+    const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
+    const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
+
+    const tracked = {
       name: data.name,
-      description: data.description ?? null,
       status: data.status,
       ownerId,
       startDate: toDateOrNull(data.startDate),
       targetEndDate: toDateOrNull(data.targetEndDate),
-      sortOrder: Date.now(),
-    })
-    .returning();
+    };
+    await db
+      .update(programs)
+      .set({ ...tracked, portfolioId, description: data.description ?? null, updatedAt: new Date() })
+      .where(eq(programs.id, programId));
+    await logProgramActivity(ctx, { id: programId, name: data.name }, await fieldChanges(existing, tracked));
 
-  await logProgramActivity(ctx, program, [{ action: "created" }]);
-  revalidatePath("/dashboard/programs");
-  revalidatePath("/dashboard/portfolios");
-  redirect(`/dashboard/programs/${program.id}`);
-}
-
-export async function updateProgram(programId: string, formData: FormData) {
-  const ctx = await requireOrgContext();
-
-  const existing = await getProgramForOrg(programId, ctx.org.id);
-  if (!existing) {
-    throw new Error("Program not found");
+    revalidatePath("/dashboard/programs");
+    revalidatePath(`/dashboard/programs/${programId}`);
+    revalidatePath("/dashboard/portfolios");
+    if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
+    if (portfolioId && portfolioId !== existing.portfolioId) {
+      revalidatePath(`/dashboard/portfolios/${portfolioId}`);
+    }
+    redirect(`/dashboard/programs/${programId}`);
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parseProgramForm(formData);
-  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
-  const portfolioId = await resolvePortfolioId(data.portfolioId, ctx.org.id);
-
-  const tracked = {
-    name: data.name,
-    status: data.status,
-    ownerId,
-    startDate: toDateOrNull(data.startDate),
-    targetEndDate: toDateOrNull(data.targetEndDate),
-  };
-  await db
-    .update(programs)
-    .set({ ...tracked, portfolioId, description: data.description ?? null, updatedAt: new Date() })
-    .where(eq(programs.id, programId));
-  await logProgramActivity(ctx, { id: programId, name: data.name }, await fieldChanges(existing, tracked));
-
-  revalidatePath("/dashboard/programs");
-  revalidatePath(`/dashboard/programs/${programId}`);
-  revalidatePath("/dashboard/portfolios");
-  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}`);
-  if (portfolioId && portfolioId !== existing.portfolioId) {
-    revalidatePath(`/dashboard/portfolios/${portfolioId}`);
-  }
-  redirect(`/dashboard/programs/${programId}`);
 }
 
 export async function deleteProgram(programId: string) {
