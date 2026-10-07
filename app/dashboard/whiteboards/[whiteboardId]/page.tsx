@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
-import { getWhiteboardForOrg } from "@/lib/queries";
+import { getOrgLinkTargets, getWhiteboardForOrg } from "@/lib/queries";
+import { whiteboardLinkInfo } from "@/lib/whiteboard-links";
 import { canDeleteWhiteboard, parseStoredWhiteboardDoc } from "@/lib/whiteboard";
 import { WhiteboardEditor } from "@/components/whiteboards/editor/whiteboard-editor";
 import { deleteWhiteboard } from "../actions";
@@ -9,7 +10,10 @@ export default async function WhiteboardPage({ params }: { params: Promise<{ whi
   const { whiteboardId } = await params;
   const ctx = await requireOrgContext();
 
-  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id, { withData: true });
+  const [board, linkTargets] = await Promise.all([
+    getWhiteboardForOrg(whiteboardId, ctx.org.id, { withData: true }),
+    getOrgLinkTargets(ctx.org.id),
+  ]);
   if (!board) {
     notFound();
   }
@@ -23,6 +27,8 @@ export default async function WhiteboardPage({ params }: { params: Promise<{ whi
       initialDoc={parseStoredWhiteboardDoc(board.data)}
       initialVersion={board.version}
       hasThumbnail={board.thumbnailUpdatedAt !== null}
+      link={whiteboardLinkInfo(board)}
+      linkTargets={linkTargets}
       onDelete={canDeleteWhiteboard(board, ctx) ? deleteWhiteboard.bind(null, board.id) : undefined}
     />
   );

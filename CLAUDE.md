@@ -377,7 +377,20 @@ and undoes `main`'s padding so the canvas runs edge to edge.
 - **Scoping:** `getWhiteboardForOrg` / `getOrgWhiteboards` only load `data`
   when passed `{ withData: true }`. `getOrgWhiteboards` gets `itemCount`
   from SQL, so the list page never loads canvases.
-- **Planned:** a later phase adds an optional Project/Program link.
+- **Project/Program link:** a board can link to one Project *or* one Program
+  (`whiteboards.projectId` / `programId`, nullable, with a check that at
+  most one is set; deleting the project/program sets it null). It's context
+  only: nothing on the canvas references tasks.
+  - `WhiteboardLinkPicker` in the board header changes it, and
+    `setWhiteboardLink` validates the target belongs to the org. The picker
+    sends whatever was selected and relies on that server check.
+  - `LinkedWhiteboards` lists linked boards on the Project page, and on the
+    Program page together with its projects' boards. Its "New whiteboard"
+    creates a board already linked there (`createWhiteboard(key, link)`).
+  - Actions that change a board's name, link or existence revalidate those
+    pages (`linkedPagePaths`). A project link also refreshes its program's page.
+  - `lib/whiteboard-links.ts` holds the client-safe link types and the
+    `whiteboardLinkInfo` display helper.
 
 Portfolio/Program don't have a distinct "Overview" tab the way Project does
 (the tab set there is `["list", "board", "calendar", "gantt"]`, with `list`

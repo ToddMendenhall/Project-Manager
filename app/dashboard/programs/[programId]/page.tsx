@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
+import { getLinkedWhiteboards } from "@/lib/queries";
+import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
@@ -26,7 +28,8 @@ export default async function ProgramDetailPage({
       portfolio: true,
       projects: {
         orderBy: (project, { desc }) => [desc(project.createdAt)],
-        with: { lead: { columns: { id: true, name: true } }, tasks: true },
+        // Task ids only: the list just shows a count per project.
+        with: { lead: { columns: { id: true, name: true } }, tasks: { columns: { id: true } } },
       },
     },
   });
@@ -107,6 +110,12 @@ export default async function ProgramDetailPage({
           </ul>
         )}
       </div>
+
+      <LinkedWhiteboards
+        boards={await getLinkedWhiteboards(ctx.org.id, { programId: program.id, includeProjects: true })}
+        link={{ kind: "program", id: program.id }}
+        linkName={program.name}
+      />
     </div>
   );
 }
