@@ -329,9 +329,7 @@ page, not the component):
   `summary={{ title, href }}`, which pins a row for that program/project
   above its children. Its summary bar always spans every date beneath it,
   regardless of its own planned dates, and its label is just the name. The
-  dates live in the page header: those Gantt pages show the item's own
-  Start/End, filling either missing one from its children's span
-  (`headerDates` in `lib/gantt-tree.ts`). This is why `tasks` has a `startDate` column even
+  dates live in the page header (see "Item headers" below). This is why `tasks` has a `startDate` column even
   though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.
@@ -354,6 +352,23 @@ page, not the component):
   header rows, so bar/dot/drag math stays in days and only multiplies by
   the current `dayWidth`. The chosen level persists in `localStorage`, and
   the date at the viewport's center is kept centered across zoom changes.
+
+### Item headers
+
+Every Portfolio, Program and Project page, on every tab (Overview/List,
+Board, Calendar, Gantt, Reports), and the Task page show the same three
+header fields from `itemHeaderMeta(level, id)` (`lib/item-header.ts`):
+Owner (Portfolio/Program), Lead (Project) or Assignee (Task); Start; and
+Target end (Portfolio/Program) or Due (Project/Task).
+
+- Dates are the item's own where set. A missing one is filled from the
+  min/max of every date beneath it (programs, projects, tasks, checklist
+  items), computed in one SQL query per header rather than by loading the
+  tree.
+- A field with nothing to show stays, with a blank value, so headers line
+  up across items. `ItemHeader` renders a non-breaking space for it.
+- Don't build header meta by hand in a page. Call the helper, so every tab
+  stays consistent.
 
 ### Whiteboards
 

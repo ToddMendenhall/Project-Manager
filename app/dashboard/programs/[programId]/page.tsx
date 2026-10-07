@@ -11,7 +11,8 @@ import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProgram } from "../actions";
 
@@ -38,11 +39,7 @@ export default async function ProgramDetailPage({
 
   if (!program) notFound();
 
-  const meta: ItemHeaderMeta[] = [];
-  if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
-  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
-  if (program.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("program", program.id);
 
   return (
     <div className="flex flex-col gap-8">

@@ -5,11 +5,12 @@ import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { headerDates, projectNode } from "@/lib/gantt-tree";
+import { projectNode } from "@/lib/gantt-tree";
 import { updateProjectDates } from "../projects/actions";
 import { updateTaskDates } from "../projects/[projectId]/tasks/actions";
 
@@ -39,11 +40,7 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
 
   const basePath = `/dashboard/programs/${programId}`;
   const items = program.projects.map((p) => projectNode(p, basePath));
-  const dates = headerDates({ start: program.startDate, end: program.targetEndDate }, items);
-  const meta: ItemHeaderMeta[] = [];
-  if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
-  if (dates.start) meta.push({ label: "Start", value: dates.start.toLocaleDateString() });
-  if (dates.end) meta.push({ label: "Target end", value: dates.end.toLocaleDateString() });
+  const meta = await itemHeaderMeta("program", program.id);
 
   return (
     <div className="flex flex-col gap-6">

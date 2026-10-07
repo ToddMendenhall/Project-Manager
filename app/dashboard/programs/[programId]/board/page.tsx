@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
@@ -29,11 +30,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
   if (!program) notFound();
 
   const basePath = `/dashboard/programs/${programId}`;
-  const meta: ItemHeaderMeta[] = [];
-  if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
-  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
-  if (program.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("program", program.id);
 
   return (
     <div className="flex flex-col gap-6">

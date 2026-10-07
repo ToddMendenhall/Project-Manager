@@ -38,7 +38,8 @@ export function ItemHeader({
                   <dd
                     className={`mt-[3px] text-[13px] font-medium text-cy-gray-700 ${m.mono ? "font-mono tabular-nums" : ""}`}
                   >
-                    {m.value}
+                    {/* A blank field (no owner, no date) keeps the row's height. */}
+                    {m.value || "\u00a0"}
                   </dd>
                 </div>
               ))}
