@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { ACTIVITY_RETENTION_DAYS, type ActivityEntry } from "@/lib/activity";
 import { priorityLabel, statusLabel } from "@/lib/fields";
@@ -43,6 +44,16 @@ const Strong = ({ children }: { children: ReactNode }) => (
   <span className="font-medium text-cy-gray-900">{children}</span>
 );
 
+/** The subject's name: a link while it still exists, plain text once deleted. */
+function Name({ entry, children }: { entry: ActivityEntry; children: ReactNode }) {
+  if (!entry.href) return <Strong>{children}</Strong>;
+  return (
+    <Link href={entry.href} className="font-medium text-cy-blue-700 hover:underline">
+      {children}
+    </Link>
+  );
+}
+
 /** The sentence after the actor's name, e.g. `changed status of task "Spec" from To Do to Done`. */
 function describe(entry: ActivityEntry, isSelf: boolean): ReactNode {
   const type = TYPE_LABELS[entry.entityType];
@@ -51,7 +62,7 @@ function describe(entry: ActivityEntry, isSelf: boolean): ReactNode {
     <>this {type}</>
   ) : (
     <>
-      {type} <Strong>{entry.entityName}</Strong>
+      {type} <Name entry={entry}>{entry.entityName}</Name>
     </>
   );
   const of = isSelf ? null : <> of {subject}</>;
@@ -73,7 +84,8 @@ function describe(entry: ActivityEntry, isSelf: boolean): ReactNode {
       if (entry.field === "name") {
         return (
           <>
-            renamed {type} <Strong>{oldValue}</Strong> to <Strong>{newValue}</Strong>
+            renamed {type} <Strong>{oldValue}</Strong> to{" "}
+            {isSelf ? <Strong>{newValue}</Strong> : <Name entry={entry}>{newValue}</Name>}
           </>
         );
       }
