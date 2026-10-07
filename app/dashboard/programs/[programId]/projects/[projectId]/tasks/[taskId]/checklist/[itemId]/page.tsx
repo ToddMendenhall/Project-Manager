@@ -52,6 +52,8 @@ export default async function ChecklistItemDetailPage({
         orderBy: (comment, { asc }) => [asc(comment.createdAt)],
       },
       attachments: {
+        // Never the file bytes (up to 4MB each): the list only shows names and sizes.
+        columns: { data: false },
         with: { uploadedBy: { columns: { id: true, name: true } } },
         orderBy: (attachment, { desc }) => [desc(attachment.createdAt)],
       },

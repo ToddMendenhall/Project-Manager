@@ -95,6 +95,18 @@ Likewise, relational loads of a user (`owner`, `lead`, `assignee`) select
 the password hash). Per-user lists (`getAssignedTasks`) filter in SQL
 rather than loading the org and filtering in JS.
 
+The same goes for other pages:
+- Load only the columns a page shows. Attachment lists use
+  `columns: { data: false }`, never the bytes.
+- The Gantt pages pass `GANTT_TASK_COLUMNS` / `GANTT_CHECKLIST_COLUMNS`.
+- Reports and Resources use `getFlatTasks`, one joined select.
+- The dashboard home counts in SQL.
+- Run a page's independent queries with `Promise.all`.
+- Drizzle gotcha: in a relational query *without* `with`, `${table.col}`
+  inside a raw `sql` subquery renders as a bare column name. So
+  `projects.program_id = ${programs.id}` silently compares against
+  `projects.id`. Write the qualified name (`programs.id`) out in the SQL.
+
 The sidebar is user-resizable (`ResizableSidebar`): drag its right edge,
 double-click the edge to fit the widest truncated label, or focus it and use
 ←/→/Home. The width is clamped (`lib/sidebar.ts`) and saved in the
@@ -165,9 +177,19 @@ same tree (not just nested forms — any two on the page). This is why:
   not a form action.
 - `CommentSection`'s add-comment form and `ChecklistWidget`'s quick-add
   submit via a manual `onSubmit` handler (`FormData` built by hand, action
-  called directly, `router.refresh()` after) rather than `action={...}`,
-  specifically because the checklist item detail page already has one
-  native form (the item's own inline edit form).
+  called directly) rather than `action={...}`, specifically because the
+  checklist item detail page already has one native form (the item's own
+  inline edit form).
+
+**Don't call `router.refresh()` after an action that revalidates.** In a
+server action, `revalidatePath` already sends a fresh render of the current
+page back with the response. Refreshing as well renders, and queries, the
+whole page a second time. Measured on the task page, that cut adding a comment
+from 29 queries to 17. Keep `router.refresh()` only after things that aren't
+server actions, such as `AttachmentUploadForm`'s `fetch`. The reverse also
+holds: an action whose caller already shows the result (Gantt date drags,
+whiteboard autosave) shouldn't revalidate at all, since every dashboard page
+is dynamic and is fresh on the next visit anyway.
 - Sign-out is a client-side `signOut()` call (`SignOutButton`), never a
   form action, since the dashboard layout wraps every page.
 
@@ -202,7 +224,9 @@ in `db/schema.ts`), capped at `MAX_ATTACHMENT_SIZE_BYTES` (4MB,
 deliberate simplification so the app needs no object-storage account; a
 later phase can swap this for S3 / Vercel Blob without changing anything
 else about the `attachments` table. Attachment rows are never updated
-after upload, so `/api/attachments/[id]` serves them with
+after upload, so `/api/attachments/[id]` (the only caller of
+`getAttachmentForOrg(id, orgId, { withData: true })`, which reads the bytes
+only after the org check passes) serves them with
 `Cache-Control: private, max-age=31536000, immutable`. Keep it that way:
 if an attachment's bytes could ever change, that header must change too. Uploads go through a route handler
 (`app/api/.../attachments/route.ts`) called via client-side `fetch`
@@ -446,10 +470,16 @@ and undoes `main`'s padding so the canvas runs edge to edge.
     "Load their version" or "Overwrite with mine".
   - Open editors also poll `getWhiteboardVersion` to notice others' saves:
     every 15s while someone is interacting, every 2 min after 3 idle
-    minutes, never while the tab is hidden, and once immediately on return.
-    Each check is a function invocation plus a query, and a fast poll on an
-    untouched board would keep a scale-to-zero database (Neon) awake
-    indefinitely, so keep it backed off.
+    minutes, not at all after 10 idle minutes or while the tab is hidden,
+    and once immediately on return. Each check is a function invocation
+    plus a query. Neon suspends after 5 idle minutes, so any steady check on
+    an untouched board would keep it awake indefinitely; keep it backed
+    off. Autosave and the poll use the one-row `getWhiteboardVersionForOrg`,
+    not the relational `getWhiteboardForOrg`.
+  - The list panel beside every whiteboard page uses
+    `getWhiteboardListItems`, which never touches `data`. Even a count over
+    the canvas (`itemCount`) makes Postgres read every board's whole
+    document, so only the index page pays for that.
   - There is no real-time co-editing or live cursors. Vercel serverless
     can't hold websockets, so that would need an external service.
   - The history/save baseline is computed with the same `serialize()` as

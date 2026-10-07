@@ -91,14 +91,17 @@ const AUTOSAVE_DELAY_MS = 1200;
 const SAVE_RETRY_MS = 5000;
 /**
  * Checking for other people's saves: every 15s while someone is using the
- * board, every 2 min once nobody has touched it for 3 min, never while the
- * tab is hidden. Each check is a function call plus a database query, and
- * a fast check on an untouched board would keep a scale-to-zero database
- * (Neon) awake for as long as the tab is left open.
+ * board, every 2 min once nobody has touched it for 3 min, and not at all
+ * after 10 idle minutes or while the tab is hidden (with a catch-up check
+ * as soon as someone comes back). Each check is a function call plus a
+ * database query, and any steady check on an untouched board would keep a
+ * scale-to-zero database (Neon, which suspends after 5 idle minutes) awake
+ * for as long as the tab is left open.
  */
 const VERSION_POLL_ACTIVE_MS = 15_000;
 const VERSION_POLL_IDLE_MS = 120_000;
 const IDLE_AFTER_MS = 180_000;
+const DORMANT_AFTER_MS = 600_000;
 const HISTORY_LIMIT = 100;
 const PASTE_OFFSET = 24;
 /** Screen pixels within which a dragged node snaps to another node's edge or center. */
@@ -350,12 +353,17 @@ function Editor({
     };
 
     const timer = setInterval(() => {
-      const idle = Date.now() - lastActivity > IDLE_AFTER_MS;
-      if (Date.now() - lastCheck >= (idle ? VERSION_POLL_IDLE_MS : VERSION_POLL_ACTIVE_MS)) void check();
+      const idleFor = Date.now() - lastActivity;
+      if (idleFor > DORMANT_AFTER_MS) return;
+      const interval = idleFor > IDLE_AFTER_MS ? VERSION_POLL_IDLE_MS : VERSION_POLL_ACTIVE_MS;
+      if (Date.now() - lastCheck >= interval) void check();
     }, VERSION_POLL_ACTIVE_MS);
 
     const onActivity = () => {
+      const wasDormant = Date.now() - lastActivity > DORMANT_AFTER_MS;
       lastActivity = Date.now();
+      // Back after a long idle: catch up now instead of waiting a full interval.
+      if (wasDormant) void check();
     };
     // Coming back to the tab: catch up right away rather than waiting out an idle interval.
     const onVisible = () => {

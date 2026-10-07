@@ -294,13 +294,10 @@ export async function updateTaskDates(taskId: string, startDate: string, dueDate
     .set({ ...dates, updatedAt: new Date() })
     .where(eq(tasks.id, taskId));
   await logTaskActivity(ctx, existing, existing.programId, await fieldChanges(existing, dates));
-
-  const projectPath = basePath(existing.programId, existing.projectId);
-  revalidatePath(`${projectPath}/gantt`);
-  revalidatePath(`${projectPath}/tasks/${taskId}`);
-  revalidatePath(`/dashboard/programs/${existing.programId}/gantt`);
-  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
-  revalidatePath("/dashboard/portfolios/gantt");
+  // No revalidatePath: the Gantt already shows the new dates, and in a
+  // server action revalidating re-renders the open page, re-running its whole
+  // tree query on every drag. Every page is dynamic, so others are fresh on
+  // the next visit.
 }
 
 export async function deleteTask(programId: string, projectId: string, taskId: string) {

@@ -144,8 +144,8 @@ export async function updatePortfolioDates(portfolioId: string, startDate: strin
       updatedAt: new Date(),
     })
     .where(eq(portfolios.id, portfolioId));
-
-  revalidatePath(`/dashboard/portfolios/${portfolioId}`);
-  revalidatePath(`/dashboard/portfolios/${portfolioId}/gantt`);
-  revalidatePath("/dashboard/portfolios/gantt");
+  // No revalidatePath: the Gantt already shows the new dates, and in a
+  // server action revalidating re-renders the open page, re-running its whole
+  // tree query on every drag. Every page is dynamic, so others are fresh on
+  // the next visit.
 }

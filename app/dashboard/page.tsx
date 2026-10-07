@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { portfolios, programs } from "@/db/schema";
+import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { StatusBadge } from "@/components/status-badge";
 import { StatCard } from "@/components/stat-card";
@@ -9,35 +9,44 @@ import { StatCard } from "@/components/stat-card";
 export default async function DashboardPage() {
   const ctx = await requireOrgContext();
 
-  const [orgPortfolioCount, orgPrograms] = await Promise.all([
-    db.$count(portfolios, eq(portfolios.orgId, ctx.org.id)),
+  // Counts are computed in SQL, and only the 5 recent programs are loaded,
+  // never task rows: this is the page everyone lands on after signing in.
+  const [countRows, recentPrograms] = await Promise.all([
+    db.execute<{ portfolios: number; programs: number; projects: number; tasks: number }>(sql`
+      select
+        (select count(*)::int from portfolios where portfolios.org_id = ${ctx.org.id}) as portfolios,
+        (select count(*)::int from programs where programs.org_id = ${ctx.org.id}) as programs,
+        (select count(*)::int from projects
+          join programs on programs.id = projects.program_id
+          where programs.org_id = ${ctx.org.id}) as projects,
+        (select count(*)::int from tasks
+          join projects on projects.id = tasks.project_id
+          join programs on programs.id = projects.program_id
+          where programs.org_id = ${ctx.org.id}) as tasks`),
     db.query.programs.findMany({
       where: eq(programs.orgId, ctx.org.id),
-      with: {
-        projects: {
-          with: {
-            tasks: true,
-          },
-        },
+      columns: { id: true, name: true, description: true, status: true },
+      extras: {
+        // Written out as programs.id: in a relational query without `with`,
+        // Drizzle renders ${programs.id} as a bare "id", which inside this
+        // subquery would mean projects.id.
+        projectCount: sql<number>`(select count(*)::int from projects where projects.program_id = programs.id)`.as(
+          "project_count",
+        ),
       },
       orderBy: (program, { desc }) => [desc(program.createdAt)],
+      limit: 5,
     }),
   ]);
-
-  const totalProjects = orgPrograms.reduce((sum, p) => sum + p.projects.length, 0);
-  const totalTasks = orgPrograms.reduce(
-    (sum, p) => sum + p.projects.reduce((s, proj) => s + proj.tasks.length, 0),
-    0,
-  );
-  const recentPrograms = orgPrograms.slice(0, 5);
+  const counts = Array.from(countRows)[0];
 
   return (
     <div className="flex flex-col gap-8">
       <div className="grid grid-cols-4 gap-4">
-        <StatCard label="Portfolios" value={orgPortfolioCount} />
-        <StatCard label="Programs" value={orgPrograms.length} />
-        <StatCard label="Projects" value={totalProjects} />
-        <StatCard label="Tasks" value={totalTasks} />
+        <StatCard label="Portfolios" value={counts.portfolios} />
+        <StatCard label="Programs" value={counts.programs} />
+        <StatCard label="Projects" value={counts.projects} />
+        <StatCard label="Tasks" value={counts.tasks} />
       </div>
 
       <div>
@@ -71,7 +80,7 @@ export default async function DashboardPage() {
                     <p className="mt-1 text-sm text-cy-gray-500">{program.description}</p>
                   )}
                   <p className="mt-2 font-mono text-xs text-cy-gray-400">
-                    {program.projects.length} project{program.projects.length === 1 ? "" : "s"}
+                    {program.projectCount} project{program.projectCount === 1 ? "" : "s"}
                   </p>
                 </Link>
               </li>

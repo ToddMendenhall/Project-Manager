@@ -178,9 +178,8 @@ export async function updateProgramDates(programId: string, startDate: string, t
     .set({ ...dates, updatedAt: new Date() })
     .where(eq(programs.id, programId));
   await logProgramActivity(ctx, existing, await fieldChanges(existing, dates));
-
-  revalidatePath(`/dashboard/programs/${programId}`);
-  revalidatePath(`/dashboard/programs/${programId}/gantt`);
-  if (existing.portfolioId) revalidatePath(`/dashboard/portfolios/${existing.portfolioId}/gantt`);
-  revalidatePath("/dashboard/portfolios/gantt");
+  // No revalidatePath: the Gantt already shows the new dates, and in a
+  // server action revalidating re-renders the open page, re-running its whole
+  // tree query on every drag. Every page is dynamic, so others are fresh on
+  // the next visit.
 }

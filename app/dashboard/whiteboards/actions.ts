@@ -12,6 +12,7 @@ import {
   getProjectForOrg,
   getWhiteboardComments,
   getWhiteboardForOrg,
+  getWhiteboardVersionForOrg,
   type WhiteboardComment,
 } from "@/lib/queries";
 import type { WhiteboardLink } from "@/lib/whiteboard-links";
@@ -274,7 +275,9 @@ export async function saveWhiteboard(
 ): Promise<SaveWhiteboardResult> {
   const ctx = await requireOrgContext();
 
-  const existing = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  // Autosave runs often: check the board with a one-row lookup, not the
+  // relational load (creator, editor, link targets) other actions use.
+  const existing = await getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
   if (!existing) {
     throw new Error("Whiteboard not found");
   }
@@ -306,16 +309,11 @@ export async function saveWhiteboard(
     .returning({ version: whiteboards.version });
 
   if (!updated) {
-    const current = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+    const current = await getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
     if (!current) {
       throw new Error("Whiteboard not found");
     }
-    return {
-      ok: false,
-      reason: "conflict",
-      version: current.version,
-      updatedByName: current.updatedBy?.name ?? null,
-    };
+    return { ok: false, reason: "conflict", version: current.version, updatedByName: current.updatedByName };
   }
 
   // No revalidatePath here: in a server action it makes the response carry a
@@ -330,12 +328,7 @@ export async function saveWhiteboard(
 /** Polled by an open editor to notice someone else's save. */
 export async function getWhiteboardVersion(whiteboardId: string) {
   const ctx = await requireOrgContext();
-
-  const existing = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
-  if (!existing) {
-    return null;
-  }
-  return { version: existing.version, updatedByName: existing.updatedBy?.name ?? null };
+  return getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
 }
 
 const commentSchema = z.object({
@@ -352,30 +345,30 @@ const commentSchema = z.object({
 /** The board's comments, re-read when the panel opens so it picks up others' posts. */
 export async function listWhiteboardComments(whiteboardId: string): Promise<WhiteboardComment[]> {
   const ctx = await requireOrgContext();
-  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  const board = await getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
   if (!board) {
     throw new Error("Whiteboard not found");
   }
-  return getWhiteboardComments(board.id);
+  return getWhiteboardComments(whiteboardId);
 }
 
 /** Any member can comment. Returns the updated list. */
 export async function createWhiteboardComment(whiteboardId: string, body: string): Promise<WhiteboardComment[]> {
   const ctx = await requireOrgContext();
-  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  const board = await getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
   if (!board) {
     throw new Error("Whiteboard not found");
   }
 
   const parsed = commentSchema.parse({ body });
-  await db.insert(comments).values({ whiteboardId: board.id, authorId: ctx.user.id, body: parsed.body });
-  return getWhiteboardComments(board.id);
+  await db.insert(comments).values({ whiteboardId: whiteboardId, authorId: ctx.user.id, body: parsed.body });
+  return getWhiteboardComments(whiteboardId);
 }
 
 /** Author or admin only, like task comments. Returns the updated list. */
 export async function deleteWhiteboardComment(whiteboardId: string, commentId: string): Promise<WhiteboardComment[]> {
   const ctx = await requireOrgContext();
-  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  const board = await getWhiteboardVersionForOrg(whiteboardId, ctx.org.id);
   if (!board) {
     throw new Error("Whiteboard not found");
   }
@@ -383,7 +376,7 @@ export async function deleteWhiteboardComment(whiteboardId: string, commentId: s
   const [existing] = await db
     .select({ id: comments.id, authorId: comments.authorId })
     .from(comments)
-    .where(and(eq(comments.id, z.string().uuid().parse(commentId)), eq(comments.whiteboardId, board.id)))
+    .where(and(eq(comments.id, z.string().uuid().parse(commentId)), eq(comments.whiteboardId, whiteboardId)))
     .limit(1);
   if (!existing) {
     throw new Error("Comment not found");
@@ -393,5 +386,5 @@ export async function deleteWhiteboardComment(whiteboardId: string, commentId: s
   }
 
   await db.delete(comments).where(eq(comments.id, existing.id));
-  return getWhiteboardComments(board.id);
+  return getWhiteboardComments(whiteboardId);
 }

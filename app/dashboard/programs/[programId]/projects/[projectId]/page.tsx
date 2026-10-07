@@ -24,27 +24,26 @@ export default async function ProjectDetailPage({
   const { programId, projectId } = await params;
   const ctx = await requireOrgContext();
 
-  const program = await db.query.programs.findFirst({
+  // Run together; nothing renders unless the program is this org's and the project belongs to it.
+  const programQuery = db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: { portfolio: true },
   });
-  if (!program) notFound();
-
-  const project = await db.query.projects.findFirst({
+  const projectQuery = db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
     with: {
-      lead: { columns: { id: true, name: true } },
       tasks: { orderBy: (task, { desc }) => [desc(task.createdAt)], limit: 5 },
     },
   });
-  if (!project) notFound();
+  const [program, project] = await Promise.all([programQuery, projectQuery]);
+  if (!program || !project) notFound();
 
-  const [{ value: taskCount }] = await db
-    .select({ value: count() })
-    .from(tasks)
-    .where(eq(tasks.projectId, projectId));
-
-  const meta = await itemHeaderMeta("project", project.id);
+  const [[{ value: taskCount }], meta, linkedBoards, activity] = await Promise.all([
+    db.select({ value: count() }).from(tasks).where(eq(tasks.projectId, projectId)),
+    itemHeaderMeta("project", project.id),
+    getLinkedWhiteboards(ctx.org.id, { projectId: project.id }),
+    getActivity(ctx.org.id, { projectId: project.id }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -114,12 +113,12 @@ export default async function ProjectDetailPage({
       </div>
 
       <LinkedWhiteboards
-        boards={await getLinkedWhiteboards(ctx.org.id, { projectId: project.id })}
+        boards={linkedBoards}
         link={{ kind: "project", id: project.id }}
         linkName={project.name}
       />
 
-      <ActivityFeed {...await getActivity(ctx.org.id, { projectId: project.id })} selfId={project.id} />
+      <ActivityFeed {...activity} selfId={project.id} />
     </div>
   );
 }
