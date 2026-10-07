@@ -10,7 +10,7 @@ import { itemHeaderMeta } from "@/lib/item-header";
 import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { programNode } from "@/lib/gantt-tree";
+import { programNode, GANTT_CHECKLIST_COLUMNS, GANTT_TASK_COLUMNS } from "@/lib/gantt-tree";
 import { updateProgramDates } from "../../../programs/actions";
 import { updateProjectDates } from "../../../programs/[programId]/projects/actions";
 import { updateTaskDates } from "../../../programs/[programId]/projects/[projectId]/tasks/actions";
@@ -22,7 +22,6 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
-      owner: { columns: { id: true, name: true } },
       programs: {
         orderBy: (program, { asc }) => [asc(program.createdAt)],
         with: {
@@ -30,9 +29,10 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
             orderBy: (project, { asc }) => [asc(project.createdAt)],
             with: {
               tasks: {
+                columns: GANTT_TASK_COLUMNS,
                 orderBy: (task, { asc }) => [asc(task.createdAt)],
                 with: {
-                  checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+                  checklistItems: { columns: GANTT_CHECKLIST_COLUMNS, orderBy: (item, { asc }) => [asc(item.createdAt)] },
                 },
               },
             },

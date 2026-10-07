@@ -27,18 +27,16 @@ export default async function TaskDetailPage({
   const { programId, projectId, taskId } = await params;
   const ctx = await requireOrgContext();
 
-  const program = await db.query.programs.findFirst({
+  // The three lookups run together; nothing renders unless the program is
+  // this org's and the project and task belong to it.
+  const programQuery = db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: { portfolio: true },
   });
-  if (!program) notFound();
-
-  const project = await db.query.projects.findFirst({
+  const projectQuery = db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
   });
-  if (!project) notFound();
-
-  const task = await db.query.tasks.findFirst({
+  const taskQuery = db.query.tasks.findFirst({
     where: and(eq(tasks.id, taskId), eq(tasks.projectId, projectId)),
     with: {
       // Restricted to id/name everywhere below (never the full user row,
@@ -46,7 +44,6 @@ export default async function TaskDetailPage({
       // Components, and Server->Client props are serialized to the browser
       // as-is, so an unrestricted `assignee`/`author` here would ship the
       // bcrypt hash to any org member who opens this page.
-      assignee: { columns: { id: true, name: true } },
       checklistItems: {
         with: { assignee: { columns: { id: true, name: true } } },
         orderBy: (item, { asc }) => [asc(item.createdAt)],
@@ -56,16 +53,22 @@ export default async function TaskDetailPage({
         orderBy: (comment, { asc }) => [asc(comment.createdAt)],
       },
       attachments: {
+        // Never the file bytes (up to 4MB each): the list only shows names and sizes.
+        columns: { data: false },
         with: { uploadedBy: { columns: { id: true, name: true } } },
         orderBy: (attachment, { desc }) => [desc(attachment.createdAt)],
       },
     },
   });
-  if (!task) notFound();
+  const [program, project, task] = await Promise.all([programQuery, projectQuery, taskQuery]);
+  if (!program || !project || !task) notFound();
 
-  const fieldDefs = await getTaskCustomFieldDefs(programId);
-  // Same Assignee / Start / Due fields as every other header (lib/item-header.ts).
-  const headerMeta = await itemHeaderMeta("task", task.id);
+  const [fieldDefs, headerMeta, activity] = await Promise.all([
+    getTaskCustomFieldDefs(programId),
+    // Same Assignee / Start / Due fields as every other header (lib/item-header.ts).
+    itemHeaderMeta("task", task.id),
+    getActivity(ctx.org.id, { taskId: task.id }),
+  ]);
   const customValues = (task.customFields as Record<string, unknown>) ?? {};
 
   return (
@@ -146,7 +149,7 @@ export default async function TaskDetailPage({
         isAdmin={ctx.role === "admin"}
       />
 
-      <ActivityFeed {...await getActivity(ctx.org.id, { taskId: task.id })} selfId={task.id} />
+      <ActivityFeed {...activity} selfId={task.id} />
     </div>
   );
 }

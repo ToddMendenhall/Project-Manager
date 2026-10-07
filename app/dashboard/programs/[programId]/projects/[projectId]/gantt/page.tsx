@@ -10,7 +10,7 @@ import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { taskNode } from "@/lib/gantt-tree";
+import { taskNode, GANTT_CHECKLIST_COLUMNS, GANTT_TASK_COLUMNS } from "@/lib/gantt-tree";
 import { updateTaskDates } from "../tasks/actions";
 
 export default async function TaskGanttPage({
@@ -29,15 +29,15 @@ export default async function TaskGanttPage({
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
-    with: { lead: { columns: { id: true, name: true } } },
   });
   if (!project) notFound();
 
   const allTasks = await db.query.tasks.findMany({
+    columns: GANTT_TASK_COLUMNS,
     where: eq(tasks.projectId, projectId),
     orderBy: (task, { asc }) => [asc(task.createdAt)],
     with: {
-      checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+      checklistItems: { columns: GANTT_CHECKLIST_COLUMNS, orderBy: (item, { asc }) => [asc(item.createdAt)] },
     },
   });
 

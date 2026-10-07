@@ -14,8 +14,8 @@ export async function GET(
   const { attachmentId } = await params;
   const ctx = await requireOrgContext();
 
-  const attachment = await getAttachmentForOrg(attachmentId, ctx.org.id);
-  if (!attachment) {
+  const attachment = await getAttachmentForOrg(attachmentId, ctx.org.id, { withData: true });
+  if (!attachment?.data) {
     return NextResponse.json({ error: "Attachment not found" }, { status: 404 });
   }
 

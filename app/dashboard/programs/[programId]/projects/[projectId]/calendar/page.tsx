@@ -32,19 +32,21 @@ export default async function TaskCalendarPage({
 
   const project = await db.query.projects.findFirst({
     where: and(eq(projects.id, projectId), eq(projects.programId, programId)),
-    with: { lead: { columns: { id: true, name: true } } },
   });
   if (!project) notFound();
 
   const { year, monthIndex0 } = parseMonthParam(sp.month);
 
-  const allTasks = await db.query.tasks.findMany({
-    where: eq(tasks.projectId, projectId),
-    orderBy: (task, { asc }) => [asc(task.dueDate)],
-  });
+  const [allTasks, meta] = await Promise.all([
+    db.query.tasks.findMany({
+      where: eq(tasks.projectId, projectId),
+      columns: { id: true, title: true, dueDate: true },
+      orderBy: (task, { asc }) => [asc(task.dueDate)],
+    }),
+    itemHeaderMeta("project", project.id),
+  ]);
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
-  const meta = await itemHeaderMeta("project", project.id);
   const items = allTasks
     .filter((t) => t.dueDate)
     .map((t) => ({ id: t.id, title: t.title, date: t.dueDate!, href: `${basePath}/tasks/${t.id}` }));

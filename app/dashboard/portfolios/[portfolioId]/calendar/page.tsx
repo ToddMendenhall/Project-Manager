@@ -26,7 +26,7 @@ export default async function PortfolioCalendarPage({
 
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
-    with: { owner: { columns: { id: true, name: true } }, programs: true },
+    with: { programs: true },
   });
   if (!portfolio) notFound();
 

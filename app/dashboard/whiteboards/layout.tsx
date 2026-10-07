@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { requireOrgContext } from "@/lib/org";
-import { getOrgWhiteboards } from "@/lib/queries";
+import { getWhiteboardListItems } from "@/lib/queries";
 import { formatRelativeTime } from "@/lib/whiteboard";
 import { WhiteboardListPanel } from "@/components/whiteboards/whiteboard-list-panel";
 
@@ -13,7 +13,7 @@ import { WhiteboardListPanel } from "@/components/whiteboards/whiteboard-list-pa
  */
 export default async function WhiteboardsLayout({ children }: { children: ReactNode }) {
   const ctx = await requireOrgContext();
-  const boards = await getOrgWhiteboards(ctx.org.id);
+  const boards = await getWhiteboardListItems(ctx.org.id);
   const now = new Date();
 
   return (
@@ -24,7 +24,7 @@ export default async function WhiteboardsLayout({ children }: { children: ReactN
           id: board.id,
           name: board.name,
           updatedLabel: `${formatRelativeTime(board.updatedAt, now)}${
-            board.updatedBy ? ` · ${board.updatedBy.name}` : ""
+            board.updatedByName ? ` · ${board.updatedByName}` : ""
           }`,
         }))}
       />

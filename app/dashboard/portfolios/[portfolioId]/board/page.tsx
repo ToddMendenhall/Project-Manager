@@ -20,7 +20,6 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
   const portfolio = await db.query.portfolios.findFirst({
     where: and(eq(portfolios.id, portfolioId), eq(portfolios.orgId, ctx.org.id)),
     with: {
-      owner: { columns: { id: true, name: true } },
       programs: {
         with: { owner: { columns: { id: true, name: true } } },
         orderBy: (program, { asc }) => [asc(program.sortOrder)],

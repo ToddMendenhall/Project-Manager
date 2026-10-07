@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PriorityBadge } from "@/components/status-badge";
 import { formatCalendarDate } from "@/lib/dates";
@@ -37,16 +36,16 @@ export function ChecklistWidget({
   taskId: string;
   initialItems: ChecklistItem[];
 }) {
-  const router = useRouter();
   const [items, setItems] = useState(initialItems);
   const [title, setTitle] = useState("");
   const [, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // useState only takes initialItems on mount — router.refresh() re-fetches
-  // this page's server data and passes new props, but that alone wouldn't
-  // update this already-mounted component's local copy without this sync
-  // (needed after adding/deleting an item, which changes list membership).
+  // useState only takes initialItems on mount. The checklist actions
+  // revalidate this page, so their response carries fresh props (no
+  // router.refresh() needed, which would render the page a second time);
+  // this sync copies them into the already-mounted local list (needed after
+  // adding/deleting an item, which changes list membership).
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
@@ -61,7 +60,6 @@ export function ChecklistWidget({
       const formData = new FormData();
       formData.set("title", trimmed);
       await createChecklistItem(programId, projectId, taskId, formData);
-      router.refresh();
     });
     inputRef.current?.focus();
   }
@@ -75,7 +73,6 @@ export function ChecklistWidget({
     startTransition(async () => {
       try {
         await toggleChecklistItem(programId, projectId, taskId, item.id, checked);
-        router.refresh();
       } catch {
         setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: previousStatus } : i)));
       }

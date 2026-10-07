@@ -10,12 +10,21 @@ import type { GanttNode } from "@/lib/gantt-types";
  * projects are addressed by their own id, not their portfolio's).
  */
 
-type TaskWithChecklist = Task & { checklistItems: ChecklistItem[] };
+/**
+ * The only columns the Gantt reads at the two biggest levels. Pages pass
+ * these as Drizzle `columns` so a Gantt never loads task descriptions,
+ * custom fields and so on for the whole tree.
+ */
+export const GANTT_TASK_COLUMNS = { id: true, title: true, status: true, startDate: true, dueDate: true } as const;
+export const GANTT_CHECKLIST_COLUMNS = { id: true, title: true, status: true, dueDate: true } as const;
+
+type GanttChecklistItem = Pick<ChecklistItem, keyof typeof GANTT_CHECKLIST_COLUMNS>;
+type TaskWithChecklist = Pick<Task, keyof typeof GANTT_TASK_COLUMNS> & { checklistItems: GanttChecklistItem[] };
 type ProjectWithTasks = Project & { tasks: TaskWithChecklist[] };
 type ProgramWithProjects = Program & { projects: ProjectWithTasks[] };
 type PortfolioWithPrograms = Portfolio & { programs: ProgramWithProjects[] };
 
-export function checklistItemNode(item: ChecklistItem, taskHref: string): GanttNode {
+export function checklistItemNode(item: GanttChecklistItem, taskHref: string): GanttNode {
   return {
     id: item.id,
     title: item.title,

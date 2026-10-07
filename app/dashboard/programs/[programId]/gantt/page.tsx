@@ -10,7 +10,7 @@ import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { projectNode } from "@/lib/gantt-tree";
+import { projectNode, GANTT_CHECKLIST_COLUMNS, GANTT_TASK_COLUMNS } from "@/lib/gantt-tree";
 import { updateProjectDates } from "../projects/actions";
 import { updateTaskDates } from "../projects/[projectId]/tasks/actions";
 
@@ -21,15 +21,15 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
-      owner: { columns: { id: true, name: true } },
       portfolio: true,
       projects: {
         orderBy: (project, { asc }) => [asc(project.createdAt)],
         with: {
           tasks: {
+            columns: GANTT_TASK_COLUMNS,
             orderBy: (task, { asc }) => [asc(task.createdAt)],
             with: {
-              checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+              checklistItems: { columns: GANTT_CHECKLIST_COLUMNS, orderBy: (item, { asc }) => [asc(item.createdAt)] },
             },
           },
         },

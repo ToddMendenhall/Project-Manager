@@ -27,7 +27,6 @@ export default async function ProgramDetailPage({
   const program = await db.query.programs.findFirst({
     where: and(eq(programs.id, programId), eq(programs.orgId, ctx.org.id)),
     with: {
-      owner: { columns: { id: true, name: true } },
       portfolio: true,
       projects: {
         orderBy: (project, { desc }) => [desc(project.createdAt)],
@@ -39,7 +38,11 @@ export default async function ProgramDetailPage({
 
   if (!program) notFound();
 
-  const meta = await itemHeaderMeta("program", program.id);
+  const [meta, linkedBoards, activity] = await Promise.all([
+    itemHeaderMeta("program", program.id),
+    getLinkedWhiteboards(ctx.org.id, { programId: program.id, includeProjects: true }),
+    getActivity(ctx.org.id, { programId: program.id }),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -111,12 +114,12 @@ export default async function ProgramDetailPage({
       </div>
 
       <LinkedWhiteboards
-        boards={await getLinkedWhiteboards(ctx.org.id, { programId: program.id, includeProjects: true })}
+        boards={linkedBoards}
         link={{ kind: "program", id: program.id }}
         linkName={program.name}
       />
 
-      <ActivityFeed {...await getActivity(ctx.org.id, { programId: program.id })} selfId={program.id} />
+      <ActivityFeed {...activity} selfId={program.id} />
     </div>
   );
 }

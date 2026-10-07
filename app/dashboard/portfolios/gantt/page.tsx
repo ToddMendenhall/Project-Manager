@@ -6,7 +6,7 @@ import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { GanttView } from "@/components/views/gantt-view";
-import { portfolioNode } from "@/lib/gantt-tree";
+import { portfolioNode, GANTT_CHECKLIST_COLUMNS, GANTT_TASK_COLUMNS } from "@/lib/gantt-tree";
 import { updatePortfolioDates } from "../actions";
 import { updateProgramDates } from "../../programs/actions";
 import { updateProjectDates } from "../../programs/[programId]/projects/actions";
@@ -26,9 +26,10 @@ export default async function PortfoliosGanttPage() {
             orderBy: (project, { asc }) => [asc(project.createdAt)],
             with: {
               tasks: {
+                columns: GANTT_TASK_COLUMNS,
                 orderBy: (task, { asc }) => [asc(task.createdAt)],
                 with: {
-                  checklistItems: { orderBy: (item, { asc }) => [asc(item.createdAt)] },
+                  checklistItems: { columns: GANTT_CHECKLIST_COLUMNS, orderBy: (item, { asc }) => [asc(item.createdAt)] },
                 },
               },
             },

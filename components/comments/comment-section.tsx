@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { buttonPrimary } from "@/components/form-controls";
 
@@ -35,7 +34,6 @@ export function CommentSection({
   currentUserId: string;
   isAdmin: boolean;
 }) {
-  const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -43,9 +41,11 @@ export function CommentSection({
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     startTransition(async () => {
+      // The action revalidates this page, and that already sends the fresh
+      // render back with its response; a router.refresh() here would render
+      // (and query) the whole page a second time.
       await createAction(formData);
       formRef.current?.reset();
-      router.refresh();
     });
   }
 

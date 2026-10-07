@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, getTableColumns, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -318,8 +318,31 @@ export async function getTaskCustomFieldDefs(programId: string) {
  * checklist item -> task -> project -> program -> org. Used by the download
  * route, which only has the attachment id to go on.
  */
-export async function getAttachmentForOrg(attachmentId: string, orgId: string) {
-  const [attachment] = await db.select().from(attachments).where(eq(attachments.id, attachmentId)).limit(1);
+/**
+ * An attachment's metadata if its parent chain leads to `orgId`. The bytes
+ * (up to 4MB) are only read with `{ withData: true }`, and only after the
+ * org check passes, so a guessed id never costs a full file read.
+ */
+export async function getAttachmentForOrg(attachmentId: string, orgId: string, { withData = false } = {}) {
+  const attachment = await findScopedAttachment(attachmentId, orgId);
+  if (!attachment) return null;
+  if (!withData) return { ...attachment, data: null };
+  const [row] = await db
+    .select({ data: attachments.data })
+    .from(attachments)
+    .where(eq(attachments.id, attachment.id))
+    .limit(1);
+  return row ? { ...attachment, data: row.data } : null;
+}
+
+async function findScopedAttachment(attachmentId: string, orgId: string) {
+  const { data: _data, ...metadataColumns } = getTableColumns(attachments);
+  void _data;
+  const [attachment] = await db
+    .select(metadataColumns)
+    .from(attachments)
+    .where(eq(attachments.id, attachmentId))
+    .limit(1);
   if (!attachment) return null;
 
   if (attachment.taskId) {
@@ -438,113 +461,73 @@ export async function countOpenTasksForAssignee(orgId: string, userId: string): 
 }
 
 /**
+ * Tasks flattened with their program/project context, selecting only the
+ * columns the Reports and Resources views use (never descriptions or custom
+ * fields) in one joined query. `assignee` keeps the `{ id, name }` shape the
+ * relational loads used to return.
+ */
+async function getFlatTasks(where: SQL) {
+  const rows = await db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      status: tasks.status,
+      priority: tasks.priority,
+      startDate: tasks.startDate,
+      dueDate: tasks.dueDate,
+      assigneeId: tasks.assigneeId,
+      assigneeName: users.name,
+      parentTaskId: tasks.parentTaskId,
+      programId: programs.id,
+      programName: programs.name,
+      projectId: projects.id,
+      projectName: projects.name,
+      projectStatus: projects.status,
+      projectStartDate: projects.startDate,
+      projectDueDate: projects.dueDate,
+    })
+    .from(tasks)
+    .innerJoin(projects, eq(tasks.projectId, projects.id))
+    .innerJoin(programs, eq(projects.programId, programs.id))
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .where(where)
+    .orderBy(asc(programs.createdAt), asc(projects.createdAt), asc(tasks.createdAt));
+  return rows.map((row) => ({
+    ...row,
+    assignee: row.assigneeId && row.assigneeName ? { id: row.assigneeId, name: row.assigneeName } : null,
+  }));
+}
+
+/**
  * Every task across an org's programs/projects, flattened with its
  * program/project context attached — used anywhere that needs to slice the
- * org's full task list by an arbitrary predicate (Reports, My Tasks)
- * rather than one project's tasks.
+ * org's full task list by an arbitrary predicate (Reports, Resources).
  */
 export async function getOrgTasksFlat(orgId: string) {
-  const orgPrograms = await db.query.programs.findMany({
-    where: eq(programs.orgId, orgId),
-    with: {
-      projects: {
-        with: {
-          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
-        },
-      },
-    },
-  });
-
-  return orgPrograms.flatMap((program) =>
-    program.projects.flatMap((project) =>
-      project.tasks.map((task) => ({
-        ...task,
-        programId: program.id,
-        programName: program.name,
-        projectId: project.id,
-        projectName: project.name,
-        projectStatus: project.status,
-        projectStartDate: project.startDate,
-        projectDueDate: project.dueDate,
-      })),
-    ),
-  );
+  return getFlatTasks(eq(programs.orgId, orgId));
 }
 
-/**
- * Every task in one portfolio's programs/projects, flattened the same way
- * as getOrgTasksFlat — powers the Portfolio-level Reports view.
- */
+/** Every task in one portfolio's programs/projects — the Portfolio-level Reports view. */
 export async function getPortfolioTasksFlat(portfolioId: string, orgId: string) {
-  const portfolioPrograms = await db.query.programs.findMany({
-    where: and(eq(programs.portfolioId, portfolioId), eq(programs.orgId, orgId)),
-    with: {
-      projects: {
-        with: {
-          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
-        },
-      },
-    },
-  });
-
-  return portfolioPrograms.flatMap((program) =>
-    program.projects.flatMap((project) =>
-      project.tasks.map((task) => ({
-        ...task,
-        programId: program.id,
-        programName: program.name,
-        projectId: project.id,
-        projectName: project.name,
-        projectStatus: project.status,
-        projectStartDate: project.startDate,
-        projectDueDate: project.dueDate,
-      })),
-    ),
-  );
+  return getFlatTasks(and(eq(programs.portfolioId, portfolioId), eq(programs.orgId, orgId))!);
 }
 
 /**
- * Every task in one program's projects, flattened — powers the
- * Program-level Reports view. Assumes the caller has already verified the
- * program belongs to the org (e.g. via getProgramForOrg).
+ * Every task in one program's projects — the Program-level Reports view.
+ * Assumes the caller has already verified the program belongs to the org
+ * (e.g. via getProgramForOrg).
  */
 export async function getProgramTasksFlat(programId: string) {
-  const program = await db.query.programs.findFirst({
-    where: eq(programs.id, programId),
-    with: {
-      projects: {
-        with: {
-          tasks: { with: { assignee: { columns: { id: true, name: true } } } },
-        },
-      },
-    },
-  });
-  if (!program) return [];
-
-  return program.projects.flatMap((project) =>
-    project.tasks.map((task) => ({
-      ...task,
-      programId: program.id,
-      programName: program.name,
-      projectId: project.id,
-      projectName: project.name,
-      projectStatus: project.status,
-      projectStartDate: project.startDate,
-      projectDueDate: project.dueDate,
-    })),
-  );
+  return getFlatTasks(eq(programs.id, programId));
 }
 
 /**
- * Every task in one project, with its assignee — powers the Project-level
- * Reports view. Assumes the caller has already verified the project
- * belongs to the org (e.g. via getProjectForProgram).
+ * Every task in one project — the Project-level Reports view. Assumes the
+ * caller has already verified the project belongs to the org (e.g. via
+ * getProjectForProgram).
  */
 export async function getProjectTasksFlat(projectId: string) {
-  return db.query.tasks.findMany({
-    where: eq(tasks.projectId, projectId),
-    with: { assignee: { columns: { id: true, name: true } } },
-  });
+  return getFlatTasks(eq(tasks.projectId, projectId));
 }
 
 type OrgAttachmentBase = {
@@ -758,6 +741,36 @@ export async function getWhiteboardComments(whiteboardId: string) {
   });
 }
 export type WhiteboardComment = Awaited<ReturnType<typeof getWhiteboardComments>>[number];
+
+/**
+ * Just what the board list panel shows. It renders beside every whiteboard
+ * page, so it never touches `data`: even a count over the canvas makes
+ * Postgres read every board's whole document.
+ */
+export async function getWhiteboardListItems(orgId: string) {
+  return db
+    .select({
+      id: whiteboards.id,
+      name: whiteboards.name,
+      updatedAt: whiteboards.updatedAt,
+      updatedByName: users.name,
+    })
+    .from(whiteboards)
+    .leftJoin(users, eq(whiteboards.updatedById, users.id))
+    .where(eq(whiteboards.orgId, orgId))
+    .orderBy(desc(whiteboards.updatedAt));
+}
+
+/** A board's version and last editor, org-scoped: all autosave and the version poll need. */
+export async function getWhiteboardVersionForOrg(whiteboardId: string, orgId: string) {
+  const [row] = await db
+    .select({ version: whiteboards.version, updatedByName: users.name })
+    .from(whiteboards)
+    .leftJoin(users, eq(whiteboards.updatedById, users.id))
+    .where(and(eq(whiteboards.id, whiteboardId), eq(whiteboards.orgId, orgId)))
+    .limit(1);
+  return row ?? null;
+}
 
 /** `data` for just the given boards (org-checked) — e.g. those with no thumbnail yet. */
 export async function getWhiteboardDocsForOrg(orgId: string, whiteboardIds: string[]) {
