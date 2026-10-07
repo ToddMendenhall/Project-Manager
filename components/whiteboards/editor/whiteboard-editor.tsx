@@ -40,12 +40,14 @@ import {
 import { Download, Grid3x3, MessageSquare } from "lucide-react";
 import {
   PALETTE,
+  WHITEBOARD_SAVED_EVENT,
   type ColorKey,
   type EdgeArrow,
   type EdgeRouting,
   type ShapeKind,
   type WhiteboardDoc,
   type WhiteboardEdgeData,
+  type WhiteboardSavedDetail,
 } from "@/lib/whiteboard";
 import { buttonGhost } from "@/components/form-controls";
 import { WhiteboardLinkPicker } from "@/components/whiteboards/link-picker";
@@ -234,6 +236,9 @@ function Editor({
         savedRef.current = snapshot;
         setRemoteUpdate(null);
         scheduleThumbnailRef.current();
+        window.dispatchEvent(
+          new CustomEvent<WhiteboardSavedDetail>(WHITEBOARD_SAVED_EVENT, { detail: { id: whiteboardId } }),
+        );
         if (committedRef.current === snapshot) {
           setStatus({ kind: "saved" });
         } else {

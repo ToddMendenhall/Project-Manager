@@ -287,7 +287,12 @@ export async function saveWhiteboard(
     };
   }
 
-  revalidateWhiteboards();
+  // No revalidatePath here: in a server action it makes the response carry a
+  // fresh render of the current page, which re-reads the whole board (plus
+  // the list panel, link targets and comments) on every autosave. The editor
+  // already holds what it saved; the list panel hears about the save from
+  // the editor (WHITEBOARD_SAVED_EVENT), and every other page is dynamic, so
+  // it's fresh on the next visit.
   return { ok: true, version: updated.version };
 }
 

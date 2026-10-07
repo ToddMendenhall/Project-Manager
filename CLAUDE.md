@@ -369,8 +369,15 @@ and undoes `main`'s padding so the canvas runs edge to edge.
   - The history/save baseline is computed with the same `serialize()` as
     every later snapshot. Comparing against the raw loaded doc would make
     key-order differences register as an edit and autosave on open.
-  - `saveWhiteboard` deliberately doesn't `revalidatePath`. Doing so would
-    re-render the page (re-reading the whole board) on every autosave.
+  - `saveWhiteboard` deliberately doesn't `revalidatePath`. In a server
+    action, revalidating makes the response carry a fresh render of the
+    current page, which re-reads the whole board, list panel, link targets
+    and comments on every autosave. Instead the editor fires
+    `WHITEBOARD_SAVED_EVENT` (`lib/whiteboard.ts`) after each save, and
+    `WhiteboardListPanel` shows that board as "just now · <you>" at the top.
+    Moving between boards doesn't refetch the layout, so the panel keeps
+    those local times until the layout's data changes (e.g. a rename
+    revalidates it). Other people's edits appear on the next full load.
 - **Permissions:** any member can create, edit or duplicate a board. Only
   the creator or an admin can delete one (`canDeleteWhiteboard`), the same
   rule as comments and attachments.

@@ -4,17 +4,59 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutGrid, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { WHITEBOARD_SAVED_EVENT, formatRelativeTime, type WhiteboardSavedDetail } from "@/lib/whiteboard";
 import { NewWhiteboardButton } from "./new-whiteboard-button";
 
 const COLLAPSED_STORAGE_KEY = "whiteboards.listPanelCollapsed";
 
 export type WhiteboardListItem = { id: string; name: string; updatedLabel: string };
 
-/** The board switcher shown beside every whiteboard page (see whiteboards/layout.tsx). */
-export function WhiteboardListPanel({ boards }: { boards: WhiteboardListItem[] }) {
+/**
+ * The board switcher shown beside every whiteboard page (see whiteboards/layout.tsx).
+ *
+ * Autosave doesn't revalidate the layout (that would re-render the page on
+ * every save), and moving between boards doesn't refetch it either, so the
+ * panel tracks this viewer's own saves itself: the editor fires
+ * `WHITEBOARD_SAVED_EVENT`, and the saved board shows "just now · <you>" and
+ * moves to the top. Everyone else's edits show up on the next full load.
+ */
+export function WhiteboardListPanel({
+  boards: serverBoards,
+  currentUserName,
+}: {
+  boards: WhiteboardListItem[];
+  currentUserName: string;
+}) {
   const pathname = usePathname();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(false);
+  const [savedAt, setSavedAt] = useState<Record<string, Date>>({});
+
+  useEffect(() => {
+    const onSaved = (e: Event) => {
+      const { id } = (e as CustomEvent<WhiteboardSavedDetail>).detail;
+      setSavedAt((prev) => ({ ...prev, [id]: new Date() }));
+    };
+    window.addEventListener(WHITEBOARD_SAVED_EVENT, onSaved);
+    return () => window.removeEventListener(WHITEBOARD_SAVED_EVENT, onSaved);
+  }, []);
+
+  // A layout refresh (e.g. after a rename) brings newer server data; drop
+  // local saves it already covers so their labels age normally again.
+  const [lastServerBoards, setLastServerBoards] = useState(serverBoards);
+  if (serverBoards !== lastServerBoards) {
+    setLastServerBoards(serverBoards);
+    setSavedAt({});
+  }
+
+  const now = new Date();
+  const boards = Object.keys(savedAt).length
+    ? serverBoards
+        .map((b) =>
+          savedAt[b.id] ? { ...b, updatedLabel: `${formatRelativeTime(savedAt[b.id], now)} · ${currentUserName}` } : b,
+        )
+        .sort((a, b) => (savedAt[b.id]?.getTime() ?? 0) - (savedAt[a.id]?.getTime() ?? 0))
+    : serverBoards;
 
   useEffect(() => {
     try {

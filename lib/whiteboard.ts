@@ -170,6 +170,14 @@ export function parseStoredWhiteboardDoc(raw: unknown): WhiteboardDoc {
   return parsed.success ? parsed.data : EMPTY_WHITEBOARD_DOC;
 }
 
+/**
+ * Window event the editor fires after each successful save (`detail` is
+ * `{ id }`), so the board list panel can show the edit without the save
+ * revalidating the layout.
+ */
+export const WHITEBOARD_SAVED_EVENT = "whiteboard:saved";
+export type WhiteboardSavedDetail = { id: string };
+
 /** Only the creator or an org admin may delete a board (everyone in the org can edit it). */
 export function canDeleteWhiteboard(
   board: { createdById: string | null },
