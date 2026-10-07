@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { portfolios } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
@@ -43,11 +44,7 @@ export default async function PortfolioGanttPage({ params }: { params: Promise<{
   if (!portfolio) notFound();
 
   const basePath = `/dashboard/portfolios/${portfolioId}`;
-  const meta: ItemHeaderMeta[] = [];
-  if (portfolio.owner) meta.push({ label: "Owner", value: portfolio.owner.name });
-  if (portfolio.startDate) meta.push({ label: "Start", value: new Date(portfolio.startDate).toLocaleDateString() });
-  if (portfolio.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(portfolio.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("portfolio", portfolio.id);
 
   return (
     <div className="flex flex-col gap-6">

@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
@@ -43,10 +44,7 @@ export default async function TaskCalendarPage({
   });
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
-  const meta: ItemHeaderMeta[] = [];
-  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
-  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
-  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("project", project.id);
   const items = allTasks
     .filter((t) => t.dueDate)
     .map((t) => ({ id: t.id, title: t.title, date: t.dueDate!, href: `${basePath}/tasks/${t.id}` }));

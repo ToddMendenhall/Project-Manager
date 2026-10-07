@@ -80,7 +80,7 @@ type DragAnchor = {
  * The item a Gantt page belongs to (e.g. the Program on its own Gantt tab),
  * shown as a pinned top row whose summary bar spans every date beneath it.
  * The row shows just the name; the page header carries the dates
- * (`headerDates` in lib/gantt-tree.ts).
+ * (`itemHeaderMeta` in lib/item-header.ts).
  */
 export type GanttSummaryRow = { title: string; href: string };
 

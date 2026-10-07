@@ -11,7 +11,8 @@ import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { deleteProject } from "../actions";
 
@@ -43,10 +44,7 @@ export default async function ProjectDetailPage({
     .from(tasks)
     .where(eq(tasks.projectId, projectId));
 
-  const meta: ItemHeaderMeta[] = [];
-  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
-  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
-  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("project", project.id);
 
   return (
     <div className="flex flex-col gap-8">

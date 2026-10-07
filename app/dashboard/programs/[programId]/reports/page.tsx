@@ -7,7 +7,8 @@ import { getProgramTasksFlat } from "@/lib/queries";
 import { buildReportData, groupProjectProgress, type ReportTask } from "@/lib/reports";
 import { StatusBadge } from "@/components/status-badge";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { ReportView } from "@/components/reports/report-view";
 
@@ -43,10 +44,7 @@ export default async function ProgramReportsPage({
   const data = buildReportData(reportTasks);
   const projectProgress = groupProjectProgress(reportTasks, program.name);
 
-  const meta: ItemHeaderMeta[] = [];
-  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
-  if (program.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("program", program.id);
 
   return (
     <div className="flex flex-col gap-8">

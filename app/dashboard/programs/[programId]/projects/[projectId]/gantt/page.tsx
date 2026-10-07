@@ -5,11 +5,12 @@ import { db } from "@/db";
 import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { headerDates, taskNode } from "@/lib/gantt-tree";
+import { taskNode } from "@/lib/gantt-tree";
 import { updateTaskDates } from "../tasks/actions";
 
 export default async function TaskGanttPage({
@@ -42,11 +43,7 @@ export default async function TaskGanttPage({
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
   const items = allTasks.map((t) => taskNode(t, basePath));
-  const dates = headerDates({ start: project.startDate, end: project.dueDate }, items);
-  const meta: ItemHeaderMeta[] = [];
-  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
-  if (dates.start) meta.push({ label: "Start", value: dates.start.toLocaleDateString() });
-  if (dates.end) meta.push({ label: "Due", value: dates.end.toLocaleDateString() });
+  const meta = await itemHeaderMeta("project", project.id);
 
   return (
     <div className="flex flex-col gap-6">

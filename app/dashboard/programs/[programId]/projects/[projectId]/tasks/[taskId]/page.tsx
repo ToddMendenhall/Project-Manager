@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getTaskCustomFieldDefs } from "@/lib/queries";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { Breadcrumbs } from "@/components/views/breadcrumbs";
@@ -63,6 +64,8 @@ export default async function TaskDetailPage({
   if (!task) notFound();
 
   const fieldDefs = await getTaskCustomFieldDefs(programId);
+  // Same Assignee / Start / Due fields as every other header (lib/item-header.ts).
+  const headerMeta = await itemHeaderMeta("task", task.id);
   const customValues = (task.customFields as Record<string, unknown>) ?? {};
 
   return (
@@ -77,31 +80,19 @@ export default async function TaskDetailPage({
             <PriorityBadge priority={task.priority} />
           </div>
           {task.description && <p className="mt-2 max-w-2xl text-sm text-cy-gray-600">{task.description}</p>}
-          <dl className="mt-3 flex flex-wrap gap-6 text-xs text-cy-gray-500">
-            {task.assignee && (
-              <div>
-                <dt className="font-medium text-cy-gray-400">Assignee</dt>
-                <dd>{task.assignee.name}</dd>
+          <dl className="mt-3.5 flex flex-wrap gap-7">
+            {[
+              ...headerMeta,
+              ...(task.completedAt
+                ? [{ label: "Completed", value: new Date(task.completedAt).toLocaleDateString() }]
+                : []),
+            ].map((m) => (
+              <div key={m.label}>
+                <dt className="text-[11px] font-semibold uppercase tracking-label text-cy-gray-400">{m.label}</dt>
+                {/* A blank field (no assignee, no date) keeps the row's height. */}
+                <dd className="mt-[3px] text-[13px] font-medium text-cy-gray-700">{m.value || "\u00a0"}</dd>
               </div>
-            )}
-            {task.startDate && (
-              <div>
-                <dt className="font-medium text-cy-gray-400">Start</dt>
-                <dd>{new Date(task.startDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {task.dueDate && (
-              <div>
-                <dt className="font-medium text-cy-gray-400">Due</dt>
-                <dd>{new Date(task.dueDate).toLocaleDateString()}</dd>
-              </div>
-            )}
-            {task.completedAt && (
-              <div>
-                <dt className="font-medium text-cy-gray-400">Completed</dt>
-                <dd>{new Date(task.completedAt).toLocaleDateString()}</dd>
-              </div>
-            )}
+            ))}
           </dl>
           {fieldDefs.length > 0 && (
             <dl className="mt-4 flex flex-wrap gap-6 border-t border-cy-gray-100 pt-4 text-xs text-cy-gray-500">

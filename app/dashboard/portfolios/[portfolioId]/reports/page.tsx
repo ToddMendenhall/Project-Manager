@@ -4,7 +4,8 @@ import { getPortfolioForOrg, getPortfolioTasksFlat } from "@/lib/queries";
 import { buildReportData, groupProjectProgress, type ReportTask } from "@/lib/reports";
 import { StatusBadge } from "@/components/status-badge";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { ReportView } from "@/components/reports/report-view";
 
@@ -37,10 +38,7 @@ export default async function PortfolioReportsPage({
   const data = buildReportData(reportTasks);
   const projectProgress = groupProjectProgress(reportTasks);
 
-  const meta: ItemHeaderMeta[] = [];
-  if (portfolio.startDate) meta.push({ label: "Start", value: new Date(portfolio.startDate).toLocaleDateString() });
-  if (portfolio.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(portfolio.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("portfolio", portfolio.id);
 
   return (
     <div className="flex flex-col gap-8">

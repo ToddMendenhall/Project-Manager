@@ -8,7 +8,8 @@ import { getOrgMembers } from "@/lib/queries";
 import { STATUS_OPTIONS } from "@/lib/fields";
 import { buttonPrimary, buttonSecondary, selectClass } from "@/components/form-controls";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { TaskListView } from "@/components/tasks/task-list-view";
@@ -36,10 +37,7 @@ export default async function TaskListPage({
   });
   if (!project) notFound();
 
-  const meta: ItemHeaderMeta[] = [];
-  if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
-  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
-  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("project", project.id);
 
   const filters = [eq(tasks.projectId, projectId)];
   if (sp.status) filters.push(eq(tasks.status, sp.status as (typeof tasks.status.enumValues)[number]));

@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { programs } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
@@ -31,11 +32,7 @@ export default async function ProgramCalendarPage({
 
   const { year, monthIndex0 } = parseMonthParam(sp.month);
   const basePath = `/dashboard/programs/${programId}`;
-  const meta: ItemHeaderMeta[] = [];
-  if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
-  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
-  if (program.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("program", program.id);
 
   const items = program.projects
     .filter((p) => p.dueDate)

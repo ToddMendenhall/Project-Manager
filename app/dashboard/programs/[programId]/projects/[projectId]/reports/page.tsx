@@ -7,7 +7,8 @@ import { getProjectTasksFlat } from "@/lib/queries";
 import { buildReportData, type ReportTask } from "@/lib/reports";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ViewTabs } from "@/components/views/view-tabs";
-import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header";
+import { ItemHeader } from "@/components/views/item-header";
+import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { ReportView } from "@/components/reports/report-view";
 
@@ -47,9 +48,7 @@ export default async function ProjectReportsPage({
 
   const data = buildReportData(reportTasks);
 
-  const meta: ItemHeaderMeta[] = [];
-  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
-  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+  const meta = await itemHeaderMeta("project", project.id);
 
   return (
     <div className="flex flex-col gap-8">
