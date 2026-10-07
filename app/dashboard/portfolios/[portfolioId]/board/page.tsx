@@ -11,6 +11,7 @@ import { portfolioBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { BoardView } from "@/components/views/board-view";
 import { updateProgramOrder } from "../../../programs/actions";
+import { formatCalendarDate } from "@/lib/dates";
 
 export default async function PortfolioBoardPage({ params }: { params: Promise<{ portfolioId: string }> }) {
   const { portfolioId } = await params;
@@ -72,7 +73,7 @@ export default async function PortfolioBoardPage({ params }: { params: Promise<{
                 {program.owner && <p className="mt-2 text-xs text-cy-gray-500">{program.owner.name}</p>}
                 {program.targetEndDate && (
                   <p className="mt-1 text-xs text-cy-gray-400">
-                    Target end {new Date(program.targetEndDate).toLocaleDateString()}
+                    Target end {formatCalendarDate(program.targetEndDate)}
                   </p>
                 )}
               </>

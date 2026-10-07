@@ -4,19 +4,20 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
-import { statusLabel, dateInputValue } from "@/lib/fields";
+import { statusLabel } from "@/lib/fields";
+import { formatLocalDate, localDateKey, toLocalCalendarDate } from "@/lib/dates";
 import type { GanttKind, GanttNode } from "@/lib/gantt-types";
 import {
   GanttTimelineHeader,
   GanttZoomControls,
   addDays,
   buildTimeline,
+  useToday,
   descendantSpan,
   SummaryBar,
   CENTERED_Y,
   SUMMARY_STACKED_Y,
   diffDays,
-  startOfDay,
   useGanttZoom,
   useTimelineScroll,
 } from "@/components/views/gantt-timeline";
@@ -29,8 +30,10 @@ type DateChangeHandler = (id: string, startDate: string, endDate: string) => Pro
 function flattenDates(nodes: GanttNode[], map: Record<string, ItemDates> = {}): Record<string, ItemDates> {
   for (const node of nodes) {
     map[node.id] = {
-      start: node.startDate ? startOfDay(new Date(node.startDate)) : null,
-      end: node.endDate ? startOfDay(new Date(node.endDate)) : null,
+      // Stored dates are midnight UTC; read them as that calendar day in local
+      // time, or every bar is a day early west of UTC (see lib/dates.ts).
+      start: node.startDate ? toLocalCalendarDate(node.startDate) : null,
+      end: node.endDate ? toLocalCalendarDate(node.endDate) : null,
     };
     if (node.children) flattenDates(node.children, map);
   }
@@ -114,6 +117,7 @@ export function GanttView({
   const dragRef = useRef<DragAnchor | null>(null);
   const [, startTransition] = useTransition();
   const zoom = useGanttZoom();
+  const today = useToday();
   // Read by the window-level pointermove listener, which is registered once.
   const dayWidthRef = useRef(zoom.level.dayWidth);
   dayWidthRef.current = zoom.level.dayWidth;
@@ -171,7 +175,7 @@ export function GanttView({
 
       startTransition(async () => {
         try {
-          await drag.onDateChange(drag.itemId, dateInputValue(start), dateInputValue(end));
+          await drag.onDateChange(drag.itemId, start ? localDateKey(start) : "", end ? localDateKey(end) : "");
         } catch {
           setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
         }
@@ -236,7 +240,7 @@ export function GanttView({
     ...rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d)),
     ...[...spans.values(), ...(summarySpan ? [summarySpan] : [])].flatMap((span) => [span.start, span.end]),
   ];
-  const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
+  const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level, today) : null;
   const scroll = useTimelineScroll(timeline, zoom);
 
   if (!timeline) {
@@ -344,7 +348,7 @@ export function GanttView({
                       {stackedSummary}
                       <Link
                         href={node.href}
-                        title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
+                        title={`${node.title}: ${formatLocalDate(start)} – ${formatLocalDate(end)} (${statusLabel(node.status)})`}
                         className={`absolute ${y} flex h-5 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor} ${isDragging ? "opacity-80" : ""}`}
                         style={{ left, width }}
                       >
@@ -397,7 +401,7 @@ export function GanttView({
                     {stackedSummary}
                     <div
                       onPointerDown={draggable ? (e) => beginDrag(node, "dot", e) : undefined}
-                      title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})${
+                      title={`${node.title}: ${formatLocalDate(point)} (${statusLabel(node.status)})${
                         draggable ? " — drag to set the missing date" : ""
                       }`}
                       className={`absolute ${y} h-2.5 w-2.5 rounded-full ${barColor} ${

@@ -11,6 +11,7 @@ import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { updateProjectOrder } from "../projects/actions";
+import { formatCalendarDate } from "@/lib/dates";
 
 export default async function ProgramBoardPage({ params }: { params: Promise<{ programId: string }> }) {
   const { programId } = await params;
@@ -72,7 +73,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
                   {project.lead && <span className="text-xs text-cy-gray-500">{project.lead.name}</span>}
                 </div>
                 {project.dueDate && (
-                  <p className="mt-1 text-xs text-cy-gray-400">Due {new Date(project.dueDate).toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-cy-gray-400">Due {formatCalendarDate(project.dueDate)}</p>
                 )}
               </>
             ),

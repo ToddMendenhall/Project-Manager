@@ -5,17 +5,18 @@ import Link from "next/link";
 import { ChevronRight, User } from "lucide-react";
 import { STATUS_BAR_COLORS } from "@/components/status-badge";
 import { statusLabel } from "@/lib/fields";
+import { formatLocalDate, toLocalCalendarDate } from "@/lib/dates";
 import type { GanttNode } from "@/lib/gantt-types";
 import {
   GanttTimelineHeader,
   GanttZoomControls,
   buildTimeline,
+  useToday,
   descendantSpan,
   SummaryBar,
   CENTERED_Y,
   SUMMARY_STACKED_Y,
   diffDays,
-  startOfDay,
   useGanttZoom,
   useTimelineScroll,
 } from "@/components/views/gantt-timeline";
@@ -26,8 +27,8 @@ type ItemDates = { start: Date | null; end: Date | null };
 
 function toDates(node: GanttNode): ItemDates {
   return {
-    start: node.startDate ? startOfDay(new Date(node.startDate)) : null,
-    end: node.endDate ? startOfDay(new Date(node.endDate)) : null,
+    start: node.startDate ? toLocalCalendarDate(node.startDate) : null,
+    end: node.endDate ? toLocalCalendarDate(node.endDate) : null,
   };
 }
 
@@ -54,6 +55,7 @@ function buildRows(nodes: GanttNode[], depth: number, expanded: Set<string>, out
 export function ResourceGanttView({ members }: { members: GanttNode[] }) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(members.map((m) => m.id)));
   const zoom = useGanttZoom();
+  const today = useToday();
 
   function toggleExpand(id: string) {
     setExpanded((prev) => {
@@ -81,7 +83,7 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
     }),
     ...[...spans.values()].flatMap((span) => [span.start, span.end]),
   ];
-  const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
+  const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level, today) : null;
   const scroll = useTimelineScroll(timeline, zoom);
 
   if (!timeline) {
@@ -178,7 +180,7 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
                     {stackedSummary}
                     <Link
                       href={node.href}
-                      title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
+                      title={`${node.title}: ${formatLocalDate(start)} – ${formatLocalDate(end)} (${statusLabel(node.status)})`}
                       className={`absolute ${y} flex h-5 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor}`}
                       style={{ left, width }}
                     >
@@ -195,7 +197,7 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
                   <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
                     {stackedSummary}
                     <div
-                      title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})`}
+                      title={`${node.title}: ${formatLocalDate(point)} (${statusLabel(node.status)})`}
                       className={`absolute ${y} h-2.5 w-2.5 rounded-full ${barColor}`}
                       style={{ left: offset * dayWidth + dayWidth / 2 - 5 }}
                     />

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { dateKey, getMonthGridDays, WEEKDAY_LABELS } from "@/lib/calendar";
+import { calendarDateKey } from "@/lib/dates";
 
 export type CalendarItem = { id: string; title: string; date: Date | string; href: string };
 
@@ -17,7 +18,8 @@ export function CalendarView({
   const gridDays = getMonthGridDays(year, monthIndex0);
   const byDay = new Map<string, CalendarItem[]>();
   for (const item of items) {
-    const key = dateKey(new Date(item.date));
+    // The item's calendar day (stored as midnight UTC), whatever the server's timezone.
+    const key = calendarDateKey(item.date);
     byDay.set(key, [...(byDay.get(key) ?? []), item]);
   }
   const todayKey = dateKey(new Date());

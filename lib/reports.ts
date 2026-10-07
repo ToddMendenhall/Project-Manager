@@ -1,5 +1,6 @@
 import "server-only";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS } from "@/lib/fields";
+import { calendarDateKey, todayKey } from "@/lib/dates";
 
 const OPEN_STATUSES = new Set(["not_started", "in_progress", "blocked"]);
 
@@ -42,8 +43,12 @@ export type ProjectProgressGroup = {
 };
 
 export function buildReportData(tasks: ReportTask[]): ReportData {
-  const now = new Date();
-  const soonCutoff = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+  // Compare calendar days, not instants: a task due today isn't overdue
+  // until today has passed (its due date is stored as midnight UTC, which
+  // the current time is always past during the day itself).
+  const today = todayKey();
+  const soonCutoff = todayKey(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  const dueKey = (t: { dueDate: Date | string | null }) => (t.dueDate ? calendarDateKey(t.dueDate) : null);
 
   const statusCountsByKey: Record<string, number> = Object.fromEntries(STATUS_OPTIONS.map((o) => [o.value, 0]));
   const priorityCountsByKey: Record<string, number> = Object.fromEntries(PRIORITY_OPTIONS.map((o) => [o.value, 0]));
@@ -58,11 +63,11 @@ export function buildReportData(tasks: ReportTask[]): ReportData {
   const completionRate = activeTasks > 0 ? Math.round((completedTasks / activeTasks) * 100) : 0;
 
   const overdueTasks = tasks
-    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && new Date(t.dueDate) < now)
+    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && dueKey(t)! < today)
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 
   const dueSoonTasks = tasks
-    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && new Date(t.dueDate) >= now && new Date(t.dueDate) <= soonCutoff)
+    .filter((t) => t.dueDate && OPEN_STATUSES.has(t.status) && dueKey(t)! >= today && dueKey(t)! <= soonCutoff)
     .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 
   const workloadByAssignee = new Map<string, { name: string; open: number; overdue: number; completed: number }>();
@@ -74,7 +79,7 @@ export function buildReportData(tasks: ReportTask[]): ReportData {
       entry.completed += 1;
     } else if (OPEN_STATUSES.has(task.status)) {
       entry.open += 1;
-      if (task.dueDate && new Date(task.dueDate) < now) entry.overdue += 1;
+      if (task.dueDate && dueKey(task)! < today) entry.overdue += 1;
     }
     workloadByAssignee.set(key, entry);
   }

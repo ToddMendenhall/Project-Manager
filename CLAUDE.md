@@ -253,6 +253,27 @@ items, and a Program's rolls up its projects too.
   the `activity_entity` enum and `ActivityFeed`'s labels rather than
   writing rows by hand.
 
+### Calendar dates and time zones
+
+Start/due/target-end dates are calendar days stored as **midnight UTC** of
+that day (`toDateOrNull("2026-09-15")`). Never read them with local getters
+or a bare `toLocaleDateString()`: west of UTC, midnight UTC is still the
+previous day locally, so dates show a day early. In the Gantt this used to
+save shifted dates on every drag. Use the helpers in `lib/dates.ts`:
+
+- `formatCalendarDate(value)` for display ("9/15/2026", fixed en-US + UTC,
+  so the server render and every browser agree), and `calendarDateKey`
+  for "YYYY-MM-DD" comparisons.
+- For day arithmetic in the browser (the Gantt grid), use
+  `toLocalCalendarDate` to get a local-midnight Date of the same day. Convert
+  back with `localDateKey` before saving, never `toISOString()` (east of UTC,
+  that's the previous day).
+- "Today" is the viewer's day (`todayKey()` in the browser). Anything that
+  depends on it in a Client Component is computed after mount (Gantt's
+  `useToday`, the task List's overdue marks): the server runs in UTC, and a
+  different day in the server render breaks hydration. Server-only code
+  (Reports) uses the server's day.
+
 ### Custom fields keep the schema industry-agnostic
 
 `customFieldDefs` (program-scoped, `entityType` currently only `"task"` is
