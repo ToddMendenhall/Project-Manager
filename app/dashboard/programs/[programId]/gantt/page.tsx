@@ -71,6 +71,7 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
       ) : (
         <GanttView
           items={program.projects.map((p) => projectNode(p, basePath))}
+          summary={{ title: program.name, href: basePath }}
           onProjectDateChange={updateProjectDates}
           onTaskDateChange={updateTaskDates}
         />

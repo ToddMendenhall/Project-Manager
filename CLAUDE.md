@@ -323,7 +323,11 @@ page, not the component):
   beneath it. It's computed from the view's live dates, so it follows a
   child being dragged, and the spans feed the timeline's range so a
   collapsed row's bar always fits. `ResourceGanttView` uses the same bar
-  for member rows. This is why `tasks` has a `startDate` column even
+  for member rows. A Program's and a Project's own Gantt tab also pass
+  `summary={{ title, href }}`, which pins a row for that program/project
+  above its children. Its summary bar always spans every date beneath it,
+  regardless of its own planned dates (those are in the page header), and
+  its label shows the range. This is why `tasks` has a `startDate` column even
   though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.

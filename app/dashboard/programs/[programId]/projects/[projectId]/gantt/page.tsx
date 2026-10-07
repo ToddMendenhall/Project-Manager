@@ -73,6 +73,7 @@ export default async function TaskGanttPage({
       ) : (
         <GanttView
           items={allTasks.map((t) => taskNode(t, basePath))}
+          summary={{ title: project.name, href: basePath }}
           onTaskDateChange={updateTaskDates}
         />
       )}
