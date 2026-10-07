@@ -1,10 +1,13 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { Plus } from "lucide-react";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { portfolios, programs } from "@/db/schema";
 import { countOpenTasksForAssignee, getProjectTaskCounts } from "@/lib/queries";
+import { SIDEBAR_WIDTH_COOKIE, parseSidebarWidth } from "@/lib/sidebar";
 import { NavLinks } from "./nav-links";
+import { ResizableSidebar } from "./resizable-sidebar";
 import { PortfolioTree, type ProgramNode, type ProjectNode } from "./portfolio-tree";
 
 const PERSONAL_LINKS = [
@@ -43,6 +46,7 @@ export async function Sidebar({
   userId: string;
   isAdmin: boolean;
 }) {
+  const width = parseSidebarWidth((await cookies()).get(SIDEBAR_WIDTH_COOKIE)?.value);
   const [orgPortfolios, ungroupedProgramsRaw, taskCounts, myOpenTaskCount] = await Promise.all([
     db.query.portfolios.findMany({
       where: eq(portfolios.orgId, orgId),
@@ -68,7 +72,7 @@ export async function Sidebar({
   const ungroupedPrograms = ungroupedProgramsRaw.map((program) => mapProgram(program, taskCounts));
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-cy-gray-100 bg-cy-gray-025">
+    <ResizableSidebar initialWidth={width}>
       <NavLinks
         links={PERSONAL_LINKS.filter((link) => !link.adminOnly || isAdmin).map((l) => ({ href: l.href, label: l.label }))}
         myOpenTaskCount={myOpenTaskCount}
@@ -97,6 +101,6 @@ export async function Sidebar({
           <PortfolioTree portfolios={portfolioNodes} ungroupedPrograms={ungroupedPrograms} />
         )}
       </div>
-    </aside>
+    </ResizableSidebar>
   );
 }
