@@ -352,6 +352,14 @@ export function GanttTimelineHeader({ timeline }: { timeline: Timeline }) {
   );
 }
 
+/**
+ * Vertical position for a row's own bar or dot when a summary bar shares
+ * its row (placement "top"): lowered so the two never overlap in the 40px
+ * row. Otherwise both are centered.
+ */
+export const SUMMARY_STACKED_Y = "top-[27px] -translate-y-1/2";
+export const CENTERED_Y = "top-1/2 -translate-y-1/2";
+
 type SpanDates = { start: Date | null; end: Date | null };
 type SpanNode = { id: string; children?: SpanNode[] };
 
@@ -383,10 +391,11 @@ export function descendantSpan<N extends SpanNode>(
 }
 
 /**
- * A rolled-up bar for a row whose own dates are empty (e.g. an undated
- * Portfolio above dated Projects): a thin dark bar with bracket ends, so
- * it reads as "the span of what's inside" rather than a schedulable item.
- * Read-only — it moves when its children do.
+ * A rolled-up bar for a row with children: a thin dark bar with bracket
+ * ends spanning everything inside, so it reads as "the span of what's
+ * inside" rather than a schedulable item. Read-only — it moves when its
+ * children do. `placement="top"` tucks it into the top of the row, above
+ * the row's own bar or dot (see `SUMMARY_STACKED_Y`).
  */
 export function SummaryBar({
   title,
@@ -394,12 +403,14 @@ export function SummaryBar({
   span,
   rangeStart,
   dayWidth,
+  placement = "center",
 }: {
   title: string;
   href: string;
   span: { start: Date; end: Date };
   rangeStart: Date;
   dayWidth: number;
+  placement?: "center" | "top";
 }) {
   const offset = Math.max(0, diffDays(span.start, rangeStart));
   const days = Math.max(1, diffDays(span.end, span.start) + 1);
@@ -411,7 +422,9 @@ export function SummaryBar({
       href={href}
       data-gantt-summary
       title={`${title}: ${span.start.toLocaleDateString()} – ${span.end.toLocaleDateString()} (span of the items inside)`}
-      className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-sm bg-cy-gray-600 hover:bg-cy-gray-800"
+      className={`absolute h-1.5 rounded-sm bg-cy-gray-600 hover:bg-cy-gray-800 ${
+        placement === "top" ? "top-1" : "top-1/2 -translate-y-1/2"
+      }`}
       style={{ left, width }}
     >
       <span className={`${tick} left-0`} aria-hidden />

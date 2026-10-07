@@ -12,6 +12,8 @@ import {
   buildTimeline,
   descendantSpan,
   SummaryBar,
+  CENTERED_Y,
+  SUMMARY_STACKED_Y,
   diffDays,
   startOfDay,
   useGanttZoom,
@@ -66,8 +68,8 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
   // Undated rows (members, always) get a summary bar spanning their work.
   const spans = new Map(
     rows.flatMap((r) => {
-      const own = toDates(r.node);
-      if (own.start || own.end) return [];
+      // Every row with children (members, tasks with checklist items) summarizes them.
+      if (!r.hasChildren) return [];
       const span = descendantSpan(r.node, toDates);
       return span ? [[r.node.id, span] as const] : [];
     }),
@@ -153,6 +155,18 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
               const { start, end } = toDates(node);
               const barColor = STATUS_BAR_COLORS[node.status] ?? "bg-cy-gray-300";
               const isMember = node.kind === "member";
+              const rowSpan = spans.get(node.id);
+              const y = rowSpan && (start || end) ? SUMMARY_STACKED_Y : CENTERED_Y;
+              const stackedSummary = rowSpan && (start || end) && (
+                <SummaryBar
+                  title={node.title}
+                  href={node.href}
+                  span={rowSpan}
+                  rangeStart={rangeStart}
+                  dayWidth={dayWidth}
+                  placement="top"
+                />
+              );
 
               if (start && end) {
                 const offset = Math.max(0, diffDays(start, rangeStart));
@@ -161,10 +175,11 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
                 const width = Math.max(span * dayWidth - 4, 8);
                 return (
                   <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
+                    {stackedSummary}
                     <Link
                       href={node.href}
                       title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
-                      className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor}`}
+                      className={`absolute ${y} flex h-5 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor}`}
                       style={{ left, width }}
                     >
                       <span className="truncate">{statusLabel(node.status)}</span>
@@ -178,23 +193,23 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
                 const offset = Math.max(0, diffDays(point, rangeStart));
                 return (
                   <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
+                    {stackedSummary}
                     <div
                       title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})`}
-                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor}`}
+                      className={`absolute ${y} h-2.5 w-2.5 rounded-full ${barColor}`}
                       style={{ left: offset * dayWidth + dayWidth / 2 - 5 }}
                     />
                   </div>
                 );
               }
 
-              const span = spans.get(node.id);
               return (
                 <div
                   key={node.id}
                   className={`relative h-10 border-b border-cy-gray-100 last:border-0 ${isMember ? "bg-cy-gray-025" : ""}`}
                 >
-                  {span && (
-                    <SummaryBar title={node.title} href={node.href} span={span} rangeStart={rangeStart} dayWidth={dayWidth} />
+                  {rowSpan && (
+                    <SummaryBar title={node.title} href={node.href} span={rowSpan} rangeStart={rangeStart} dayWidth={dayWidth} />
                   )}
                 </div>
               );

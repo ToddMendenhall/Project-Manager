@@ -316,14 +316,16 @@ page, not the component):
   down through Programs, Projects, Tasks, and Checklist Items. Draws a bar
   when both `startDate` and `endDate` are present, a single dot when only
   one is set, and hides a row (with a caption) when neither it nor any
-  descendant has a date. A row with no dates of its own that's shown
-  because of its descendants (e.g. an undated Portfolio or Program) gets a
-  read-only **summary bar** (`SummaryBar` / `descendantSpan` in
+  descendant has a date. Every row with visible children gets a read-only
+  **summary bar** (`SummaryBar` / `descendantSpan` in
   `gantt-timeline.tsx`) spanning the earliest to latest date anywhere
-  beneath it. It's computed from the view's live dates, so it follows a
+  beneath it, whether or not the row has dates of its own. An undated row
+  shows it centered. A row that also has its own bar or dot shows the
+  summary tucked at the top (`placement="top"`) and its own bar lowered
+  (`SUMMARY_STACKED_Y`), so the two never overlap. It's computed from the view's live dates, so it follows a
   child being dragged, and the spans feed the timeline's range so a
-  collapsed row's bar always fits. `ResourceGanttView` uses the same bar
-  for member rows. A Program's and a Project's own Gantt tab also pass
+  collapsed row's bar always fits. `ResourceGanttView` follows the same
+  rule (member rows, and tasks with checklist items). A Program's and a Project's own Gantt tab also pass
   `summary={{ title, href }}`, which pins a row for that program/project
   above its children. Its summary bar always spans every date beneath it,
   regardless of its own planned dates (those are in the page header), and
