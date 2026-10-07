@@ -10,6 +10,8 @@ import {
   GanttTimelineHeader,
   GanttZoomControls,
   buildTimeline,
+  descendantSpan,
+  SummaryBar,
   diffDays,
   startOfDay,
   useGanttZoom,
@@ -61,10 +63,22 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
   }
 
   const rows = buildRows(members, 0, expanded);
-  const allDates = rows.flatMap((r) => {
-    const d = toDates(r.node);
-    return [d.start, d.end].filter((x): x is Date => !!x);
-  });
+  // Undated rows (members, always) get a summary bar spanning their work.
+  const spans = new Map(
+    rows.flatMap((r) => {
+      const own = toDates(r.node);
+      if (own.start || own.end) return [];
+      const span = descendantSpan(r.node, toDates);
+      return span ? [[r.node.id, span] as const] : [];
+    }),
+  );
+  const allDates = [
+    ...rows.flatMap((r) => {
+      const d = toDates(r.node);
+      return [d.start, d.end].filter((x): x is Date => !!x);
+    }),
+    ...[...spans.values()].flatMap((span) => [span.start, span.end]),
+  ];
   const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
   const scroll = useTimelineScroll(timeline, zoom);
 
@@ -173,11 +187,16 @@ export function ResourceGanttView({ members }: { members: GanttNode[] }) {
                 );
               }
 
+              const span = spans.get(node.id);
               return (
                 <div
                   key={node.id}
                   className={`relative h-10 border-b border-cy-gray-100 last:border-0 ${isMember ? "bg-cy-gray-025" : ""}`}
-                />
+                >
+                  {span && (
+                    <SummaryBar title={node.title} href={node.href} span={span} rangeStart={rangeStart} dayWidth={dayWidth} />
+                  )}
+                </div>
               );
             })}
           </div>
