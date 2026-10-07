@@ -5,6 +5,7 @@ import { attachments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask } from "@/lib/queries";
 import { MAX_ATTACHMENT_SIZE_BYTES, declaresBodyOver, storableFileName } from "@/lib/attachments";
+import { checklistItemPath } from "@/lib/paths";
 
 export async function POST(
   request: Request,
@@ -49,7 +50,7 @@ export async function POST(
     .returning({ id: attachments.id });
 
   revalidatePath(
-    `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${itemId}`,
+    checklistItemPath(programId, projectId, taskId, itemId),
   );
 
   return NextResponse.json({ ok: true, id: attachment.id }, { status: 201 });

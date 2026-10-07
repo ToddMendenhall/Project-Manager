@@ -11,6 +11,7 @@ import {
   toggleChecklistItem,
 } from "@/app/dashboard/programs/[programId]/projects/[projectId]/tasks/[taskId]/checklist/actions";
 import { SAVE_FAILED, showNotice } from "@/components/notice";
+import { checklistItemPath } from "@/lib/paths";
 
 type ChecklistItem = {
   id: string;
@@ -120,7 +121,7 @@ export function ChecklistWidget({
                       aria-label={`Mark "${item.title}" complete`}
                     />
                     <Link
-                      href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${item.id}`}
+                      href={checklistItemPath(programId, projectId, taskId, item.id)}
                       className={`hover:underline ${checked ? "text-cy-gray-400 line-through" : "text-cy-gray-900"}`}
                     >
                       {item.title}
@@ -151,6 +152,7 @@ export function ChecklistWidget({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Add a checklist item..."
+          aria-label="New checklist item"
           className="w-full max-w-sm rounded border border-cy-gray-200 px-3 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cy-cyan-500"
         />
         <button

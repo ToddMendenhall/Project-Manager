@@ -11,6 +11,7 @@ import { ItemHeader } from "@/components/views/item-header";
 import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { ReportView } from "@/components/reports/report-view";
+import { projectPath } from "@/lib/paths";
 
 export default async function ProjectReportsPage({
   params,
@@ -66,9 +67,9 @@ export default async function ProjectReportsPage({
       />
 
       <ViewTabs
-        basePath={`/dashboard/programs/${programId}/projects/${project.id}`}
+        basePath={projectPath(programId, project.id)}
         active="reports"
-        hrefs={{ list: `/dashboard/programs/${programId}/projects/${project.id}/tasks` }}
+        hrefs={{ list: `${projectPath(programId, project.id)}/tasks` }}
       />
 
       <ReportView data={data} projectProgress={[]} />

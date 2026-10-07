@@ -18,6 +18,7 @@ import { getActivity } from "@/lib/activity";
 import { deleteTask } from "../actions";
 import { createComment, deleteComment } from "./comment-actions";
 import { deleteAttachment } from "./attachment-actions";
+import { taskPath } from "@/lib/paths";
 
 export default async function TaskDetailPage({
   params,
@@ -114,7 +115,7 @@ export default async function TaskDetailPage({
         </div>
         <div className="flex items-center gap-4">
           <Link
-            href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}/edit`}
+            href={`${taskPath(programId, projectId, task.id)}/edit`}
             className="text-sm underline"
           >
             Edit

@@ -6,9 +6,10 @@ import { db } from "@/db";
 import { attachments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask } from "@/lib/queries";
+import { checklistItemPath } from "@/lib/paths";
 
 const itemPath = (programId: string, projectId: string, taskId: string, itemId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}/checklist/${itemId}`;
+  checklistItemPath(programId, projectId, taskId, itemId);
 
 export async function deleteChecklistItemAttachment(
   programId: string,

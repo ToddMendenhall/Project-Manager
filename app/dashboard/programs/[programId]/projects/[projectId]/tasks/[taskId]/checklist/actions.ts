@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { prioritySchema, statusSchema } from "@/lib/field-schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -12,6 +13,7 @@ import { getChecklistItemForTask, getTaskForProject, resolveOrgMemberId } from "
 import { fieldChanges, logActivity } from "@/lib/activity";
 import { formErrorState } from "@/lib/form-errors";
 import type { FormState } from "@/lib/form-state";
+import { checklistItemPath, projectPath, taskPath } from "@/lib/paths";
 
 // Checklist items follow the same permission model as tasks — any org
 // member (not just admins) can create, edit, or delete them.
@@ -21,8 +23,8 @@ const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const checklistItemSchema = z.object({
   title: z.string().trim().min(1, "Title is required").max(500),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
-  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
-  priority: z.enum(["low", "medium", "high", "urgent"]),
+  status: statusSchema,
+  priority: prioritySchema,
   assigneeId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   dueDate: z.preprocess(emptyToUndefined, z.string().optional()),
 });
@@ -38,14 +40,8 @@ function parseChecklistItemForm(formData: FormData) {
   });
 }
 
-const taskPath = (programId: string, projectId: string, taskId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks/${taskId}`;
-
-const itemPath = (programId: string, projectId: string, taskId: string, itemId: string) =>
-  `${taskPath(programId, projectId, taskId)}/checklist/${itemId}`;
-
 const listPath = (programId: string, projectId: string) =>
-  `/dashboard/programs/${programId}/projects/${projectId}/tasks`;
+  `${projectPath(programId, projectId)}/tasks`;
 
 /** Records a checklist item event in its task's (and so its project's and program's) history. */
 async function logItemActivity(
@@ -131,8 +127,8 @@ export async function updateChecklistItem(
     );
 
     revalidatePath(taskPath(programId, projectId, taskId));
-    revalidatePath(itemPath(programId, projectId, taskId, itemId));
-    redirect(itemPath(programId, projectId, taskId, itemId));
+    revalidatePath(checklistItemPath(programId, projectId, taskId, itemId));
+    redirect(checklistItemPath(programId, projectId, taskId, itemId));
   } catch (err) {
     return formErrorState(err);
   }
@@ -161,11 +157,9 @@ export async function toggleChecklistItem(
   await logItemActivity(ctx, { programId, projectId, taskId }, existing, await fieldChanges(existing, { status }));
 
   revalidatePath(taskPath(programId, projectId, taskId));
-  revalidatePath(itemPath(programId, projectId, taskId, itemId));
+  revalidatePath(checklistItemPath(programId, projectId, taskId, itemId));
 }
 
-const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
-const priorityEnum = z.enum(["low", "medium", "high", "urgent"]);
 
 /** Lightweight status-only update, used by the List view's inline editor (vs. toggleChecklistItem's checkbox). */
 export async function updateChecklistItemStatus(
@@ -182,7 +176,7 @@ export async function updateChecklistItemStatus(
     throw new Error("Checklist item not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const justCompleted = parsedStatus === "completed" && existing.status !== "completed";
   const unCompleted = parsedStatus !== "completed" && existing.status === "completed";
 
@@ -219,7 +213,7 @@ export async function updateChecklistItemPriority(
     throw new Error("Checklist item not found");
   }
 
-  const parsedPriority = priorityEnum.parse(priority);
+  const parsedPriority = prioritySchema.parse(priority);
   await db
     .update(checklistItems)
     .set({ priority: parsedPriority, updatedAt: new Date() })

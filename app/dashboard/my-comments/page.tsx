@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireOrgContext } from "@/lib/org";
 import { getCommentsOnMyTasks } from "@/lib/queries";
+import { taskPath } from "@/lib/paths";
 
 export default async function AssignedCommentsPage() {
   const ctx = await requireOrgContext();
@@ -21,7 +22,7 @@ export default async function AssignedCommentsPage() {
             <li key={comment.id} className="rounded-card border border-cy-gray-100 bg-white p-4">
               <div className="flex items-center justify-between gap-4">
                 <Link
-                  href={`/dashboard/programs/${comment.programId}/projects/${comment.projectId}/tasks/${comment.taskId}`}
+                  href={taskPath(comment.programId, comment.projectId, comment.taskId)}
                   className="font-medium text-cy-gray-900 hover:underline"
                 >
                   {comment.taskTitle}

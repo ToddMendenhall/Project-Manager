@@ -12,6 +12,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
 import { CalendarNav } from "@/components/views/calendar-nav";
 import { parseMonthParam } from "@/lib/calendar";
+import { projectPath } from "@/lib/paths";
 
 export default async function ProgramCalendarPage({
   params,
@@ -36,10 +37,10 @@ export default async function ProgramCalendarPage({
 
   const items = program.projects
     .filter((p) => p.dueDate)
-    .map((p) => ({ id: p.id, title: p.name, date: p.dueDate!, href: `${basePath}/projects/${p.id}` }));
+    .map((p) => ({ id: p.id, title: p.name, date: p.dueDate!, href: projectPath(programId, p.id) }));
   const undated = program.projects
     .filter((p) => !p.dueDate)
-    .map((p) => ({ id: p.id, title: p.name, date: new Date(), href: `${basePath}/projects/${p.id}` }));
+    .map((p) => ({ id: p.id, title: p.name, date: new Date(), href: projectPath(programId, p.id) }));
 
   return (
     <div className="flex flex-col gap-6">

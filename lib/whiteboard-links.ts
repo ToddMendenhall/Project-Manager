@@ -1,3 +1,4 @@
+import { projectPath } from "@/lib/paths";
 /**
  * A whiteboard's optional context link: one Project or one Program (never
  * both — see the check constraint on whiteboards). Client-safe: shared by
@@ -37,7 +38,7 @@ export function whiteboardLinkInfo(board: LinkedRows): WhiteboardLinkInfo | null
       id: board.project.id,
       name: board.project.name,
       programName: board.project.program?.name,
-      href: `/dashboard/programs/${board.project.programId}/projects/${board.project.id}`,
+      href: projectPath(board.project.programId, board.project.id),
     };
   }
   if (board.program) {

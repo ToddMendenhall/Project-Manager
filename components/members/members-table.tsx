@@ -102,6 +102,7 @@ export function MembersTable({
                   <td className="px-3.5 py-2.5">
                     <select
                       value={member.role}
+                      aria-label={`Role of ${member.name}`}
                       disabled={isSelf}
                       onChange={(e) => handleRoleChange(member, e.target.value)}
                       title={isSelf ? "You can't change your own role" : undefined}

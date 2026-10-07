@@ -19,6 +19,7 @@ import {
   updateChecklistItemDueDate,
 } from "@/app/dashboard/programs/[programId]/projects/[projectId]/tasks/[taskId]/checklist/actions";
 import { SAVE_FAILED, showNotice } from "@/components/notice";
+import { checklistItemPath, taskPath } from "@/lib/paths";
 
 type Assignee = { id: string; name: string } | null;
 type OrgMember = { id: string; name: string; email: string };
@@ -55,9 +56,18 @@ function isOverdue(dueDate: Date | string | null, status: string, today: string 
   return calendarDateKey(dueDate) < today;
 }
 
-function StatusSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function StatusSelect({
+  value,
+  label,
+  onChange,
+}: {
+  value: string;
+  label: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`h-6 appearance-none rounded border-0 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[.08em] ${STATUS_COLORS[value] ?? "bg-cy-gray-050 text-cy-gray-700"}`}
@@ -71,9 +81,18 @@ function StatusSelect({ value, onChange }: { value: string; onChange: (value: st
   );
 }
 
-function PrioritySelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function PrioritySelect({
+  value,
+  label,
+  onChange,
+}: {
+  value: string;
+  label: string;
+  onChange: (value: string) => void;
+}) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className={`h-6 appearance-none rounded border-0 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[.08em] ${PRIORITY_COLORS[value] ?? "bg-cy-gray-050 text-cy-gray-700"}`}
@@ -89,15 +108,18 @@ function PrioritySelect({ value, onChange }: { value: string; onChange: (value: 
 
 function AssigneeSelect({
   value,
+  label,
   orgMembers,
   onChange,
 }: {
   value: string;
+  label: string;
   orgMembers: OrgMember[];
   onChange: (value: string) => void;
 }) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="rounded border border-cy-gray-200 bg-white px-2 py-1 text-[13px] text-cy-gray-700"
@@ -114,15 +136,18 @@ function AssigneeSelect({
 
 function DueDateInput({
   value,
+  label,
   onChange,
   overdue,
 }: {
   value: Date | string | null;
+  label: string;
   onChange: (value: string) => void;
   overdue: boolean;
 }) {
   return (
     <input
+      aria-label={label}
       type="date"
       value={dateInputValue(value)}
       onChange={(e) => onChange(e.target.value)}
@@ -385,7 +410,7 @@ export function TaskListView({
                           </button>
                           <div className="flex min-w-0 items-center gap-2">
                             <Link
-                              href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}`}
+                              href={taskPath(programId, projectId, task.id)}
                               className="truncate font-medium text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
                             >
                               {task.title}
@@ -396,18 +421,20 @@ export function TaskListView({
                               </span>
                             )}
                           </div>
-                          <StatusSelect value={task.status} onChange={(v) => handleTaskStatusChange(task, v)} />
+                          <StatusSelect value={task.status} label={`Status of ${task.title}`} onChange={(v) => handleTaskStatusChange(task, v)} />
                           <AssigneeSelect
                             value={task.assignee?.id ?? ""}
+                            label={`Assignee of ${task.title}`}
                             orgMembers={orgMembers}
                             onChange={(v) => handleTaskAssigneeChange(task, v)}
                           />
                           <DueDateInput
                             value={task.dueDate}
+                            label={`Due date of ${task.title}`}
                             overdue={isOverdue(task.dueDate, task.status, today)}
                             onChange={(v) => handleTaskDueDateChange(task, v)}
                           />
-                          <PrioritySelect value={task.priority} onChange={(v) => handleTaskPriorityChange(task, v)} />
+                          <PrioritySelect value={task.priority} label={`Priority of ${task.title}`} onChange={(v) => handleTaskPriorityChange(task, v)} />
                         </div>
 
                         {isExpanded &&
@@ -418,27 +445,31 @@ export function TaskListView({
                             >
                               <span />
                               <Link
-                                href={`/dashboard/programs/${programId}/projects/${projectId}/tasks/${task.id}/checklist/${item.id}`}
+                                href={checklistItemPath(programId, projectId, task.id, item.id)}
                                 className="truncate pl-[18px] text-cy-gray-700 hover:text-cy-blue-600 hover:underline"
                               >
                                 {item.title}
                               </Link>
                               <StatusSelect
                                 value={item.status}
+                                label={`Status of ${item.title}`}
                                 onChange={(v) => handleItemStatusChange(task, item, v)}
                               />
                               <AssigneeSelect
                                 value={item.assignee?.id ?? ""}
+                                label={`Assignee of ${item.title}`}
                                 orgMembers={orgMembers}
                                 onChange={(v) => handleItemAssigneeChange(task, item, v)}
                               />
                               <DueDateInput
                                 value={item.dueDate}
+                                label={`Due date of ${item.title}`}
                                 overdue={isOverdue(item.dueDate, item.status, today)}
                                 onChange={(v) => handleItemDueDateChange(task, item, v)}
                               />
                               <PrioritySelect
                                 value={item.priority}
+                                label={`Priority of ${item.title}`}
                                 onChange={(v) => handleItemPriorityChange(task, item, v)}
                               />
                             </div>

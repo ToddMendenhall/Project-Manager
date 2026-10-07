@@ -8,9 +8,12 @@ import { NewWhiteboardButton } from "./new-whiteboard-button";
 type LinkedBoard = Awaited<ReturnType<typeof getLinkedWhiteboards>>[number];
 
 /**
- * The "Whiteboards" section on a Project or Program page: boards linked to
- * it (on a program page, also boards linked to its projects, labelled with
- * the project) and a button that creates a board already linked here.
+ * The "Whiteboards" section on a Project, Program or Portfolio page: boards
+ * linked to it (on a program page, also boards linked to its projects,
+ * labelled with the project) and a button that creates a board already
+ * linked here. A Portfolio passes no `link`: boards can't link to one, so it
+ * lists its programs' and projects' boards, each labelled with what it's
+ * linked to, and has no "New whiteboard" button.
  */
 export function LinkedWhiteboards({
   boards,
@@ -18,24 +21,31 @@ export function LinkedWhiteboards({
   linkName,
 }: {
   boards: LinkedBoard[];
-  link: WhiteboardLink;
-  linkName: string;
+  link?: WhiteboardLink;
+  linkName?: string;
 }) {
   const now = new Date();
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Whiteboards ({boards.length})</h2>
-        <NewWhiteboardButton variant="small" link={link} linkName={linkName} />
+        {link && <NewWhiteboardButton variant="small" link={link} linkName={linkName} />}
       </div>
       {boards.length === 0 ? (
-        <p className="text-sm text-cy-gray-500">No whiteboards linked yet.</p>
+        <p className="text-sm text-cy-gray-500">
+          {link ? "No whiteboards linked yet." : "No whiteboards are linked to this portfolio's programs or projects."}
+        </p>
       ) : (
         <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
           {boards.map((board) => {
             const boardLink = whiteboardLinkInfo(board);
-            // On a program page, say which project a project-linked board belongs to.
-            const viaProject = link.kind === "program" && boardLink?.kind === "project" ? boardLink.name : null;
+            // On a program page, say which project a project-linked board belongs
+            // to; on a portfolio page, which program or project it's linked to.
+            const via = !link
+              ? (boardLink?.name ?? null)
+              : link.kind === "program" && boardLink?.kind === "project"
+                ? boardLink.name
+                : null;
             return (
               <li key={board.id}>
                 <Link
@@ -57,7 +67,7 @@ export function LinkedWhiteboards({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-cy-gray-900">{board.name}</p>
                     <p className="truncate text-xs text-cy-gray-400">
-                      {viaProject ? `${viaProject} · ` : ""}
+                      {via ? `${via} · ` : ""}
                       Edited {formatRelativeTime(board.updatedAt, now)}
                       {board.updatedBy && ` by ${board.updatedBy.name}`}
                     </p>

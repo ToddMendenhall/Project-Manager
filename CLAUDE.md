@@ -302,10 +302,13 @@ edit form).
 
 ### Activity history
 
-Program, Project and Task pages end with an **Activity** section
+Portfolio, Program, Project and Task pages end with an **Activity** section
 (`ActivityFeed`, `components/activity/activity-feed.tsx`) built from the
 `activity_log` table. A Project's history rolls up its tasks and checklist
-items, and a Program's rolls up its projects too.
+items, and a Program's rolls up its projects too. A Portfolio has no rows of
+its own (every row belongs to a program, and portfolio edits aren't
+recorded): `getActivity(orgId, { portfolioId })` shows the history of the
+programs it holds now.
 
 - **Writing:** actions call `logActivity(actorId, scope, subject, events)`
   (`lib/activity.ts`) after the mutation succeeds. Each level's
@@ -393,17 +396,23 @@ Routes nest to match the data hierarchy under
 `app/dashboard/programs/[programId]/projects/[projectId]/tasks/[taskId]/...`,
 with `checklist/[itemId]` one level deeper. Each level's CRUD follows the
 same shape: a list `page.tsx`, `new/page.tsx`, `[id]/page.tsx` (detail),
-`[id]/edit/page.tsx` (Program/Project/Portfolio only — Task and
-ChecklistItem edit their fields inline on the detail page itself, see the
-form-action note above), and a sibling `actions.ts`. `lib/fields.ts` holds
+`[id]/edit/page.tsx` (Portfolio/Program/Project/Task — a ChecklistItem
+edits its fields inline on its own detail page instead, see the form-action
+note above), and a sibling `actions.ts`. `lib/fields.ts` holds
 the shared `STATUS_OPTIONS`/`PRIORITY_OPTIONS` enums-as-arrays used by every
-form and badge component (`components/status-badge.tsx`).
+form and badge component (`components/status-badge.tsx`). Actions validate
+those columns with `statusSchema`/`prioritySchema` (`lib/field-schemas.ts`,
+built from the database enums), never a hand-written `z.enum([...])`.
+
+Links to a project, task or checklist item go through `projectPath`,
+`taskPath` and `checklistItemPath` (`lib/paths.ts`, client-safe) rather than
+a hand-built `/dashboard/programs/${…}/projects/${…}` string.
 
 ### Multi-view tabs (List/Board/Calendar/Gantt) at every hierarchy level
 
 Every level whose children are worth browsing on their own — the org-wide
-Portfolios index, a Portfolio's Programs, a Program's Projects, a Project's
-Tasks — gets the same `ViewTabs` (`components/views/view-tabs.tsx`) row
+Portfolios and Programs indexes, a Portfolio's Programs, a Program's
+Projects, a Project's Tasks — gets the same `ViewTabs` (`components/views/view-tabs.tsx`) row
 switching between List, Board, Calendar, and Gantt, so switching views never
 requires detouring through a "View all" link first. The four generic view
 components live in `components/views/` and are shape-agnostic (typed by the
@@ -462,6 +471,23 @@ page, not the component):
   header rows, so bar/dot/drag math stays in days and only multiplies by
   the current `dayWidth`. The chosen level persists in `localStorage`, and
   the date at the viewport's center is kept centered across zoom changes.
+
+### Accessibility
+
+- Every input and select has an accessible name: a wrapping `<label>`
+  (`Field`), or an `aria-label` naming the row it edits ("Status of Spec")
+  for inline editors with no visible label.
+- **Board** cards are tab stops. With a card focused, ←/→ move it to the
+  previous/next column (in the viewer's column order), ↑/↓ move it within
+  its column, and Enter opens it. Moves are announced through a live region.
+  Arrow keys pressed on a link inside the card are left alone.
+- **Gantt** bar ends and dots are `role="slider"` tab stops. ←/→ move the
+  date a day (Shift: a week). The view updates at once and saves after a
+  pause (`KEYBOARD_SAVE_DELAY_MS`), so holding a key costs one save. Both
+  pointer drags and keys go through `shiftDates`, so they clamp the same way.
+- The ⌘K search (`CommandBar`) is a modal dialog with a combobox and
+  listbox (`aria-activedescendant`). Focus stays in it while open and
+  returns to where it was on close.
 
 ### Item headers
 
@@ -605,6 +631,9 @@ and undoes `main`'s padding so the canvas runs edge to edge.
   - `LinkedWhiteboards` lists linked boards on the Project page, and on the
     Program page together with its projects' boards. Its "New whiteboard"
     creates a board already linked there (`createWhiteboard(key, link)`).
+    A Portfolio page lists its programs' and projects' boards (each labelled
+    with what it's linked to) with no "New whiteboard", since a board can't
+    link to a portfolio.
   - Actions that change a board's name, link or existence revalidate those
     pages (`linkedPagePaths`). A project link also refreshes its program's page.
   - `lib/whiteboard-links.ts` holds the client-safe link types and the

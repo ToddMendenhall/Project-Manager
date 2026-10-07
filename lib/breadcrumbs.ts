@@ -1,4 +1,5 @@
 import type { Crumb } from "@/components/views/breadcrumbs";
+import { projectPath, taskPath } from "@/lib/paths";
 
 const ALL_PORTFOLIOS: Crumb = { label: "All Portfolios", href: "/dashboard/portfolios" };
 const ALL_PROGRAMS: Crumb = { label: "All Programs", href: "/dashboard/programs" };
@@ -26,7 +27,7 @@ export function projectBreadcrumbs(program: ProgramRef): Crumb[] {
 export function taskBreadcrumbs(program: ProgramRef, project: { id: string; name: string }): Crumb[] {
   return [
     ...projectBreadcrumbs(program),
-    { label: project.name, href: `/dashboard/programs/${program.id}/projects/${project.id}` },
+    { label: project.name, href: projectPath(program.id, project.id) },
   ];
 }
 
@@ -38,6 +39,6 @@ export function checklistItemBreadcrumbs(
 ): Crumb[] {
   return [
     ...taskBreadcrumbs(program, project),
-    { label: task.title, href: `/dashboard/programs/${program.id}/projects/${project.id}/tasks/${task.id}` },
+    { label: task.title, href: taskPath(program.id, project.id, task.id) },
   ];
 }

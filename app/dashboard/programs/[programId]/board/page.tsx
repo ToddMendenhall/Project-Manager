@@ -12,6 +12,7 @@ import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { updateProjectOrder } from "../projects/actions";
 import { formatCalendarDate } from "@/lib/dates";
+import { projectPath } from "@/lib/paths";
 
 export default async function ProgramBoardPage({ params }: { params: Promise<{ programId: string }> }) {
   const { programId } = await params;
@@ -64,7 +65,7 @@ export default async function ProgramBoardPage({ params }: { params: Promise<{ p
             sortOrder: project.sortOrder,
             card: (
               <>
-                <Link href={`${basePath}/projects/${project.id}`} className="font-medium text-cy-gray-900 hover:underline">
+                <Link href={projectPath(programId, project.id)} className="font-medium text-cy-gray-900 hover:underline">
                   {project.name}
                 </Link>
                 <div className="mt-2 flex items-center justify-between">

@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { statusSchema } from "@/lib/field-schemas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
@@ -17,7 +18,7 @@ const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 const portfolioSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(255),
   description: z.preprocess(emptyToUndefined, z.string().trim().max(5000).optional()),
-  status: z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]),
+  status: statusSchema,
   ownerId: z.preprocess(emptyToUndefined, z.string().uuid().optional()),
   startDate: z.preprocess(emptyToUndefined, z.string().optional()),
   targetEndDate: z.preprocess(emptyToUndefined, z.string().optional()),
@@ -116,7 +117,6 @@ export async function deletePortfolio(portfolioId: string) {
   redirect("/dashboard/portfolios");
 }
 
-const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);
 
 /** Lightweight status+order update, used by the Board view's drag-and-drop. */
 export async function updatePortfolioOrder(portfolioId: string, status: string, sortOrder: number) {
@@ -127,7 +127,7 @@ export async function updatePortfolioOrder(portfolioId: string, status: string, 
     throw new Error("Portfolio not found");
   }
 
-  const parsedStatus = statusEnum.parse(status);
+  const parsedStatus = statusSchema.parse(status);
   const parsedSortOrder = z.number().finite().parse(sortOrder);
 
   await db

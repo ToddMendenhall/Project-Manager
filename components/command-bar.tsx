@@ -51,12 +51,19 @@ export function CommandBar() {
   const [recents, setRecents] = useState<FlatRow[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  // Focus goes back where it was when the dialog closes (the trigger, or
+  // whatever had focus when ⌘K was pressed).
+  const returnFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setOpen((o) => !o);
+        setOpen((o) => {
+          if (!o) returnFocusRef.current = document.activeElement as HTMLElement | null;
+          return !o;
+        });
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -71,6 +78,9 @@ export function CommandBar() {
       setQuery("");
       setResults(EMPTY_RESULTS);
       setActiveIndex(0);
+      const target = returnFocusRef.current;
+      returnFocusRef.current = null;
+      if (target?.isConnected) target.focus();
     }
   }, [open]);
 
@@ -105,6 +115,10 @@ export function CommandBar() {
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Escape") {
       setOpen(false);
+    } else if (e.key === "Tab") {
+      // The input is the dialog's only tab stop (results are picked with the
+      // arrow keys), so keep focus inside the modal.
+      e.preventDefault();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       setActiveIndex((i) => Math.min(i + 1, rows.length - 1));
@@ -123,31 +137,57 @@ export function CommandBar() {
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          returnFocusRef.current = triggerRef.current;
+          setOpen(true);
+        }}
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Meta+K Control+K"
         className="flex w-full items-center gap-2 rounded border border-white/20 bg-white/10 px-2.5 py-1.5 text-left transition-colors duration-fast hover:bg-white/15"
       >
         <Search size={15} strokeWidth={2} className="shrink-0 text-[#b3ddf4]" />
         <span className="flex-1 truncate text-[13px] text-cy-blue-200">Search tasks, projects, members</span>
-        <span className="shrink-0 rounded-[2px] border border-white/20 px-1.5 font-mono text-[11px] text-cy-blue-200">
+        <span aria-hidden className="shrink-0 rounded-[2px] border border-white/20 px-1.5 font-mono text-[11px] text-cy-blue-200">
           ⌘K
         </span>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex justify-center" style={{ paddingTop: "15vh" }}>
-          <div className="fixed inset-0 backdrop-blur-[2px]" style={{ background: "rgba(16,19,23,.55)" }} onClick={() => setOpen(false)} />
-          <div className="relative z-10 h-fit w-[560px] max-w-[90vw] overflow-hidden rounded-card border border-cy-gray-200 bg-white shadow-md">
+          <div
+            aria-hidden
+            className="fixed inset-0 backdrop-blur-[2px]"
+            style={{ background: "rgba(16,19,23,.55)" }}
+            onClick={() => setOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search"
+            className="relative z-10 h-fit w-[560px] max-w-[90vw] overflow-hidden rounded-card border border-cy-gray-200 bg-white shadow-md"
+          >
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search tasks, projects, members…"
+              role="combobox"
+              aria-label="Search tasks, projects, programs and members"
+              aria-expanded={rows.length > 0}
+              aria-controls="command-bar-results"
+              aria-autocomplete="list"
+              aria-activedescendant={rows[activeIndex] ? `command-bar-option-${activeIndex}` : undefined}
               className="w-full border-0 px-4 py-3.5 text-base text-cy-gray-900 placeholder:text-cy-gray-400 focus:outline-none"
             />
             <div className="border-t border-cy-gray-100" />
-            <div className="max-h-[360px] overflow-y-auto py-2">
+            {/* Announces the outcome of each search to screen readers. */}
+            <p role="status" className="sr-only">
+              {query.trim() ? (rows.length === 0 ? "No matches" : `${rows.length} result${rows.length === 1 ? "" : "s"}`) : ""}
+            </p>
+            <div id="command-bar-results" role="listbox" aria-label="Results" className="max-h-[360px] overflow-y-auto py-2">
               {rows.length === 0 ? (
                 <p className="px-4 py-6 text-center text-sm text-cy-gray-500">
                   {query.trim() ? "No matches" : "Type to search"}
@@ -156,8 +196,11 @@ export function CommandBar() {
                 (query.trim() ? GROUPS.map((g) => ({ label: g.label, rows: results[g.key] })) : [{ label: "Recent", rows: recents }])
                   .filter((g) => g.rows.length > 0)
                   .map((group) => (
-                    <div key={group.label}>
-                      <p className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-eyebrow text-cy-gray-400">
+                    <div key={group.label} role="group" aria-labelledby={`command-bar-group-${group.label}`}>
+                      <p
+                        id={`command-bar-group-${group.label}`}
+                        className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-eyebrow text-cy-gray-400"
+                      >
                         {group.label}
                       </p>
                       {group.rows.map((row) => {
@@ -167,7 +210,11 @@ export function CommandBar() {
                         return (
                           <button
                             key={row.id}
+                            id={`command-bar-option-${index}`}
                             type="button"
+                            role="option"
+                            aria-selected={active}
+                            tabIndex={-1}
                             onMouseEnter={() => setActiveIndex(index)}
                             onClick={() => navigateTo({ ...row, group: group.label })}
                             className={`flex h-9 w-full items-center justify-between gap-3 px-4 text-left text-sm transition-colors duration-fast ${

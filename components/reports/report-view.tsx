@@ -4,6 +4,7 @@ import { BarChart } from "@/components/reports/bar-chart";
 import { PriorityBadge, STATUS_BAR_COLORS, PRIORITY_BAR_COLORS } from "@/components/status-badge";
 import type { ReportData, ReportTask, ProjectProgressGroup } from "@/lib/reports";
 import { formatCalendarDate } from "@/lib/dates";
+import { taskPath } from "@/lib/paths";
 
 const MAX_ROWS = 15;
 
@@ -153,7 +154,7 @@ function TaskTable({ title, tasks, emptyText }: { title: string; tasks: ReportTa
                 <tr key={task.id} className="border-b border-cy-gray-100 last:border-0 hover:bg-cy-gray-025">
                   <td className="px-4 py-3">
                     <Link
-                      href={`/dashboard/programs/${task.programId}/projects/${task.projectId}/tasks/${task.id}`}
+                      href={taskPath(task.programId, task.projectId, task.id)}
                       className="font-medium text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
                     >
                       {task.title}

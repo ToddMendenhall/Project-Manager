@@ -12,6 +12,7 @@ import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { CalendarView } from "@/components/views/calendar-view";
 import { CalendarNav } from "@/components/views/calendar-nav";
 import { parseMonthParam } from "@/lib/calendar";
+import { projectPath } from "@/lib/paths";
 
 export default async function TaskCalendarPage({
   params,
@@ -46,7 +47,7 @@ export default async function TaskCalendarPage({
     itemHeaderMeta("project", project.id),
   ]);
 
-  const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
+  const basePath = projectPath(programId, projectId);
   const items = allTasks
     .filter((t) => t.dueDate)
     .map((t) => ({ id: t.id, title: t.title, date: t.dueDate!, href: `${basePath}/tasks/${t.id}` }));

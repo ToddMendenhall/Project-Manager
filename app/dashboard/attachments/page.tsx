@@ -7,6 +7,7 @@ import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { deleteAttachmentAdmin } from "./actions";
+import { taskPath } from "@/lib/paths";
 
 const SORTS = {
   oldest: { label: "Oldest first", compare: (a: OrgAttachmentRow, b: OrgAttachmentRow) => a.createdAt.getTime() - b.createdAt.getTime() },
@@ -17,8 +18,8 @@ type SortKey = keyof typeof SORTS;
 
 function itemHref(row: OrgAttachmentRow) {
   if (row.itemKind === "whiteboard") return `/dashboard/whiteboards/${row.whiteboardId}`;
-  const taskPath = `/dashboard/programs/${row.programId}/projects/${row.projectId}/tasks/${row.taskId}`;
-  return row.itemKind === "checklist_item" ? `${taskPath}/checklist/${row.checklistItemId}` : taskPath;
+  const taskHref = taskPath(row.programId, row.projectId, row.taskId);
+  return row.itemKind === "checklist_item" ? `${taskHref}/checklist/${row.checklistItemId}` : taskHref;
 }
 
 export default async function AttachmentsPage({
