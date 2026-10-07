@@ -9,7 +9,7 @@ import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header"
 import { programBreadcrumbs } from "@/lib/breadcrumbs";
 import { StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { projectNode } from "@/lib/gantt-tree";
+import { headerDates, projectNode } from "@/lib/gantt-tree";
 import { updateProjectDates } from "../projects/actions";
 import { updateTaskDates } from "../projects/[projectId]/tasks/actions";
 
@@ -38,11 +38,12 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
   if (!program) notFound();
 
   const basePath = `/dashboard/programs/${programId}`;
+  const items = program.projects.map((p) => projectNode(p, basePath));
+  const dates = headerDates({ start: program.startDate, end: program.targetEndDate }, items);
   const meta: ItemHeaderMeta[] = [];
   if (program.owner) meta.push({ label: "Owner", value: program.owner.name });
-  if (program.startDate) meta.push({ label: "Start", value: new Date(program.startDate).toLocaleDateString() });
-  if (program.targetEndDate)
-    meta.push({ label: "Target end", value: new Date(program.targetEndDate).toLocaleDateString() });
+  if (dates.start) meta.push({ label: "Start", value: dates.start.toLocaleDateString() });
+  if (dates.end) meta.push({ label: "Target end", value: dates.end.toLocaleDateString() });
 
   return (
     <div className="flex flex-col gap-6">
@@ -70,7 +71,7 @@ export default async function ProgramGanttPage({ params }: { params: Promise<{ p
         <p className="text-sm text-cy-gray-500">No projects yet.</p>
       ) : (
         <GanttView
-          items={program.projects.map((p) => projectNode(p, basePath))}
+          items={items}
           summary={{ title: program.name, href: basePath }}
           onProjectDateChange={updateProjectDates}
           onTaskDateChange={updateTaskDates}

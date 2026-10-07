@@ -328,8 +328,10 @@ page, not the component):
   rule (member rows, and tasks with checklist items). A Program's and a Project's own Gantt tab also pass
   `summary={{ title, href }}`, which pins a row for that program/project
   above its children. Its summary bar always spans every date beneath it,
-  regardless of its own planned dates (those are in the page header), and
-  its label shows the range. This is why `tasks` has a `startDate` column even
+  regardless of its own planned dates, and its label is just the name. The
+  dates live in the page header: those Gantt pages show the item's own
+  Start/End, filling either missing one from its children's span
+  (`headerDates` in `lib/gantt-tree.ts`). This is why `tasks` has a `startDate` column even
   though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.
