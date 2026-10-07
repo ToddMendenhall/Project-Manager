@@ -46,13 +46,6 @@ function isVisible(node: GanttNode, dates: Record<string, ItemDates>): boolean {
 
 type Row = { node: GanttNode; depth: number; hasVisibleChildren: boolean };
 
-const SPAN_FORMAT: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
-
-/** "Oct 1, 2026 – Dec 12, 2026", for the summary row's label. */
-function formatSpan(span: { start: Date; end: Date }) {
-  return `${span.start.toLocaleDateString(undefined, SPAN_FORMAT)} – ${span.end.toLocaleDateString(undefined, SPAN_FORMAT)}`;
-}
-
 function buildRows(
   nodes: GanttNode[],
   depth: number,
@@ -86,6 +79,8 @@ type DragAnchor = {
 /**
  * The item a Gantt page belongs to (e.g. the Program on its own Gantt tab),
  * shown as a pinned top row whose summary bar spans every date beneath it.
+ * The row shows just the name; the page header carries the dates
+ * (`headerDates` in lib/gantt-tree.ts).
  */
 export type GanttSummaryRow = { title: string; href: string };
 
@@ -259,7 +254,7 @@ export function GanttView({
           {summary && summarySpan && (
             <div
               data-gantt-summary-row
-              className="flex h-10 shrink-0 flex-col justify-center border-b border-cy-gray-200 bg-cy-gray-025 pl-3 pr-3"
+              className="flex h-10 shrink-0 items-center border-b border-cy-gray-200 bg-cy-gray-025 pl-3 pr-3"
             >
               <Link
                 href={summary.href}
@@ -268,7 +263,6 @@ export function GanttView({
               >
                 {summary.title}
               </Link>
-              <span className="truncate text-[11px] text-cy-gray-500">{formatSpan(summarySpan)}</span>
             </div>
           )}
           {rows.map((row) => (

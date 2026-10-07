@@ -15,6 +15,40 @@ type ProjectWithTasks = Project & { tasks: TaskWithChecklist[] };
 type ProgramWithProjects = Program & { projects: ProjectWithTasks[] };
 type PortfolioWithPrograms = Portfolio & { programs: ProgramWithProjects[] };
 
+/** Earliest and latest date anywhere in these nodes and their descendants. */
+function treeSpan(nodes: GanttNode[]): { start: Date; end: Date } | null {
+  let min: number | null = null;
+  let max: number | null = null;
+  const visit = (list: GanttNode[]) => {
+    for (const node of list) {
+      for (const value of [node.startDate, node.endDate]) {
+        if (!value) continue;
+        const t = new Date(value).getTime();
+        if (min === null || t < min) min = t;
+        if (max === null || t > max) max = t;
+      }
+      if (node.children) visit(node.children);
+    }
+  };
+  visit(nodes);
+  return min === null || max === null ? null : { start: new Date(min), end: new Date(max) };
+}
+
+/**
+ * The Start/End a Program's or Project's Gantt-tab header shows: its own
+ * dates when set, with either missing one filled from the span of what's
+ * inside it (`children`, the Gantt's rows), so the header shows a range
+ * whenever there's anything to show.
+ */
+export function headerDates(
+  own: { start: Date | null; end: Date | null },
+  children: GanttNode[],
+): { start: Date | null; end: Date | null } {
+  if (own.start && own.end) return own;
+  const span = treeSpan(children);
+  return { start: own.start ?? span?.start ?? null, end: own.end ?? span?.end ?? null };
+}
+
 export function checklistItemNode(item: ChecklistItem, taskHref: string): GanttNode {
   return {
     id: item.id,

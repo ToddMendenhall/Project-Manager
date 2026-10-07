@@ -9,7 +9,7 @@ import { ItemHeader, type ItemHeaderMeta } from "@/components/views/item-header"
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { GanttView } from "@/components/views/gantt-view";
-import { taskNode } from "@/lib/gantt-tree";
+import { headerDates, taskNode } from "@/lib/gantt-tree";
 import { updateTaskDates } from "../tasks/actions";
 
 export default async function TaskGanttPage({
@@ -41,10 +41,12 @@ export default async function TaskGanttPage({
   });
 
   const basePath = `/dashboard/programs/${programId}/projects/${projectId}`;
+  const items = allTasks.map((t) => taskNode(t, basePath));
+  const dates = headerDates({ start: project.startDate, end: project.dueDate }, items);
   const meta: ItemHeaderMeta[] = [];
   if (project.lead) meta.push({ label: "Lead", value: project.lead.name });
-  if (project.startDate) meta.push({ label: "Start", value: new Date(project.startDate).toLocaleDateString() });
-  if (project.dueDate) meta.push({ label: "Due", value: new Date(project.dueDate).toLocaleDateString() });
+  if (dates.start) meta.push({ label: "Start", value: dates.start.toLocaleDateString() });
+  if (dates.end) meta.push({ label: "Due", value: dates.end.toLocaleDateString() });
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,7 +74,7 @@ export default async function TaskGanttPage({
         <p className="text-sm text-cy-gray-500">No tasks yet.</p>
       ) : (
         <GanttView
-          items={allTasks.map((t) => taskNode(t, basePath))}
+          items={items}
           summary={{ title: project.name, href: basePath }}
           onTaskDateChange={updateTaskDates}
         />
