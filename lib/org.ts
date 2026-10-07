@@ -3,7 +3,7 @@ import { cache } from "react";
 import { asc, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { orgMembers, organizations } from "@/db/schema";
+import { orgMembers, organizations, users } from "@/db/schema";
 import { auth } from "@/lib/auth";
 
 export type OrgContext = {
@@ -24,9 +24,11 @@ export async function getPrimaryOrgMembership(userId: string) {
       orgName: organizations.name,
       orgSlug: organizations.slug,
       role: orgMembers.role,
+      sessionVersion: users.sessionVersion,
     })
     .from(orgMembers)
     .innerJoin(organizations, eq(orgMembers.orgId, organizations.id))
+    .innerJoin(users, eq(orgMembers.userId, users.id))
     .where(eq(orgMembers.userId, userId))
     .orderBy(asc(orgMembers.createdAt))
     .limit(1);
@@ -51,6 +53,12 @@ export const requireOrgContext = cache(async function requireOrgContext(): Promi
   const membership = await getPrimaryOrgMembership(session.user.id);
   if (!membership) {
     redirect("/onboarding");
+  }
+  // A password change or admin reset bumps users.sessionVersion, which ends
+  // every session signed in before it (checked here, on every request,
+  // in the membership query that runs anyway).
+  if (membership.sessionVersion !== (session.user.sessionVersion ?? 0)) {
+    redirect("/login?reason=signed-out");
   }
 
   return {

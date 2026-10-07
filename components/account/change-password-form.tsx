@@ -1,10 +1,17 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { signIn } from "next-auth/react";
 import { Field, buttonPrimary, inputClass } from "@/components/form-controls";
 import type { ActionResult } from "@/app/dashboard/account/actions";
 
-export function ChangePasswordForm({ action }: { action: (formData: FormData) => Promise<ActionResult> }) {
+export function ChangePasswordForm({
+  action,
+  email,
+}: {
+  action: (formData: FormData) => Promise<ActionResult>;
+  email: string;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -27,6 +34,9 @@ export function ChangePasswordForm({ action }: { action: (formData: FormData) =>
     startTransition(async () => {
       const result = await action(formData);
       if (result.ok) {
+        // The change signed out every session, this one included; sign this
+        // browser back in with the new password so only the others end.
+        await signIn("credentials", { email, password: newPassword, redirect: false, callbackUrl: "/dashboard/account" });
         setSuccess(true);
         form.reset();
       } else {
@@ -48,7 +58,9 @@ export function ChangePasswordForm({ action }: { action: (formData: FormData) =>
       </Field>
 
       {error && <p className="text-sm text-cy-red-500">{error}</p>}
-      {success && <p className="text-sm text-cy-green-500">Password updated.</p>}
+      {success && (
+        <p className="text-sm text-cy-green-500">Password updated. You&rsquo;ve been signed out everywhere else.</p>
+      )}
 
       <button type="submit" disabled={isPending} className={`w-fit ${buttonPrimary}`}>
         {isPending ? "Updating..." : "Update Password"}

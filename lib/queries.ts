@@ -2,6 +2,7 @@ import "server-only";
 import { and, asc, count, desc, eq, getTableColumns, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import { ValidationError } from "@/lib/validation";
+import { isUuid } from "@/lib/ids";
 import {
   attachments,
   checklistItems,
@@ -178,6 +179,7 @@ export async function getOrgPortfolios(orgId: string) {
 
 /** Fetches a portfolio only if it belongs to the given org — prevents cross-org access. */
 export async function getPortfolioForOrg(portfolioId: string, orgId: string) {
+  if (!isUuid(portfolioId)) return null;
   const [portfolio] = await db
     .select()
     .from(portfolios)
@@ -193,11 +195,10 @@ export async function getPortfolioForOrg(portfolioId: string, orgId: string) {
  * well-formed UUID could be anyone's, including another org's user.
  * Empty means "unassigned".
  */
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function resolveOrgMemberId(userId: string | null | undefined, orgId: string): Promise<string | null> {
   if (!userId) return null;
-  if (!UUID_PATTERN.test(userId)) {
+  if (!isUuid(userId)) {
     throw new ValidationError("That person isn't a member of this organization");
   }
   const [member] = await db
@@ -213,6 +214,7 @@ export async function resolveOrgMemberId(userId: string | null | undefined, orgI
 
 /** Fetches a program only if it belongs to the given org — prevents cross-org access. */
 export async function getProgramForOrg(programId: string, orgId: string) {
+  if (!isUuid(programId)) return null;
   const [program] = await db
     .select()
     .from(programs)
@@ -224,6 +226,7 @@ export async function getProgramForOrg(programId: string, orgId: string) {
 
 /** Fetches a project only if it belongs to the given program (which must itself belong to the org). */
 export async function getProjectForProgram(projectId: string, programId: string, orgId: string) {
+  if (!isUuid(projectId) || !isUuid(programId)) return null;
   const program = await getProgramForOrg(programId, orgId);
   if (!program) return null;
 
@@ -242,6 +245,7 @@ export async function getProjectForProgram(projectId: string, programId: string,
  * has the project id on hand, not its parent program id.
  */
 export async function getProjectForOrg(projectId: string, orgId: string) {
+  if (!isUuid(projectId)) return null;
   const [row] = await db
     .select({ project: projects, portfolioId: programs.portfolioId })
     .from(projects)
@@ -257,6 +261,7 @@ export async function getProjectForOrg(projectId: string, orgId: string) {
  * used where the caller only has the task id on hand (see getProjectForOrg).
  */
 export async function getTaskForOrg(taskId: string, orgId: string) {
+  if (!isUuid(taskId)) return null;
   const [row] = await db
     .select({ task: tasks, programId: programs.id, portfolioId: programs.portfolioId })
     .from(tasks)
@@ -270,6 +275,7 @@ export async function getTaskForOrg(taskId: string, orgId: string) {
 
 /** Fetches a task only if it belongs to the given project (which must itself belong to the program/org). */
 export async function getTaskForProject(taskId: string, projectId: string, programId: string, orgId: string) {
+  if (!isUuid(taskId) || !isUuid(projectId) || !isUuid(programId)) return null;
   const project = await getProjectForProgram(projectId, programId, orgId);
   if (!project) return null;
 
@@ -290,6 +296,7 @@ export async function getChecklistItemForTask(
   programId: string,
   orgId: string,
 ) {
+  if (!isUuid(itemId) || !isUuid(taskId) || !isUuid(projectId) || !isUuid(programId)) return null;
   const task = await getTaskForProject(taskId, projectId, programId, orgId);
   if (!task) return null;
 
@@ -325,6 +332,7 @@ export async function getTaskCustomFieldDefs(programId: string) {
  * org check passes, so a guessed id never costs a full file read.
  */
 export async function getAttachmentForOrg(attachmentId: string, orgId: string, { withData = false } = {}) {
+  if (!isUuid(attachmentId)) return null;
   const attachment = await findScopedAttachment(attachmentId, orgId);
   if (!attachment) return null;
   if (!withData) return { ...attachment, data: null };
@@ -679,6 +687,7 @@ export async function getWhiteboardForOrg<WithData extends boolean = false>(
   orgId: string,
   { withData }: { withData?: WithData } = {},
 ) {
+  if (!isUuid(whiteboardId)) return null;
   const board = await db.query.whiteboards.findFirst({
     where: and(eq(whiteboards.id, whiteboardId), eq(whiteboards.orgId, orgId)),
     columns: {
@@ -764,6 +773,7 @@ export async function getWhiteboardListItems(orgId: string) {
 
 /** A board's version and last editor, org-scoped: all autosave and the version poll need. */
 export async function getWhiteboardVersionForOrg(whiteboardId: string, orgId: string) {
+  if (!isUuid(whiteboardId)) return null;
   const [row] = await db
     .select({ version: whiteboards.version, updatedByName: users.name })
     .from(whiteboards)

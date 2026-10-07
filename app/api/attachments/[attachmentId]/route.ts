@@ -32,6 +32,12 @@ export async function GET(
       "Content-Length": String(attachment.data.length),
       "Cache-Control": "private, max-age=31536000, immutable",
       "X-Content-Type-Options": "nosniff",
+      // Second layer under Content-Disposition: attachment. Even if a file
+      // (the uploader chose its Content-Type) were ever rendered inline, it
+      // runs sandboxed with no script and no access to the app's origin.
+      // Images still display in <img> tags: CSP on an image response
+      // doesn't block the image.
+      "Content-Security-Policy": "sandbox; default-src 'none'",
     },
   });
 }

@@ -66,7 +66,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         try {
           const [user] = await db
-            .select({ id: users.id, email: users.email, name: users.name, passwordHash: users.passwordHash })
+            .select({
+              id: users.id,
+              email: users.email,
+              name: users.name,
+              passwordHash: users.passwordHash,
+              sessionVersion: users.sessionVersion,
+            })
             .from(users)
             .where(eq(users.email, email))
             .limit(1);
@@ -79,7 +85,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!valid) return fail();
 
           await clearAttempts(RATE_LIMITS.loginEmail, email);
-          return { id: user.id, email: user.email, name: user.name };
+          return { id: user.id, email: user.email, name: user.name, sessionVersion: user.sessionVersion };
         } catch (err) {
           // Surface the real cause in server logs — a DB error here would
           // otherwise look identical to "wrong password" to the client.
@@ -91,10 +97,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
+    // Records which session version this sign-in belongs to (see
+    // users.sessionVersion); requireOrgContext rejects the token once the
+    // user's version moves on.
+    async jwt({ token, user }) {
+      if (user) token.sv = user.sessionVersion ?? 0;
+      return token;
+    },
     // Auth.js sets token.sub to the user id automatically on sign-in.
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.sessionVersion = typeof token.sv === "number" ? token.sv : 0;
       }
       return session;
     },

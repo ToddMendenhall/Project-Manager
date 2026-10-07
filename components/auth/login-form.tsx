@@ -100,6 +100,11 @@ function LoginForm({ allowRegistration }: { allowRegistration: boolean }) {
                 className={inputClass}
               />
             </label>
+            {!error && searchParams.get("reason") === "signed-out" && (
+              <p className="text-sm text-cy-gray-600">
+                You were signed out because your password was changed. Sign in with the new password.
+              </p>
+            )}
             {error && <p className="text-sm text-cy-red-500">{error}</p>}
             <button type="submit" disabled={submitting} className={`w-full ${buttonPrimary}`}>
               {submitting ? "Signing in..." : "Sign in"}

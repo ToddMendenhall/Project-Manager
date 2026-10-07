@@ -13,6 +13,7 @@ import { itemHeaderMeta } from "@/lib/item-header";
 import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { TaskListView } from "@/components/tasks/task-list-view";
+import { isUuid } from "@/lib/ids";
 
 export default async function TaskListPage({
   params,
@@ -38,11 +39,14 @@ export default async function TaskListPage({
 
   const meta = await itemHeaderMeta("project", project.id);
 
+  // Filters come from the URL, so unknown values are ignored rather than
+  // sent to Postgres (where a bad enum or uuid is an error, not "no match").
   const filters = [eq(tasks.projectId, projectId)];
-  if (sp.status) filters.push(eq(tasks.status, sp.status as (typeof tasks.status.enumValues)[number]));
+  const status = tasks.status.enumValues.find((v) => v === sp.status);
+  if (status) filters.push(eq(tasks.status, status));
   if (sp.assigneeId === "unassigned") {
     filters.push(isNull(tasks.assigneeId));
-  } else if (sp.assigneeId) {
+  } else if (isUuid(sp.assigneeId)) {
     filters.push(eq(tasks.assigneeId, sp.assigneeId));
   }
 

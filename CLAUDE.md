@@ -80,6 +80,13 @@ a new nested entity, add a matching helper here rather than querying the
 table directly in a page/action — this is what prevents cross-org access
 through a guessed id.
 
+Malformed ids are a 404, never a 500: Postgres rejects a non-uuid string
+compared to a `uuid` column. Each `[id]` route segment has a small
+`layout.tsx` that calls `notFound()` unless `isUuid(param)` (`lib/ids.ts`),
+and every `get…For…` helper returns `null` for a non-uuid. Query-string
+filters (status, assignee) are checked against the enum/`isUuid` and ignored
+when invalid. A new `[id]` segment needs the same layout.
+
 The same applies to user references: an owner/lead/assignee id from a form
 or inline editor goes through `resolveOrgMemberId(userId, orgId)`, which
 rejects anyone who isn't a member of the org (a valid UUID alone proves
@@ -122,6 +129,27 @@ create/edit/delete is open to any org member — those actions only call
 or an admin can delete one. `requireAdmin` is reserved for org
 administration: member/invite management (`members/actions.ts`) and the
 org-wide attachments page.
+
+In `members/actions.ts`:
+- The "at least one admin" rule is checked inside a transaction that locks
+  the org's admin rows (`lockOrgAdmins`, `SELECT … FOR UPDATE`), so two
+  admins demoting or deleting each other at once can't both succeed.
+- Password reset and delete change the global `users` row, so they refuse
+  when the person also belongs to another org (`belongsToOtherOrg`). Today
+  nobody can, since invites and registration reject existing emails.
+- `createInvite` is limited to 30 per admin per hour
+  (`RATE_LIMITS.inviteCreate`), since each attempt reveals whether an email
+  has an account.
+
+**Password changes end other sessions.** JWTs can't be revoked, so
+`users.sessionVersion` is copied into the token at sign-in (`token.sv`) and
+`requireOrgContext` compares it with the current value (read in the same
+membership query). A mismatch redirects to `/login?reason=signed-out`, which
+explains why. `changePassword` and the admin's `resetMemberPassword` bump the
+version. The person changing their own password is signed straight back in
+with the new one (`ChangePasswordForm`), so only their other sessions end.
+Middleware can't check this (edge, no DB), so it applies on the next page or
+action that calls `requireOrgContext`.
 
 ### Split Auth.js config (edge vs Node runtime)
 
@@ -255,7 +283,17 @@ after upload, so `/api/attachments/[id]` (the only caller of
 `getAttachmentForOrg(id, orgId, { withData: true })`, which reads the bytes
 only after the org check passes) serves them with
 `Cache-Control: private, max-age=31536000, immutable`. Keep it that way:
-if an attachment's bytes could ever change, that header must change too. Uploads go through a route handler
+if an attachment's bytes could ever change, that header must change too.
+Downloads also send `Content-Security-Policy: sandbox; default-src 'none'`,
+so an uploaded HTML/SVG file opened directly can't run script on the app's
+origin.
+
+The upload routes refuse a body whose `Content-Length` is clearly over the
+cap (`declaresBodyOver`) with a 413 before `request.formData()` buffers it,
+then check the real file size as before. Stored names go through
+`storableFileName` (255 characters, extension kept).
+
+Uploads go through a route handler
 (`app/api/.../attachments/route.ts`) called via client-side `fetch`
 (`AttachmentUploadForm`), not a server action — consistent with the
 one-native-form-per-page rule above, since the upload form always shares a

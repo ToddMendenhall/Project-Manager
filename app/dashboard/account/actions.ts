@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
@@ -45,7 +45,12 @@ export async function changePassword(formData: FormData): Promise<ActionResult> 
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
-  await db.update(users).set({ passwordHash }).where(eq(users.id, ctx.user.id));
+  // Bumping the version signs out every other session; this browser signs
+  // straight back in with the new password (ChangePasswordForm).
+  await db
+    .update(users)
+    .set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` })
+    .where(eq(users.id, ctx.user.id));
 
   return { ok: true };
 }
