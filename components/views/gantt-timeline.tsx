@@ -214,7 +214,9 @@ export function useTimelineScroll(
     const el = scrollRef.current;
     if (!el || !dayWidth) return;
     if (centerMsRef.current === null) {
-      recordCenter();
+      // First layout: just remember where we are (same math as recordCenter,
+      // inlined so this effect depends only on dayWidth and rangeStartMs).
+      centerMsRef.current = rangeStartMs + ((el.scrollLeft + el.clientWidth / 2) / dayWidth) * DAY_MS;
       return;
     }
     el.scrollLeft = ((centerMsRef.current - rangeStartMs) / DAY_MS) * dayWidth - el.clientWidth / 2;
