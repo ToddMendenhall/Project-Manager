@@ -5,9 +5,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { whiteboards } from "@/db/schema";
+import { comments, whiteboards } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
-import { getProgramForOrg, getProjectForOrg, getWhiteboardForOrg } from "@/lib/queries";
+import {
+  getProgramForOrg,
+  getProjectForOrg,
+  getWhiteboardComments,
+  getWhiteboardForOrg,
+  type WhiteboardComment,
+} from "@/lib/queries";
 import type { WhiteboardLink } from "@/lib/whiteboard-links";
 import {
   MAX_WHITEBOARD_BYTES,
@@ -294,4 +300,62 @@ export async function getWhiteboardVersion(whiteboardId: string) {
     return null;
   }
   return { version: existing.version, updatedByName: existing.updatedBy?.name ?? null };
+}
+
+const commentSchema = z.object({
+  body: z.string().trim().min(1, "Comment can't be empty").max(5000),
+});
+
+/*
+ * Board comments. Unlike task comments these return data instead of
+ * revalidating: the comments panel keeps its own list, so posting never
+ * re-renders the page (which would re-read the whole canvas). The pages
+ * that show comment counts are dynamic, so they're fresh on the next visit.
+ */
+
+/** The board's comments, re-read when the panel opens so it picks up others' posts. */
+export async function listWhiteboardComments(whiteboardId: string): Promise<WhiteboardComment[]> {
+  const ctx = await requireOrgContext();
+  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  if (!board) {
+    throw new Error("Whiteboard not found");
+  }
+  return getWhiteboardComments(board.id);
+}
+
+/** Any member can comment. Returns the updated list. */
+export async function createWhiteboardComment(whiteboardId: string, body: string): Promise<WhiteboardComment[]> {
+  const ctx = await requireOrgContext();
+  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  if (!board) {
+    throw new Error("Whiteboard not found");
+  }
+
+  const parsed = commentSchema.parse({ body });
+  await db.insert(comments).values({ whiteboardId: board.id, authorId: ctx.user.id, body: parsed.body });
+  return getWhiteboardComments(board.id);
+}
+
+/** Author or admin only, like task comments. Returns the updated list. */
+export async function deleteWhiteboardComment(whiteboardId: string, commentId: string): Promise<WhiteboardComment[]> {
+  const ctx = await requireOrgContext();
+  const board = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  if (!board) {
+    throw new Error("Whiteboard not found");
+  }
+
+  const [existing] = await db
+    .select({ id: comments.id, authorId: comments.authorId })
+    .from(comments)
+    .where(and(eq(comments.id, z.string().uuid().parse(commentId)), eq(comments.whiteboardId, board.id)))
+    .limit(1);
+  if (!existing) {
+    throw new Error("Comment not found");
+  }
+  if (existing.authorId !== ctx.user.id && ctx.role !== "admin") {
+    throw new Error("Forbidden: only the author or an admin can delete this comment");
+  }
+
+  await db.delete(comments).where(eq(comments.id, existing.id));
+  return getWhiteboardComments(board.id);
 }

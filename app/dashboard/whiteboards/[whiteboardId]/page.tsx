@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireOrgContext } from "@/lib/org";
-import { getOrgLinkTargets, getWhiteboardForOrg } from "@/lib/queries";
+import { getOrgLinkTargets, getWhiteboardComments, getWhiteboardForOrg } from "@/lib/queries";
 import { whiteboardLinkInfo } from "@/lib/whiteboard-links";
 import { canDeleteWhiteboard, parseStoredWhiteboardDoc } from "@/lib/whiteboard";
 import { WhiteboardEditor } from "@/components/whiteboards/editor/whiteboard-editor";
@@ -17,6 +17,7 @@ export default async function WhiteboardPage({ params }: { params: Promise<{ whi
   if (!board) {
     notFound();
   }
+  const comments = await getWhiteboardComments(board.id);
 
   return (
     <WhiteboardEditor
@@ -30,6 +31,9 @@ export default async function WhiteboardPage({ params }: { params: Promise<{ whi
       link={whiteboardLinkInfo(board)}
       linkTargets={linkTargets}
       onDelete={canDeleteWhiteboard(board, ctx) ? deleteWhiteboard.bind(null, board.id) : undefined}
+      initialComments={comments}
+      currentUserId={ctx.user.id}
+      isAdmin={ctx.role === "admin"}
     />
   );
 }

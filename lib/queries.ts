@@ -736,11 +736,28 @@ export async function getOrgWhiteboards<WithData extends boolean = false>(
     },
     extras: {
       itemCount: sql<number>`coalesce(jsonb_array_length(${whiteboards.data} -> 'nodes'), 0)`.as("item_count"),
+      commentCount: sql<number>`(select count(*)::int from comments where comments.whiteboard_id = ${whiteboards.id})`.as(
+        "comment_count",
+      ),
     },
     with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } }, ...whiteboardLinkRelations },
     orderBy: [desc(whiteboards.updatedAt)],
   });
 }
+
+/**
+ * A board's discussion, oldest first. Callers must have org-checked the
+ * board (e.g. via `getWhiteboardForOrg`); the author is name-only.
+ */
+export async function getWhiteboardComments(whiteboardId: string) {
+  return db.query.comments.findMany({
+    where: eq(comments.whiteboardId, whiteboardId),
+    columns: { id: true, body: true, createdAt: true, authorId: true },
+    with: { author: { columns: { name: true } } },
+    orderBy: [asc(comments.createdAt)],
+  });
+}
+export type WhiteboardComment = Awaited<ReturnType<typeof getWhiteboardComments>>[number];
 
 /** `data` for just the given boards (org-checked) — e.g. those with no thumbnail yet. */
 export async function getWhiteboardDocsForOrg(orgId: string, whiteboardIds: string[]) {
