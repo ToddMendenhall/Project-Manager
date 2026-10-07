@@ -95,6 +95,14 @@ Likewise, relational loads of a user (`owner`, `lead`, `assignee`) select
 the password hash). Per-user lists (`getAssignedTasks`) filter in SQL
 rather than loading the org and filtering in JS.
 
+The sidebar is user-resizable (`ResizableSidebar`): drag its right edge,
+double-click the edge to fit the widest truncated label, or focus it and use
+←/→/Home. The width is clamped (`lib/sidebar.ts`) and saved in the
+`sidebar-width` cookie, which `Sidebar` reads server-side so pages render at
+that width with no jump. Truncated labels inside flex rows need `min-w-0`
+(flex items default to `min-width: auto`, so `truncate` alone overflows
+instead of showing an ellipsis), and carry a `title` with the full name.
+
 Permission tiers: **Portfolio/Program/Project/Task/ChecklistItem**
 create/edit/delete is open to any org member — those actions only call
 `requireOrgContext()` plus the org-scoping helpers, never `requireAdmin`.

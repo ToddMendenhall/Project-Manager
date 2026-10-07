@@ -83,7 +83,8 @@ function PortfolioRow({ portfolio }: { portfolio: PortfolioNode }) {
         </button>
         <Link
           href={`/dashboard/portfolios/${portfolio.id}`}
-          className={`flex-1 truncate text-[13px] font-semibold ${active ? "text-cy-gray-900" : "text-cy-gray-900 hover:text-cy-blue-600"}`}
+          title={portfolio.name}
+          className={`min-w-0 flex-1 truncate text-[13px] font-semibold ${active ? "text-cy-gray-900" : "text-cy-gray-900 hover:text-cy-blue-600"}`}
         >
           {portfolio.name}
         </Link>
@@ -126,7 +127,8 @@ function ProgramRow({ program }: { program: ProgramNode }) {
         </button>
         <Link
           href={`/dashboard/programs/${program.id}`}
-          className={`flex-1 truncate text-[13px] font-medium ${active ? "text-cy-gray-900" : "text-cy-gray-700 hover:text-cy-blue-600"}`}
+          title={program.name}
+          className={`min-w-0 flex-1 truncate text-[13px] font-medium ${active ? "text-cy-gray-900" : "text-cy-gray-700 hover:text-cy-blue-600"}`}
         >
           {program.name}
         </Link>
@@ -161,7 +163,9 @@ function ProjectRow({ programId, project }: { programId: string; project: Projec
           : "text-cy-gray-600 hover:bg-cy-gray-050 hover:text-cy-gray-900"
       }`}
     >
-      <span className="truncate">{project.name}</span>
+      <span className="min-w-0 truncate" title={project.name}>
+        {project.name}
+      </span>
       {project.taskCount > 0 && (
         <span className="shrink-0 pl-2 font-mono text-[11px] text-cy-gray-400">{project.taskCount}</span>
       )}
