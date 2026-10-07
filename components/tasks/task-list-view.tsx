@@ -18,6 +18,7 @@ import {
   updateChecklistItemAssignee,
   updateChecklistItemDueDate,
 } from "@/app/dashboard/programs/[programId]/projects/[projectId]/tasks/[taskId]/checklist/actions";
+import { SAVE_FAILED, showNotice } from "@/components/notice";
 
 type Assignee = { id: string; name: string } | null;
 type OrgMember = { id: string; name: string; email: string };
@@ -210,6 +211,7 @@ export function TaskListView({
         await updateTaskStatus(programId, projectId, task.id, status);
       } catch {
         patchTask(task.id, { status: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -222,6 +224,7 @@ export function TaskListView({
         await updateTaskPriority(programId, projectId, task.id, priority);
       } catch {
         patchTask(task.id, { priority: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -234,6 +237,7 @@ export function TaskListView({
         await updateTaskAssignee(programId, projectId, task.id, assigneeId);
       } catch {
         patchTask(task.id, { assignee: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -246,6 +250,7 @@ export function TaskListView({
         await updateTaskDueDate(programId, projectId, task.id, dueDate);
       } catch {
         patchTask(task.id, { dueDate: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -258,6 +263,7 @@ export function TaskListView({
         await updateChecklistItemStatus(programId, projectId, task.id, item.id, status);
       } catch {
         patchItem(task.id, item.id, { status: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -270,6 +276,7 @@ export function TaskListView({
         await updateChecklistItemPriority(programId, projectId, task.id, item.id, priority);
       } catch {
         patchItem(task.id, item.id, { priority: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -282,6 +289,7 @@ export function TaskListView({
         await updateChecklistItemAssignee(programId, projectId, task.id, item.id, assigneeId);
       } catch {
         patchItem(task.id, item.id, { assignee: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }
@@ -294,6 +302,7 @@ export function TaskListView({
         await updateChecklistItemDueDate(programId, projectId, task.id, item.id, dueDate);
       } catch {
         patchItem(task.id, item.id, { dueDate: previous });
+        showNotice(SAVE_FAILED);
       }
     });
   }

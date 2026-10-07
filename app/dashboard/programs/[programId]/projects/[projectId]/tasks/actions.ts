@@ -11,6 +11,8 @@ import { requireOrgContext } from "@/lib/org";
 import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
 import { fieldChanges, logActivity } from "@/lib/activity";
+import { formErrorState } from "@/lib/form-errors";
+import type { FormState } from "@/lib/form-state";
 
 // Like every level of the hierarchy, any org member (not just admins) can
 // create, edit, or delete tasks.
@@ -57,39 +59,45 @@ async function logTaskActivity(
   );
 }
 
-export async function createTask(programId: string, projectId: string, formData: FormData) {
-  const ctx = await requireOrgContext();
+export async function createTask(programId: string, projectId: string, formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const project = await getProjectForProgram(projectId, programId, ctx.org.id);
-  if (!project) {
-    throw new Error("Project not found");
+    const project = await getProjectForProgram(projectId, programId, ctx.org.id);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+
+    const data = parseTaskForm(formData);
+    const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
+    const fieldDefs = await getTaskCustomFieldDefs(programId);
+    const customFields = parseCustomFieldValues(fieldDefs, formData);
+
+    const [task] = await db
+      .insert(tasks)
+      .values({
+        projectId: project.id,
+        title: data.title,
+        description: data.description ?? null,
+        status: data.status,
+        priority: data.priority,
+        assigneeId,
+        startDate: toDateOrNull(data.startDate),
+        dueDate: toDateOrNull(data.dueDate),
+        completedAt: data.status === "completed" ? new Date() : null,
+        customFields,
+        sortOrder: Date.now(),
+      })
+      .returning();
+
+    await logTaskActivity(ctx, task, programId, [{ action: "created" }]);
+    revalidatePath(basePath(programId, projectId));
+    redirect(`${basePath(programId, projectId)}/tasks/${task.id}`);
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parseTaskForm(formData);
-  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
-  const fieldDefs = await getTaskCustomFieldDefs(programId);
-  const customFields = parseCustomFieldValues(fieldDefs, formData);
-
-  const [task] = await db
-    .insert(tasks)
-    .values({
-      projectId: project.id,
-      title: data.title,
-      description: data.description ?? null,
-      status: data.status,
-      priority: data.priority,
-      assigneeId,
-      startDate: toDateOrNull(data.startDate),
-      dueDate: toDateOrNull(data.dueDate),
-      completedAt: data.status === "completed" ? new Date() : null,
-      customFields,
-      sortOrder: Date.now(),
-    })
-    .returning();
-
-  await logTaskActivity(ctx, task, programId, [{ action: "created" }]);
-  revalidatePath(basePath(programId, projectId));
-  redirect(`${basePath(programId, projectId)}/tasks/${task.id}`);
 }
 
 export async function updateTask(
@@ -97,45 +105,51 @@ export async function updateTask(
   projectId: string,
   taskId: string,
   formData: FormData,
-) {
-  const ctx = await requireOrgContext();
+): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
-  if (!existing) {
-    throw new Error("Task not found");
+    const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+    if (!existing) {
+      throw new Error("Task not found");
+    }
+
+    const data = parseTaskForm(formData);
+    const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
+    const fieldDefs = await getTaskCustomFieldDefs(programId);
+    const customFields = parseCustomFieldValues(fieldDefs, formData);
+
+    const justCompleted = data.status === "completed" && existing.status !== "completed";
+    const unCompleted = data.status !== "completed" && existing.status === "completed";
+    const tracked = {
+      title: data.title,
+      status: data.status,
+      priority: data.priority,
+      assigneeId,
+      startDate: toDateOrNull(data.startDate),
+      dueDate: toDateOrNull(data.dueDate),
+    };
+
+    await db
+      .update(tasks)
+      .set({
+        ...tracked,
+        description: data.description ?? null,
+        completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
+        customFields,
+        updatedAt: new Date(),
+      })
+      .where(eq(tasks.id, taskId));
+    await logTaskActivity(ctx, { ...existing, title: data.title }, programId, await fieldChanges(existing, tracked));
+
+    revalidatePath(basePath(programId, projectId));
+    revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
+    redirect(`${basePath(programId, projectId)}/tasks/${taskId}`);
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parseTaskForm(formData);
-  const assigneeId = await resolveOrgMemberId(data.assigneeId, ctx.org.id);
-  const fieldDefs = await getTaskCustomFieldDefs(programId);
-  const customFields = parseCustomFieldValues(fieldDefs, formData);
-
-  const justCompleted = data.status === "completed" && existing.status !== "completed";
-  const unCompleted = data.status !== "completed" && existing.status === "completed";
-  const tracked = {
-    title: data.title,
-    status: data.status,
-    priority: data.priority,
-    assigneeId,
-    startDate: toDateOrNull(data.startDate),
-    dueDate: toDateOrNull(data.dueDate),
-  };
-
-  await db
-    .update(tasks)
-    .set({
-      ...tracked,
-      description: data.description ?? null,
-      completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
-      customFields,
-      updatedAt: new Date(),
-    })
-    .where(eq(tasks.id, taskId));
-  await logTaskActivity(ctx, { ...existing, title: data.title }, programId, await fieldChanges(existing, tracked));
-
-  revalidatePath(basePath(programId, projectId));
-  revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
-  redirect(`${basePath(programId, projectId)}/tasks/${taskId}`);
 }
 
 const statusEnum = z.enum(["not_started", "in_progress", "blocked", "completed", "cancelled"]);

@@ -10,6 +10,7 @@ import {
   deleteChecklistItem,
   toggleChecklistItem,
 } from "@/app/dashboard/programs/[programId]/projects/[projectId]/tasks/[taskId]/checklist/actions";
+import { SAVE_FAILED, showNotice } from "@/components/notice";
 
 type ChecklistItem = {
   id: string;
@@ -59,7 +60,13 @@ export function ChecklistWidget({
     startTransition(async () => {
       const formData = new FormData();
       formData.set("title", trimmed);
-      await createChecklistItem(programId, projectId, taskId, formData);
+      try {
+        await createChecklistItem(programId, projectId, taskId, formData);
+      } catch {
+        // Give the text back so a failed add doesn't lose it.
+        setTitle((current) => current || trimmed);
+        showNotice("Couldn't add that checklist item. Try again.");
+      }
     });
     inputRef.current?.focus();
   }
@@ -75,6 +82,7 @@ export function ChecklistWidget({
         await toggleChecklistItem(programId, projectId, taskId, item.id, checked);
       } catch {
         setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status: previousStatus } : i)));
+        showNotice(SAVE_FAILED);
       }
     });
   }

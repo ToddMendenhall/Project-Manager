@@ -4,6 +4,7 @@ import { AccountMenu } from "@/components/account-menu";
 import { CommandBar } from "@/components/command-bar";
 import { SecondaryHeader } from "@/components/secondary-header";
 import { Sidebar } from "@/components/sidebar/sidebar";
+import { NoticeHost } from "@/components/notice";
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const ctx = await requireOrgContext();
@@ -39,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <Sidebar orgId={ctx.org.id} userId={ctx.user.id} isAdmin={ctx.role === "admin"} />
         <main className="min-w-0 flex-1 px-6 py-8">{children}</main>
       </div>
+      <NoticeHost />
     </div>
   );
 }

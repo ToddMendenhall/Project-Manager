@@ -1,6 +1,8 @@
-import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { STATUS_OPTIONS } from "@/lib/fields";
 import type { Portfolio, Program } from "@/db/schema";
+import { ActionForm, FieldError } from "@/components/action-form";
+import type { FormState } from "@/lib/form-state";
 
 type OrgMember = { id: string; name: string; email: string };
 
@@ -18,7 +20,7 @@ export function ProgramForm({
   initialPortfolioId,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<FormState | void>;
   program?: Program;
   orgMembers: OrgMember[];
   portfolios: Portfolio[];
@@ -26,12 +28,14 @@ export function ProgramForm({
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="flex max-w-xl flex-col gap-4">
+    <ActionForm action={action} submitLabel={submitLabel} className="flex max-w-xl flex-col gap-4">
       <Field label="Name">
         <input name="name" required defaultValue={program?.name} className={inputClass} />
+        <FieldError name="name" />
       </Field>
       <Field label="Description">
         <textarea name="description" defaultValue={program?.description ?? ""} className={textareaClass} />
+        <FieldError name="description" />
       </Field>
       <Field label="Portfolio" hint="Optional — groups this program under a portfolio.">
         <select
@@ -84,9 +88,6 @@ export function ProgramForm({
           />
         </Field>
       </div>
-      <button type="submit" className={`w-fit ${buttonPrimary}`}>
-        {submitLabel}
-      </button>
-    </form>
+    </ActionForm>
   );
 }

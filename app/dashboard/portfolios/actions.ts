@@ -9,6 +9,8 @@ import { portfolios } from "@/db/schema";
 import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getPortfolioForOrg, resolveOrgMemberId } from "@/lib/queries";
+import { formErrorState } from "@/lib/form-errors";
+import type { FormState } from "@/lib/form-state";
 
 const emptyToUndefined = (v: unknown) => (v === "" ? undefined : v);
 
@@ -32,57 +34,69 @@ function parsePortfolioForm(formData: FormData) {
   });
 }
 
-export async function createPortfolio(formData: FormData) {
-  const ctx = await requireOrgContext();
+export async function createPortfolio(formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const data = parsePortfolioForm(formData);
-  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
+    const data = parsePortfolioForm(formData);
+    const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
 
-  const [portfolio] = await db
-    .insert(portfolios)
-    .values({
-      orgId: ctx.org.id,
-      name: data.name,
-      description: data.description ?? null,
-      status: data.status,
-      ownerId,
-      startDate: toDateOrNull(data.startDate),
-      targetEndDate: toDateOrNull(data.targetEndDate),
-      sortOrder: Date.now(),
-    })
-    .returning();
+    const [portfolio] = await db
+      .insert(portfolios)
+      .values({
+        orgId: ctx.org.id,
+        name: data.name,
+        description: data.description ?? null,
+        status: data.status,
+        ownerId,
+        startDate: toDateOrNull(data.startDate),
+        targetEndDate: toDateOrNull(data.targetEndDate),
+        sortOrder: Date.now(),
+      })
+      .returning();
 
-  revalidatePath("/dashboard/portfolios");
-  redirect(`/dashboard/portfolios/${portfolio.id}`);
+    revalidatePath("/dashboard/portfolios");
+    redirect(`/dashboard/portfolios/${portfolio.id}`);
+  } catch (err) {
+    return formErrorState(err);
+  }
 }
 
-export async function updatePortfolio(portfolioId: string, formData: FormData) {
-  const ctx = await requireOrgContext();
+export async function updatePortfolio(portfolioId: string, formData: FormData): Promise<FormState> {
+  // Input problems come back to the form as messages (formErrorState);
+  // anything else, including the success redirect, is rethrown.
+  try {
+    const ctx = await requireOrgContext();
 
-  const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
-  if (!existing) {
-    throw new Error("Portfolio not found");
+    const existing = await getPortfolioForOrg(portfolioId, ctx.org.id);
+    if (!existing) {
+      throw new Error("Portfolio not found");
+    }
+
+    const data = parsePortfolioForm(formData);
+    const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
+
+    await db
+      .update(portfolios)
+      .set({
+        name: data.name,
+        description: data.description ?? null,
+        status: data.status,
+        ownerId,
+        startDate: toDateOrNull(data.startDate),
+        targetEndDate: toDateOrNull(data.targetEndDate),
+        updatedAt: new Date(),
+      })
+      .where(eq(portfolios.id, portfolioId));
+
+    revalidatePath("/dashboard/portfolios");
+    revalidatePath(`/dashboard/portfolios/${portfolioId}`);
+    redirect(`/dashboard/portfolios/${portfolioId}`);
+  } catch (err) {
+    return formErrorState(err);
   }
-
-  const data = parsePortfolioForm(formData);
-  const ownerId = await resolveOrgMemberId(data.ownerId, ctx.org.id);
-
-  await db
-    .update(portfolios)
-    .set({
-      name: data.name,
-      description: data.description ?? null,
-      status: data.status,
-      ownerId,
-      startDate: toDateOrNull(data.startDate),
-      targetEndDate: toDateOrNull(data.targetEndDate),
-      updatedAt: new Date(),
-    })
-    .where(eq(portfolios.id, portfolioId));
-
-  revalidatePath("/dashboard/portfolios");
-  revalidatePath(`/dashboard/portfolios/${portfolioId}`);
-  redirect(`/dashboard/portfolios/${portfolioId}`);
 }
 
 export async function deletePortfolio(portfolioId: string) {

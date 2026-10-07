@@ -1,6 +1,8 @@
-import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { STATUS_OPTIONS } from "@/lib/fields";
 import type { Portfolio } from "@/db/schema";
+import { ActionForm, FieldError } from "@/components/action-form";
+import type { FormState } from "@/lib/form-state";
 
 type OrgMember = { id: string; name: string; email: string };
 
@@ -16,18 +18,20 @@ export function PortfolioForm({
   orgMembers,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<FormState | void>;
   portfolio?: Portfolio;
   orgMembers: OrgMember[];
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="flex max-w-xl flex-col gap-4">
+    <ActionForm action={action} submitLabel={submitLabel} className="flex max-w-xl flex-col gap-4">
       <Field label="Name">
         <input name="name" required defaultValue={portfolio?.name} className={inputClass} />
+        <FieldError name="name" />
       </Field>
       <Field label="Description">
         <textarea name="description" defaultValue={portfolio?.description ?? ""} className={textareaClass} />
+        <FieldError name="description" />
       </Field>
       <Field label="Status">
         <select name="status" defaultValue={portfolio?.status ?? "not_started"} className={selectClass}>
@@ -66,9 +70,6 @@ export function PortfolioForm({
           />
         </Field>
       </div>
-      <button type="submit" className={`w-fit ${buttonPrimary}`}>
-        {submitLabel}
-      </button>
-    </form>
+    </ActionForm>
   );
 }

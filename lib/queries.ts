@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, getTableColumns, ilike, inArray, isNull, notInArray, or, sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
+import { ValidationError } from "@/lib/validation";
 import {
   attachments,
   checklistItems,
@@ -197,7 +198,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 export async function resolveOrgMemberId(userId: string | null | undefined, orgId: string): Promise<string | null> {
   if (!userId) return null;
   if (!UUID_PATTERN.test(userId)) {
-    throw new Error("That person isn't a member of this organization");
+    throw new ValidationError("That person isn't a member of this organization");
   }
   const [member] = await db
     .select({ userId: orgMembers.userId })
@@ -205,7 +206,7 @@ export async function resolveOrgMemberId(userId: string | null | undefined, orgI
     .where(and(eq(orgMembers.userId, userId), eq(orgMembers.orgId, orgId)))
     .limit(1);
   if (!member) {
-    throw new Error("That person isn't a member of this organization");
+    throw new ValidationError("That person isn't a member of this organization");
   }
   return member.userId;
 }

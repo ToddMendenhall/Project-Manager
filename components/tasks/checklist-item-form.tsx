@@ -1,6 +1,8 @@
-import { Field, buttonPrimary, inputClass, selectClass, textareaClass } from "@/components/form-controls";
+import { Field, inputClass, selectClass, textareaClass } from "@/components/form-controls";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, dateInputValue } from "@/lib/fields";
 import type { ChecklistItem } from "@/db/schema";
+import { ActionForm, FieldError } from "@/components/action-form";
+import type { FormState } from "@/lib/form-state";
 
 type OrgMember = { id: string; name: string; email: string };
 
@@ -10,18 +12,20 @@ export function ChecklistItemForm({
   orgMembers,
   submitLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<FormState | void>;
   item?: ChecklistItem;
   orgMembers: OrgMember[];
   submitLabel: string;
 }) {
   return (
-    <form action={action} className="flex max-w-xl flex-col gap-4">
+    <ActionForm action={action} submitLabel={submitLabel} className="flex max-w-xl flex-col gap-4">
       <Field label="Title">
         <input name="title" required defaultValue={item?.title} className={inputClass} />
+        <FieldError name="title" />
       </Field>
       <Field label="Description">
         <textarea name="description" defaultValue={item?.description ?? ""} className={textareaClass} />
+        <FieldError name="description" />
       </Field>
       <div className="grid grid-cols-2 gap-4">
         <Field label="Status">
@@ -57,9 +61,6 @@ export function ChecklistItemForm({
         <input type="date" name="dueDate" defaultValue={dateInputValue(item?.dueDate)} className={inputClass} />
       </Field>
 
-      <button type="submit" className={`w-fit ${buttonPrimary}`}>
-        {submitLabel}
-      </button>
-    </form>
+    </ActionForm>
   );
 }

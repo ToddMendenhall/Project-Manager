@@ -196,6 +196,33 @@ is dynamic and is fresh on the next visit anyway.
 When adding a new mutation to a page that already has a form, default to
 the function-call pattern rather than a second `<form action>`.
 
+**Form errors and failure feedback.**
+- **Form actions:** create/edit actions (portfolio, program, project, task,
+  checklist item) return a `FormState` instead of throwing on bad input.
+  Their body sits in `try { … } catch (err) { return formErrorState(err); }`
+  (`lib/form-errors.ts`), which turns a `ZodError` into per-field messages
+  and a `ValidationError` (`lib/validation.ts`, thrown by `toDateOrNull`
+  and `resolveOrgMemberId`) into a form message. Everything else, including
+  the success `redirect()`, is rethrown. Throw `ValidationError` for any
+  new user-fixable input problem. A plain `Error` reaches the browser only
+  as production's generic message.
+- **Forms:** forms render through `ActionForm` (`components/action-form.tsx`),
+  with `<FieldError name="…">` next to inputs. It submits via `onSubmit`,
+  not a native form action, because React 19 resets a form's fields after a
+  form action, which would wipe the user's input on a validation error.
+- **Background saves:** inline edits, drags, quick-add, comment posts and
+  deletes call `showNotice()` (`components/notice.tsx`, rendered by
+  `NoticeHost` in the dashboard layout) when they fail, so a rollback is
+  never silent. A client catching a failed action must ignore
+  `isNextNavigationError` (`lib/next-errors.ts`): redirect/notFound arrive
+  as errors but mean success.
+- **Error pages:** `app/dashboard/error.tsx` and `not-found.tsx` render
+  inside the layout, so the sidebar stays. `app/not-found.tsx` covers
+  unknown URLs. There is deliberately **no `app/dashboard/loading.tsx`**.
+  With a dashboard-wide loading boundary, a server action's `redirect()`
+  intermittently never navigated: the delete or create succeeded but the
+  page stayed put (4 of 8 task deletes in testing).
+
 A mutating action that lets the user land on the page for the entity it
 just deleted (e.g. deleting a checklist item from its own detail page, or a
 task from its own detail page) ends with `redirect()` back to the parent

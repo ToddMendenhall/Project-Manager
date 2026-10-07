@@ -21,6 +21,7 @@ import {
   useGanttZoom,
   useTimelineScroll,
 } from "@/components/views/gantt-timeline";
+import { SAVE_FAILED, showNotice } from "@/components/notice";
 
 const INDENT_WIDTH = 16; // px per depth level
 
@@ -178,6 +179,7 @@ export function GanttView({
           await drag.onDateChange(drag.itemId, start ? localDateKey(start) : "", end ? localDateKey(end) : "");
         } catch {
           setDates((p) => ({ ...p, [drag.itemId]: { start: drag.originStart, end: drag.originEnd } }));
+          showNotice(SAVE_FAILED);
         }
       });
     }
