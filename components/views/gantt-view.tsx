@@ -11,6 +11,8 @@ import {
   GanttZoomControls,
   addDays,
   buildTimeline,
+  descendantSpan,
+  SummaryBar,
   diffDays,
   startOfDay,
   useGanttZoom,
@@ -200,7 +202,22 @@ export function GanttView({
 
   const rows = buildRows(items, 0, expanded, dates);
   const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
-  const allDates = rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d));
+  // Rows with no dates of their own get a summary bar spanning their
+  // descendants — computed from the live `dates`, so it follows a drag.
+  const spans = new Map(
+    rows.flatMap((r) => {
+      const own = dates[r.node.id];
+      if (own.start || own.end) return [];
+      const span = descendantSpan(r.node, (n) => dates[n.id] ?? { start: null, end: null });
+      return span ? [[r.node.id, span] as const] : [];
+    }),
+  );
+  // Include the spans: a collapsed row's children aren't rows, but its
+  // summary bar still has to fit on the timeline.
+  const allDates = [
+    ...rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d)),
+    ...[...spans.values()].flatMap((span) => [span.start, span.end]),
+  ];
   const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
   const scroll = useTimelineScroll(timeline, zoom);
 
@@ -301,7 +318,20 @@ export function GanttView({
                 // Portfolio above dated Projects. Keep the empty row so the
                 // timeline stays aligned with the label column.
                 if (!start && !end) {
-                  return <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0" />;
+                  const span = spans.get(node.id);
+                  return (
+                    <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
+                      {span && (
+                        <SummaryBar
+                          title={node.title}
+                          href={node.href}
+                          span={span}
+                          rangeStart={rangeStart}
+                          dayWidth={dayWidth}
+                        />
+                      )}
+                    </div>
+                  );
                 }
 
                 const point = (start ?? end)!;

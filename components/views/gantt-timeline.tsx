@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { ZoomIn, ZoomOut } from "lucide-react";
 
 /**
@@ -348,5 +349,73 @@ export function GanttTimelineHeader({ timeline }: { timeline: Timeline }) {
         </div>
       </div>
     </>
+  );
+}
+
+type SpanDates = { start: Date | null; end: Date | null };
+type SpanNode = { id: string; children?: SpanNode[] };
+
+/**
+ * Earliest and latest date anywhere beneath a node (its descendants, not
+ * the node itself) — what a summary bar spans for a row with no dates of
+ * its own. `datesOf` lets GanttView pass its live (mid-drag) dates.
+ */
+export function descendantSpan<N extends SpanNode>(
+  node: N,
+  datesOf: (n: N) => SpanDates,
+): { start: Date; end: Date } | null {
+  let min: number | null = null;
+  let max: number | null = null;
+  const visit = (n: N) => {
+    for (const child of (n.children ?? []) as N[]) {
+      const { start, end } = datesOf(child);
+      for (const d of [start, end]) {
+        if (!d) continue;
+        const t = d.getTime();
+        if (min === null || t < min) min = t;
+        if (max === null || t > max) max = t;
+      }
+      visit(child);
+    }
+  };
+  visit(node);
+  return min === null || max === null ? null : { start: new Date(min), end: new Date(max) };
+}
+
+/**
+ * A rolled-up bar for a row whose own dates are empty (e.g. an undated
+ * Portfolio above dated Projects): a thin dark bar with bracket ends, so
+ * it reads as "the span of what's inside" rather than a schedulable item.
+ * Read-only — it moves when its children do.
+ */
+export function SummaryBar({
+  title,
+  href,
+  span,
+  rangeStart,
+  dayWidth,
+}: {
+  title: string;
+  href: string;
+  span: { start: Date; end: Date };
+  rangeStart: Date;
+  dayWidth: number;
+}) {
+  const offset = Math.max(0, diffDays(span.start, rangeStart));
+  const days = Math.max(1, diffDays(span.end, span.start) + 1);
+  const left = offset * dayWidth + 2;
+  const width = Math.max(days * dayWidth - 4, 8);
+  const tick = "absolute top-full h-0 w-0 border-x-[4px] border-t-[5px] border-x-transparent border-t-cy-gray-600";
+  return (
+    <Link
+      href={href}
+      data-gantt-summary
+      title={`${title}: ${span.start.toLocaleDateString()} – ${span.end.toLocaleDateString()} (span of the items inside)`}
+      className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-sm bg-cy-gray-600 hover:bg-cy-gray-800"
+      style={{ left, width }}
+    >
+      <span className={`${tick} left-0`} aria-hidden />
+      <span className={`${tick} right-0`} aria-hidden />
+    </Link>
   );
 }

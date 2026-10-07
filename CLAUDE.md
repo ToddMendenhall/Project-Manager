@@ -267,7 +267,14 @@ page, not the component):
   down through Programs, Projects, Tasks, and Checklist Items. Draws a bar
   when both `startDate` and `endDate` are present, a single dot when only
   one is set, and hides a row (with a caption) when neither it nor any
-  descendant has a date. This is why `tasks` has a `startDate` column even
+  descendant has a date. A row with no dates of its own that's shown
+  because of its descendants (e.g. an undated Portfolio or Program) gets a
+  read-only **summary bar** (`SummaryBar` / `descendantSpan` in
+  `gantt-timeline.tsx`) spanning the earliest to latest date anywhere
+  beneath it. It's computed from the view's live dates, so it follows a
+  child being dragged, and the spans feed the timeline's range so a
+  collapsed row's bar always fits. `ResourceGanttView` uses the same bar
+  for member rows. This is why `tasks` has a `startDate` column even
   though only `dueDate` used to exist — a Gantt bar needs a range, and
   every other leaf-ish level (Portfolio/Program's `targetEndDate`,
   Project's `dueDate`) already had a paired start date.
