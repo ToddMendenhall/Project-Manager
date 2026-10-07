@@ -12,6 +12,8 @@ import { taskBreadcrumbs } from "@/lib/breadcrumbs";
 import { CommentSection } from "@/components/comments/comment-section";
 import { AttachmentSection } from "@/components/attachments/attachment-section";
 import { ChecklistWidget } from "@/components/tasks/checklist-widget";
+import { ActivityFeed } from "@/components/activity/activity-feed";
+import { getActivity } from "@/lib/activity";
 import { deleteTask } from "../actions";
 import { createComment, deleteComment } from "./comment-actions";
 import { deleteAttachment } from "./attachment-actions";
@@ -152,6 +154,8 @@ export default async function TaskDetailPage({
         currentUserId={ctx.user.id}
         isAdmin={ctx.role === "admin"}
       />
+
+      <ActivityFeed {...await getActivity(ctx.org.id, { taskId: task.id })} selfId={task.id} />
     </div>
   );
 }

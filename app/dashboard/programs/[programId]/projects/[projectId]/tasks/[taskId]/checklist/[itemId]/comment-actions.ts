@@ -7,6 +7,7 @@ import { db } from "@/db";
 import { comments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask } from "@/lib/queries";
+import { commentExcerpt, logActivity } from "@/lib/activity";
 
 const commentSchema = z.object({
   body: z.string().trim().min(1, "Comment can't be empty").max(5000),
@@ -36,6 +37,12 @@ export async function createChecklistItemComment(
     authorId: ctx.user.id,
     body,
   });
+  await logActivity(
+    ctx.user.id,
+    { orgId: ctx.org.id, programId, projectId, taskId },
+    { type: "checklist_item", id: item.id, name: item.title },
+    [{ action: "commented", newValue: commentExcerpt(body) }],
+  );
 
   revalidatePath(itemPath(programId, projectId, taskId, itemId));
 }

@@ -10,6 +10,7 @@ import { toDateOrNull } from "@/lib/dates";
 import { requireOrgContext } from "@/lib/org";
 import { getProjectForProgram, getTaskCustomFieldDefs, getTaskForOrg, getTaskForProject, resolveOrgMemberId } from "@/lib/queries";
 import { parseCustomFieldValues } from "@/lib/custom-fields";
+import { fieldChanges, logActivity } from "@/lib/activity";
 
 // Like every level of the hierarchy, any org member (not just admins) can
 // create, edit, or delete tasks.
@@ -41,6 +42,21 @@ function parseTaskForm(formData: FormData) {
 const basePath = (programId: string, projectId: string) =>
   `/dashboard/programs/${programId}/projects/${projectId}`;
 
+/** Records a task event in the task's, its project's and its program's history. */
+async function logTaskActivity(
+  ctx: { user: { id: string }; org: { id: string } },
+  task: { id: string; title: string; projectId: string },
+  programId: string,
+  events: Parameters<typeof logActivity>[3],
+) {
+  await logActivity(
+    ctx.user.id,
+    { orgId: ctx.org.id, programId, projectId: task.projectId, taskId: task.id },
+    { type: "task", id: task.id, name: task.title },
+    events,
+  );
+}
+
 export async function createTask(programId: string, projectId: string, formData: FormData) {
   const ctx = await requireOrgContext();
 
@@ -71,6 +87,7 @@ export async function createTask(programId: string, projectId: string, formData:
     })
     .returning();
 
+  await logTaskActivity(ctx, task, programId, [{ action: "created" }]);
   revalidatePath(basePath(programId, projectId));
   redirect(`${basePath(programId, projectId)}/tasks/${task.id}`);
 }
@@ -95,22 +112,26 @@ export async function updateTask(
 
   const justCompleted = data.status === "completed" && existing.status !== "completed";
   const unCompleted = data.status !== "completed" && existing.status === "completed";
+  const tracked = {
+    title: data.title,
+    status: data.status,
+    priority: data.priority,
+    assigneeId,
+    startDate: toDateOrNull(data.startDate),
+    dueDate: toDateOrNull(data.dueDate),
+  };
 
   await db
     .update(tasks)
     .set({
-      title: data.title,
+      ...tracked,
       description: data.description ?? null,
-      status: data.status,
-      priority: data.priority,
-      assigneeId,
-      startDate: toDateOrNull(data.startDate),
-      dueDate: toDateOrNull(data.dueDate),
       completedAt: justCompleted ? new Date() : unCompleted ? null : existing.completedAt,
       customFields,
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, { ...existing, title: data.title }, programId, await fieldChanges(existing, tracked));
 
   revalidatePath(basePath(programId, projectId));
   revalidatePath(`${basePath(programId, projectId)}/tasks/${taskId}`);
@@ -145,6 +166,7 @@ export async function updateTaskStatus(
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { status: parsedStatus }));
 
   revalidatePath(basePath(programId, projectId));
   revalidatePath(`${basePath(programId, projectId)}/board`);
@@ -179,6 +201,7 @@ export async function updateTaskOrder(
       updatedAt: new Date(),
     })
     .where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { status: parsedStatus }));
 
   revalidatePath(basePath(programId, projectId));
   revalidatePath(`${basePath(programId, projectId)}/board`);
@@ -200,10 +223,9 @@ export async function updateTaskPriority(
     throw new Error("Task not found");
   }
 
-  await db
-    .update(tasks)
-    .set({ priority: priorityEnum.parse(priority), updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
+  const parsedPriority = priorityEnum.parse(priority);
+  await db.update(tasks).set({ priority: parsedPriority, updatedAt: new Date() }).where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { priority: parsedPriority }));
 
   revalidatePath(`${basePath(programId, projectId)}/tasks`);
   revalidatePath(`${basePath(programId, projectId)}/board`);
@@ -223,10 +245,9 @@ export async function updateTaskAssignee(
     throw new Error("Task not found");
   }
 
-  await db
-    .update(tasks)
-    .set({ assigneeId: await resolveOrgMemberId(assigneeId, ctx.org.id), updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
+  const resolvedAssigneeId = await resolveOrgMemberId(assigneeId, ctx.org.id);
+  await db.update(tasks).set({ assigneeId: resolvedAssigneeId, updatedAt: new Date() }).where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { assigneeId: resolvedAssigneeId }));
 
   revalidatePath(`${basePath(programId, projectId)}/tasks`);
   revalidatePath(`${basePath(programId, projectId)}/board`);
@@ -246,10 +267,9 @@ export async function updateTaskDueDate(
     throw new Error("Task not found");
   }
 
-  await db
-    .update(tasks)
-    .set({ dueDate: toDateOrNull(dueDate), updatedAt: new Date() })
-    .where(eq(tasks.id, taskId));
+  const parsedDueDate = toDateOrNull(dueDate);
+  await db.update(tasks).set({ dueDate: parsedDueDate, updatedAt: new Date() }).where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { dueDate: parsedDueDate }));
 
   revalidatePath(`${basePath(programId, projectId)}/tasks`);
   revalidatePath(`${basePath(programId, projectId)}/calendar`);
@@ -268,14 +288,12 @@ export async function updateTaskDates(taskId: string, startDate: string, dueDate
     throw new Error("Task not found");
   }
 
+  const dates = { startDate: toDateOrNull(startDate), dueDate: toDateOrNull(dueDate) };
   await db
     .update(tasks)
-    .set({
-      startDate: toDateOrNull(startDate),
-      dueDate: toDateOrNull(dueDate),
-      updatedAt: new Date(),
-    })
+    .set({ ...dates, updatedAt: new Date() })
     .where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, existing.programId, await fieldChanges(existing, dates));
 
   const projectPath = basePath(existing.programId, existing.projectId);
   revalidatePath(`${projectPath}/gantt`);
@@ -294,6 +312,7 @@ export async function deleteTask(programId: string, projectId: string, taskId: s
   }
 
   await db.delete(tasks).where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, [{ action: "deleted" }]);
 
   revalidatePath(basePath(programId, projectId));
   redirect(`${basePath(programId, projectId)}/tasks`);

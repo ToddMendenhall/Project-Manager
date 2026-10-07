@@ -211,6 +211,38 @@ one-native-form-per-page rule above, since the upload form always shares a
 page with at least one other form (the comment box, or now the item's own
 edit form).
 
+### Activity history
+
+Program, Project and Task pages end with an **Activity** section
+(`ActivityFeed`, `components/activity/activity-feed.tsx`) built from the
+`activity_log` table. A Project's history rolls up its tasks and checklist
+items, and a Program's rolls up its projects too.
+
+- **Writing:** actions call `logActivity(actorId, scope, subject, events)`
+  (`lib/activity.ts`) after the mutation succeeds. Each level's
+  `actions.ts` wraps it in a small `log<Kind>Activity` helper that fills in
+  the scope. `logActivity` never throws: a failed history write is logged,
+  not reported as a failed save.
+- **What's recorded:** created/deleted, renames, status, priority, people
+  (assignee/owner/lead) and dates as old → new, comments (first line), and
+  whiteboards created/deleted/linked/unlinked on a project or program.
+  `fieldChanges(before, after)` produces one `updated` event per tracked
+  column that actually changed, so board reorders and no-op saves record
+  nothing. Descriptions, custom fields, attachments and whiteboard
+  autosaves aren't recorded. Program deletion isn't either, since the
+  program's history is deleted with it.
+- **Rows outlive their subject:** `entityName` and old/new values are
+  display snapshots (people as names, dates as YYYY-MM-DD), so "deleted
+  task X" still reads. `projectId`/`taskId` are scope columns with no
+  foreign key, for the same reason. Only `programId` cascades.
+- **Retention:** `ACTIVITY_RETENTION_DAYS` (90). Reads filter to the window,
+  and roughly one write in 50 prunes the org's older rows. There is no cron
+  job. Pages show the latest 50 events, with the first 10 visible and the
+  rest behind a native `<details>`.
+- When adding a new tracked field or entity, extend `TRACKED_FIELDS` /
+  the `activity_entity` enum and `ActivityFeed`'s labels rather than
+  writing rows by hand.
+
 ### Custom fields keep the schema industry-agnostic
 
 `customFieldDefs` (program-scoped, `entityType` currently only `"task"` is
