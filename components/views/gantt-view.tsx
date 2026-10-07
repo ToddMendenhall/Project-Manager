@@ -13,6 +13,8 @@ import {
   buildTimeline,
   descendantSpan,
   SummaryBar,
+  CENTERED_Y,
+  SUMMARY_STACKED_Y,
   diffDays,
   startOfDay,
   useGanttZoom,
@@ -218,12 +220,12 @@ export function GanttView({
   // Under a summary row the items are its children, so they indent one level.
   const rows = buildRows(items, summary ? 1 : 0, expanded, dates);
   const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
-  // Rows with no dates of their own get a summary bar spanning their
-  // descendants — computed from the live `dates`, so it follows a drag.
+  // Every row with visible children gets a summary bar spanning its
+  // descendants (alongside its own bar or dot, if it has dates) — computed
+  // from the live `dates`, so it follows a drag.
   const spans = new Map(
     rows.flatMap((r) => {
-      const own = dates[r.node.id];
-      if (own.start || own.end) return [];
+      if (!r.hasVisibleChildren) return [];
       const span = descendantSpan(r.node, (n) => dates[n.id] ?? { start: null, end: null });
       return span ? [[r.node.id, span] as const] : [];
     }),
@@ -324,6 +326,19 @@ export function GanttView({
                 const barColor = STATUS_BAR_COLORS[node.status] ?? "bg-cy-gray-300";
                 const isDragging = draggingId === node.id;
                 const draggable = !!actionsByKind[node.kind];
+                const rowSpan = spans.get(node.id);
+                // With a summary bar in the row, its own bar/dot sits lower.
+                const y = rowSpan && (start || end) ? SUMMARY_STACKED_Y : CENTERED_Y;
+                const stackedSummary = rowSpan && (start || end) && (
+                  <SummaryBar
+                    title={node.title}
+                    href={node.href}
+                    span={rowSpan}
+                    rangeStart={rangeStart}
+                    dayWidth={dayWidth}
+                    placement="top"
+                  />
+                );
 
                 if (start && end) {
                   const offset = Math.max(0, diffDays(start, rangeStart));
@@ -332,10 +347,11 @@ export function GanttView({
                   const width = Math.max(span * dayWidth - 4, 8);
                   return (
                     <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
+                      {stackedSummary}
                       <Link
                         href={node.href}
                         title={`${node.title}: ${start.toLocaleDateString()} – ${end.toLocaleDateString()} (${statusLabel(node.status)})`}
-                        className={`absolute top-1/2 flex h-5 -translate-y-1/2 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor} ${isDragging ? "opacity-80" : ""}`}
+                        className={`absolute ${y} flex h-5 items-center overflow-hidden rounded-full px-2 text-[11px] font-medium text-white ${barColor} ${isDragging ? "opacity-80" : ""}`}
                         style={{ left, width }}
                       >
                         <span className="truncate">{statusLabel(node.status)}</span>
@@ -345,13 +361,13 @@ export function GanttView({
                           <div
                             onPointerDown={(e) => beginDrag(node, "start", e)}
                             title="Drag to change the start date"
-                            className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-l-full hover:bg-black/20"
+                            className={`absolute ${y} h-5 w-2 cursor-ew-resize rounded-l-full hover:bg-black/20`}
                             style={{ left: left - 1 }}
                           />
                           <div
                             onPointerDown={(e) => beginDrag(node, "end", e)}
                             title="Drag to change the due date"
-                            className="absolute top-1/2 h-5 w-2 -translate-y-1/2 cursor-ew-resize rounded-r-full hover:bg-black/20"
+                            className={`absolute ${y} h-5 w-2 cursor-ew-resize rounded-r-full hover:bg-black/20`}
                             style={{ left: left + width - 7 }}
                           />
                         </>
@@ -365,14 +381,13 @@ export function GanttView({
                 // Portfolio above dated Projects. Keep the empty row so the
                 // timeline stays aligned with the label column.
                 if (!start && !end) {
-                  const span = spans.get(node.id);
                   return (
                     <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
-                      {span && (
+                      {rowSpan && (
                         <SummaryBar
                           title={node.title}
                           href={node.href}
-                          span={span}
+                          span={rowSpan}
                           rangeStart={rangeStart}
                           dayWidth={dayWidth}
                         />
@@ -385,12 +400,13 @@ export function GanttView({
                 const offset = Math.max(0, diffDays(point, rangeStart));
                 return (
                   <div key={node.id} className="relative h-10 border-b border-cy-gray-100 last:border-0">
+                    {stackedSummary}
                     <div
                       onPointerDown={draggable ? (e) => beginDrag(node, "dot", e) : undefined}
                       title={`${node.title}: ${point.toLocaleDateString()} (${statusLabel(node.status)})${
                         draggable ? " — drag to set the missing date" : ""
                       }`}
-                      className={`absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ${barColor} ${
+                      className={`absolute ${y} h-2.5 w-2.5 rounded-full ${barColor} ${
                         draggable ? "cursor-ew-resize" : ""
                       } ${isDragging ? "opacity-80" : ""}`}
                       style={{ left: offset * dayWidth + dayWidth / 2 - 5 }}
