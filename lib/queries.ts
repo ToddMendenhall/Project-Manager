@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, ilike, inArray, isNull, notInArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import {
   attachments,
@@ -675,6 +675,15 @@ export async function getCommentsOnMyTasks(userId: string, orgId: string) {
     .limit(50);
 }
 
+/** Relations to load with a board so `whiteboardLinkInfo` can describe its Project/Program link. */
+const whiteboardLinkRelations = {
+  project: {
+    columns: { id: true, name: true, programId: true },
+    with: { program: { columns: { name: true } } },
+  },
+  program: { columns: { id: true, name: true } },
+} as const;
+
 /**
  * Fetches a whiteboard only if it belongs to the given org — prevents
  * cross-org access. `data` (the canvas, up to a couple of MB) is only
@@ -699,7 +708,7 @@ export async function getWhiteboardForOrg<WithData extends boolean = false>(
       thumbnailUpdatedAt: true,
       data: (withData ?? false) as WithData,
     },
-    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
+    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } }, ...whiteboardLinkRelations },
   });
 
   return board ?? null;
@@ -728,7 +737,7 @@ export async function getOrgWhiteboards<WithData extends boolean = false>(
     extras: {
       itemCount: sql<number>`coalesce(jsonb_array_length(${whiteboards.data} -> 'nodes'), 0)`.as("item_count"),
     },
-    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } } },
+    with: { createdBy: { columns: { name: true } }, updatedBy: { columns: { name: true } }, ...whiteboardLinkRelations },
     orderBy: [desc(whiteboards.updatedAt)],
   });
 }
@@ -741,4 +750,39 @@ export async function getWhiteboardDocsForOrg(orgId: string, whiteboardIds: stri
     .from(whiteboards)
     .where(and(eq(whiteboards.orgId, orgId), inArray(whiteboards.id, whiteboardIds)));
   return new Map(rows.map((row) => [row.id, row.data as unknown]));
+}
+
+/**
+ * Boards linked to a project, or to a program and (optionally) any of its
+ * projects — for the Whiteboards section on those pages. Always org-scoped.
+ */
+export async function getLinkedWhiteboards(
+  orgId: string,
+  target: { projectId: string } | { programId: string; includeProjects?: boolean },
+) {
+  let condition;
+  if ("projectId" in target) {
+    condition = eq(whiteboards.projectId, target.projectId);
+  } else if (target.includeProjects) {
+    const programProjects = db.select({ id: projects.id }).from(projects).where(eq(projects.programId, target.programId));
+    condition = or(eq(whiteboards.programId, target.programId), inArray(whiteboards.projectId, programProjects));
+  } else {
+    condition = eq(whiteboards.programId, target.programId);
+  }
+  return db.query.whiteboards.findMany({
+    where: and(eq(whiteboards.orgId, orgId), condition),
+    columns: { id: true, name: true, updatedAt: true, thumbnailUpdatedAt: true },
+    with: { updatedBy: { columns: { name: true } }, ...whiteboardLinkRelations },
+    orderBy: [desc(whiteboards.updatedAt)],
+  });
+}
+
+/** Every program with its projects (names only), for the whiteboard link picker. */
+export async function getOrgLinkTargets(orgId: string) {
+  return db.query.programs.findMany({
+    where: eq(programs.orgId, orgId),
+    columns: { id: true, name: true },
+    with: { projects: { columns: { id: true, name: true }, orderBy: (project, { asc }) => [asc(project.name)] } },
+    orderBy: (program, { asc }) => [asc(program.name)],
+  });
 }

@@ -6,6 +6,7 @@ import { buttonPrimary } from "@/components/form-controls";
 import { createWhiteboard } from "@/app/dashboard/whiteboards/actions";
 import { WHITEBOARD_TEMPLATES, WHITEBOARD_TEMPLATE_KEYS, type WhiteboardTemplateKey } from "@/lib/whiteboard-templates";
 import { whiteboardPreview } from "@/lib/whiteboard";
+import type { WhiteboardLink } from "@/lib/whiteboard-links";
 import { WhiteboardPreview } from "./whiteboard-preview";
 
 // Templates are static, so their previews are computed once per page load.
@@ -17,8 +18,17 @@ const PREVIEWS = Object.fromEntries(
  * "New whiteboard" button that first asks which template to start from.
  * `variant` only changes the trigger's look: the index page's primary
  * button, the list panel's full-width button, or the collapsed panel's icon.
+ * With `link` (e.g. on a project's page) the new board starts linked to it.
  */
-export function NewWhiteboardButton({ variant = "primary" }: { variant?: "primary" | "panel" | "icon" }) {
+export function NewWhiteboardButton({
+  variant = "primary",
+  link,
+  linkName,
+}: {
+  variant?: "primary" | "panel" | "icon" | "small";
+  link?: WhiteboardLink;
+  linkName?: string;
+}) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<WhiteboardTemplateKey | null>(null);
   const [, startTransition] = useTransition();
@@ -38,7 +48,7 @@ export function NewWhiteboardButton({ variant = "primary" }: { variant?: "primar
     setPending(key);
     startTransition(async () => {
       try {
-        await createWhiteboard(key);
+        await createWhiteboard(key, link ?? null);
       } finally {
         setPending(null);
       }
@@ -61,8 +71,8 @@ export function NewWhiteboardButton({ variant = "primary" }: { variant?: "primar
         type="button"
         onClick={() => setOpen(true)}
         className={
-          variant === "panel"
-            ? "flex items-center justify-center gap-1.5 rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
+          variant === "panel" || variant === "small"
+            ? "flex shrink-0 items-center justify-center gap-1.5 rounded bg-cy-blue-600 px-3 py-1.5 text-[13px] font-semibold text-white transition-colors duration-fast hover:bg-cy-blue-700"
             : `${buttonPrimary} flex shrink-0 items-center gap-1.5`
         }
       >
@@ -90,7 +100,7 @@ export function NewWhiteboardButton({ variant = "primary" }: { variant?: "primar
           >
             <div className="flex items-center justify-between border-b border-cy-gray-100 px-5 py-3">
               <h2 id="new-whiteboard-title" className="text-base font-semibold text-cy-gray-900">
-                New whiteboard
+                New whiteboard{linkName ? ` for ${linkName}` : ""}
               </h2>
               <button
                 type="button"

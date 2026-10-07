@@ -7,7 +7,8 @@ import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { whiteboards } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
-import { getWhiteboardForOrg } from "@/lib/queries";
+import { getProgramForOrg, getProjectForOrg, getWhiteboardForOrg } from "@/lib/queries";
+import type { WhiteboardLink } from "@/lib/whiteboard-links";
 import {
   MAX_WHITEBOARD_BYTES,
   canDeleteWhiteboard,
@@ -26,8 +27,55 @@ function revalidateWhiteboards() {
   revalidatePath("/dashboard/whiteboards", "layout");
 }
 
-export async function createWhiteboard(templateKey: string = "blank") {
+const linkSchema = z
+  .object({ kind: z.enum(["project", "program"]), id: z.string().uuid() })
+  .nullable()
+  .optional();
+
+/**
+ * Validates a requested link against the org — the project or program must
+ * be this org's — and returns the column values to store. Also returns the
+ * page that lists the link's boards, for revalidation.
+ */
+async function resolveLink(link: unknown, orgId: string) {
+  const parsed = linkSchema.parse(link) ?? null;
+  if (!parsed) return { columns: { projectId: null, programId: null }, paths: [] };
+  if (parsed.kind === "project") {
+    const project = await getProjectForOrg(parsed.id, orgId);
+    if (!project) throw new Error("Project not found");
+    return {
+      columns: { projectId: project.id, programId: null },
+      paths: linkedPagePaths({ project: { id: project.id, programId: project.programId } }),
+    };
+  }
+  const program = await getProgramForOrg(parsed.id, orgId);
+  if (!program) throw new Error("Program not found");
+  return { columns: { projectId: null, programId: program.id }, paths: linkedPagePaths({ program }) };
+}
+
+/**
+ * Pages that list a board through its link: the project's page and its
+ * program's page (which also shows its projects' boards), or the program's.
+ */
+function linkedPagePaths(board: {
+  project?: { id: string; programId: string } | null;
+  program?: { id: string } | null;
+}): string[] {
+  if (board.project) {
+    const programPath = `/dashboard/programs/${board.project.programId}`;
+    return [`${programPath}/projects/${board.project.id}`, programPath];
+  }
+  if (board.program) return [`/dashboard/programs/${board.program.id}`];
+  return [];
+}
+
+function revalidateLinkedPages(...paths: string[][]) {
+  for (const path of new Set(paths.flat())) revalidatePath(path);
+}
+
+export async function createWhiteboard(templateKey: string = "blank", link?: WhiteboardLink | null) {
   const ctx = await requireOrgContext();
+  const resolved = await resolveLink(link, ctx.org.id);
 
   const key = z.enum(WHITEBOARD_TEMPLATE_KEYS as [string, ...string[]]).parse(templateKey);
   const template = WHITEBOARD_TEMPLATES[key as keyof typeof WHITEBOARD_TEMPLATES];
@@ -38,13 +86,38 @@ export async function createWhiteboard(templateKey: string = "blank") {
       orgId: ctx.org.id,
       name: key === "blank" ? "Untitled whiteboard" : template.name,
       data: whiteboardDocSchema.parse(template.build()),
+      ...resolved.columns,
       createdById: ctx.user.id,
       updatedById: ctx.user.id,
     })
     .returning({ id: whiteboards.id });
 
   revalidateWhiteboards();
+  revalidateLinkedPages(resolved.paths);
   redirect(`/dashboard/whiteboards/${board.id}`);
+}
+
+/**
+ * Links a board to a project or program, or unlinks it (`null`). Any member
+ * can do this — like editing the board itself. Doesn't bump `version`: the
+ * link isn't canvas content, so it never conflicts with someone's edits.
+ */
+export async function setWhiteboardLink(whiteboardId: string, link: WhiteboardLink | null) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getWhiteboardForOrg(whiteboardId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Whiteboard not found");
+  }
+  const resolved = await resolveLink(link, ctx.org.id);
+
+  await db
+    .update(whiteboards)
+    .set({ ...resolved.columns, updatedAt: new Date(), updatedById: ctx.user.id })
+    .where(eq(whiteboards.id, whiteboardId));
+
+  revalidateWhiteboards();
+  revalidateLinkedPages(linkedPagePaths(existing), resolved.paths);
 }
 
 export async function renameWhiteboard(whiteboardId: string, name: string) {
@@ -62,6 +135,7 @@ export async function renameWhiteboard(whiteboardId: string, name: string) {
     .where(eq(whiteboards.id, whiteboardId));
 
   revalidateWhiteboards();
+  revalidateLinkedPages(linkedPagePaths(existing));
 }
 
 export async function duplicateWhiteboard(whiteboardId: string) {
@@ -85,6 +159,8 @@ export async function duplicateWhiteboard(whiteboardId: string) {
         orgId: ctx.org.id,
         name: `Copy of ${existing.name}`.slice(0, 255),
         data: doc,
+        projectId: existing.project?.id ?? null,
+        programId: existing.program?.id ?? null,
         thumbnail: sql`(select thumbnail from whiteboards where id = ${whiteboardId})`,
         thumbnailUpdatedAt: existing.thumbnailUpdatedAt,
         createdById: ctx.user.id,
@@ -118,6 +194,7 @@ export async function duplicateWhiteboard(whiteboardId: string) {
   });
 
   revalidateWhiteboards();
+  revalidateLinkedPages(linkedPagePaths(existing));
   redirect(`/dashboard/whiteboards/${copy.id}`);
 }
 
@@ -136,6 +213,7 @@ export async function deleteWhiteboard(whiteboardId: string) {
   await db.delete(whiteboards).where(eq(whiteboards.id, whiteboardId));
 
   revalidateWhiteboards();
+  revalidateLinkedPages(linkedPagePaths(existing));
   redirect("/dashboard/whiteboards");
 }
 

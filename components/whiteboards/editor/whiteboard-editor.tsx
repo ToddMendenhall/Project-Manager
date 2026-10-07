@@ -48,6 +48,8 @@ import {
   type WhiteboardEdgeData,
 } from "@/lib/whiteboard";
 import { buttonGhost } from "@/components/form-controls";
+import { WhiteboardLinkPicker } from "@/components/whiteboards/link-picker";
+import type { LinkTargetTree, WhiteboardLinkInfo } from "@/lib/whiteboard-links";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   duplicateWhiteboard,
@@ -116,6 +118,9 @@ export type WhiteboardEditorProps = {
   initialVersion: number;
   /** False for boards saved before thumbnails existed, so the editor makes one on open. */
   hasThumbnail: boolean;
+  /** The board's optional Project/Program link, and the choices for changing it. */
+  link: WhiteboardLinkInfo | null;
+  linkTargets: LinkTargetTree;
   onDelete?: () => Promise<void>;
 };
 
@@ -139,6 +144,8 @@ function Editor({
   initialDoc,
   initialVersion,
   hasThumbnail,
+  link,
+  linkTargets,
   onDelete,
 }: WhiteboardEditorProps) {
   const initialFlow = useMemo(() => docToFlow(initialDoc), [initialDoc]);
@@ -848,6 +855,8 @@ function Editor({
     <div className="flex h-full flex-col">
       <EditorHeader
         whiteboardId={whiteboardId}
+        link={link}
+        linkTargets={linkTargets}
         initialName={initialName}
         status={status}
         flush={flush}
@@ -1112,6 +1121,8 @@ const STATUS_TEXT: Record<Exclude<SaveStatus["kind"], "error">, string> = {
 
 function EditorHeader({
   whiteboardId,
+  link,
+  linkTargets,
   initialName,
   status,
   flush,
@@ -1121,6 +1132,8 @@ function EditorHeader({
   onDelete,
 }: {
   whiteboardId: string;
+  link: WhiteboardLinkInfo | null;
+  linkTargets: LinkTargetTree;
   initialName: string;
   status: SaveStatus;
   flush: () => Promise<void>;
@@ -1181,6 +1194,7 @@ function EditorHeader({
       >
         {status.kind === "error" ? status.message : STATUS_TEXT[status.kind]}
       </span>
+      <WhiteboardLinkPicker whiteboardId={whiteboardId} link={link} targets={linkTargets} />
       <div className="ml-auto flex items-center gap-1">
         <div className="relative">
           <button

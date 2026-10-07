@@ -385,8 +385,11 @@ export const activityLog = pgTable(
  * editor loaded (optimistic concurrency), so two people editing the same
  * board get a conflict prompt instead of silently overwriting each other.
  *
- * Org-wide only for now; a later phase adds an optional Project/Program
- * link. createdById is set null if the creator's user row goes away, after
+ * A board is org-wide, optionally linked to one Project *or* one Program
+ * (never both — check constraint). The link is context only: it lists the
+ * board on that project's/program's page and shows where the board belongs.
+ * Deleting the project/program just unlinks the board.
+ * createdById is set null if the creator's user row goes away, after
  * which only an admin can delete the board.
  */
 export const whiteboards = pgTable(
@@ -397,6 +400,8 @@ export const whiteboards = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     name: varchar("name", { length: 255 }).notNull(),
+    projectId: uuid("project_id").references(() => projects.id, { onDelete: "set null" }),
+    programId: uuid("program_id").references(() => programs.id, { onDelete: "set null" }),
     data: jsonb("data").notNull().default({ nodes: [], edges: [] }),
     version: integer("version").notNull().default(1),
     // PNG snapshot for the list page, rendered by the editor after saves
@@ -410,6 +415,12 @@ export const whiteboards = pgTable(
   },
   (table) => ({
     orgUpdatedIdx: index("whiteboards_org_updated_idx").on(table.orgId, table.updatedAt),
+    projectIdx: index("whiteboards_project_idx").on(table.projectId),
+    programIdx: index("whiteboards_program_idx").on(table.programId),
+    atMostOneLink: check(
+      "whiteboards_at_most_one_link",
+      sql`num_nonnulls(${table.projectId}, ${table.programId}) <= 1`,
+    ),
   }),
 );
 
@@ -518,6 +529,8 @@ export const customFieldDefsRelations = relations(customFieldDefs, ({ one }) => 
 
 export const whiteboardsRelations = relations(whiteboards, ({ one, many }) => ({
   images: many(attachments),
+  project: one(projects, { fields: [whiteboards.projectId], references: [projects.id] }),
+  program: one(programs, { fields: [whiteboards.programId], references: [programs.id] }),
   organization: one(organizations, { fields: [whiteboards.orgId], references: [organizations.id] }),
   createdBy: one(users, {
     fields: [whiteboards.createdById],

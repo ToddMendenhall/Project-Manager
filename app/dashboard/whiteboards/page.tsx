@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { FolderKanban } from "lucide-react";
+import { whiteboardLinkInfo } from "@/lib/whiteboard-links";
 import { requireOrgContext } from "@/lib/org";
 import { getOrgWhiteboards, getWhiteboardDocsForOrg } from "@/lib/queries";
 import {
@@ -11,6 +13,11 @@ import { WhiteboardPreview } from "@/components/whiteboards/whiteboard-preview";
 import { WhiteboardCardActions } from "@/components/whiteboards/whiteboard-card-actions";
 import { NewWhiteboardButton } from "@/components/whiteboards/new-whiteboard-button";
 import { deleteWhiteboard, duplicateWhiteboard } from "./actions";
+
+function linkLabel(board: Parameters<typeof whiteboardLinkInfo>[0]) {
+  const link = whiteboardLinkInfo(board);
+  return link ? `${link.programName ? `${link.programName} › ` : ""}${link.name}` : null;
+}
 
 export default async function WhiteboardsPage() {
   const ctx = await requireOrgContext();
@@ -70,6 +77,12 @@ export default async function WhiteboardsPage() {
                       {board.updatedBy && ` by ${board.updatedBy.name}`}
                       {` · ${board.itemCount} item${board.itemCount === 1 ? "" : "s"}`}
                     </p>
+                    {linkLabel(board) && (
+                      <p className="mt-1 flex items-center gap-1 truncate text-xs font-medium text-cy-blue-700">
+                        <FolderKanban size={12} className="shrink-0" />
+                        <span className="truncate">{linkLabel(board)}</span>
+                      </p>
+                    )}
                   </div>
                 </Link>
                 <div className="mt-auto flex items-center justify-between px-4 pb-3 pt-2">

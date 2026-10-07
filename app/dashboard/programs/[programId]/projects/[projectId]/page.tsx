@@ -4,6 +4,8 @@ import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { programs, projects, tasks } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
+import { getLinkedWhiteboards } from "@/lib/queries";
+import { LinkedWhiteboards } from "@/components/whiteboards/linked-whiteboards";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import { ViewTabs } from "@/components/views/view-tabs";
@@ -110,6 +112,12 @@ export default async function ProjectDetailPage({
           </ul>
         )}
       </div>
+
+      <LinkedWhiteboards
+        boards={await getLinkedWhiteboards(ctx.org.id, { projectId: project.id })}
+        link={{ kind: "project", id: project.id }}
+        linkName={project.name}
+      />
     </div>
   );
 }
