@@ -11,6 +11,7 @@ import { projectBreadcrumbs } from "@/lib/breadcrumbs";
 import { BoardView } from "@/components/views/board-view";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
 import { updateTaskOrder } from "../tasks/actions";
+import { formatCalendarDate } from "@/lib/dates";
 
 export default async function TaskBoardPage({
   params,
@@ -81,7 +82,7 @@ export default async function TaskBoardPage({
                   {task.assignee && <span className="text-xs text-cy-gray-500">{task.assignee.name}</span>}
                 </div>
                 {task.dueDate && (
-                  <p className="mt-1 text-xs text-cy-gray-400">Due {new Date(task.dueDate).toLocaleDateString()}</p>
+                  <p className="mt-1 text-xs text-cy-gray-400">Due {formatCalendarDate(task.dueDate)}</p>
                 )}
               </>
             ),

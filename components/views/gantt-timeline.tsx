@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ZoomIn, ZoomOut } from "lucide-react";
+import { formatLocalDate } from "@/lib/dates";
 
 /**
  * Shared timeline plumbing for the Gantt views (`GanttView`,
@@ -117,13 +118,13 @@ function group(
   days: Date[],
   keyOf: (d: Date) => string,
   labelOf: (first: Date, last: Date) => string,
-  today: Date,
+  today: Date | null,
 ): HeaderCell[] {
   const cells: { key: string; first: Date; last: Date; days: number; highlighted: boolean }[] = [];
   for (const day of days) {
     const key = keyOf(day);
     const current = cells[cells.length - 1];
-    const isToday = diffDays(day, today) === 0;
+    const isToday = today !== null && diffDays(day, today) === 0;
     if (current && current.key === key) {
       current.last = day;
       current.days++;
@@ -135,16 +136,30 @@ function group(
   return cells.map((c) => ({ label: labelOf(c.first, c.last), days: c.days, highlighted: c.highlighted }));
 }
 
-const shortDate = (d: Date) => d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+// Fixed locale so the server render and the browser label the header alike.
+const shortDate = (d: Date) => formatLocalDate(d, { month: "short", day: "numeric" });
 const weekKey = (d: Date) => addDays(d, -d.getDay()).toDateString();
 const monthKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
 const quarterKey = (d: Date) => `${d.getFullYear()}-${QUARTER_START_MONTH(d)}`;
 const yearKey = (d: Date) => `${d.getFullYear()}`;
 
-export function buildTimeline(dates: Date[], zoom: ZoomLevel): Timeline {
-  const today = startOfDay(new Date());
-  const earliest = new Date(Math.min(...dates.map((d) => d.getTime()), today.getTime()));
-  const latest = new Date(Math.max(...dates.map((d) => d.getTime()), today.getTime()));
+/**
+ * The viewer's today, or null until mounted. The server's day can differ
+ * from the viewer's (it runs in UTC), and "today" widens the range and moves
+ * every bar, so it's left out of the server render to keep hydration exact;
+ * the today line and range appear on the first client render.
+ */
+export function useToday(): Date | null {
+  const [today, setToday] = useState<Date | null>(null);
+  useEffect(() => setToday(startOfDay(new Date())), []);
+  return today;
+}
+
+export function buildTimeline(dates: Date[], zoom: ZoomLevel, today: Date | null): Timeline {
+  const anchors = [...dates.map((d) => d.getTime()), ...(today ? [today.getTime()] : [])];
+  if (anchors.length === 0) anchors.push(startOfDay(new Date()).getTime());
+  const earliest = new Date(Math.min(...anchors));
+  const latest = new Date(Math.max(...anchors));
   const [rangeStart, rangeEnd] = paddedRange(earliest, latest, zoom.key);
 
   const totalDays = diffDays(rangeEnd, rangeStart) + 1;
@@ -159,16 +174,16 @@ export function buildTimeline(dates: Date[], zoom: ZoomLevel): Timeline {
         label: String(day.getDate()),
         days: 1,
         shaded: day.getDay() === 0 || day.getDay() === 6,
-        highlighted: diffDays(day, today) === 0,
+        highlighted: today !== null && diffDays(day, today) === 0,
       }));
       break;
     case "week":
-      topRow = group(days, monthKey, (first) => first.toLocaleDateString(undefined, { month: "short", year: "numeric" }), today);
+      topRow = group(days, monthKey, (first) => formatLocalDate(first, { month: "short", year: "numeric" }), today);
       bottomRow = group(days, weekKey, (first) => shortDate(first), today);
       break;
     case "month":
       topRow = group(days, yearKey, (first) => String(first.getFullYear()), today);
-      bottomRow = group(days, monthKey, (first) => first.toLocaleDateString(undefined, { month: "short" }), today);
+      bottomRow = group(days, monthKey, (first) => formatLocalDate(first, { month: "short" }), today);
       break;
     case "quarter":
       topRow = group(days, yearKey, (first) => String(first.getFullYear()), today);
@@ -183,7 +198,7 @@ export function buildTimeline(dates: Date[], zoom: ZoomLevel): Timeline {
     totalDays,
     dayWidth: zoom.dayWidth,
     gridWidth: totalDays * zoom.dayWidth,
-    todayOffset: diffDays(today, rangeStart),
+    todayOffset: today ? diffDays(today, rangeStart) : -1,
     topRow,
     bottomRow,
   };
@@ -254,7 +269,7 @@ export function useTimelineScroll(
 
   function scrollToToday() {
     const el = scrollRef.current;
-    if (!el || !timeline) return;
+    if (!el || !timeline || timeline.todayOffset < 0) return;
     el.scrollTo({
       left: (timeline.todayOffset + 0.5) * timeline.dayWidth - el.clientWidth / 2,
       behavior: "smooth",
@@ -421,7 +436,7 @@ export function SummaryBar({
     <Link
       href={href}
       data-gantt-summary
-      title={`${title}: ${span.start.toLocaleDateString()} – ${span.end.toLocaleDateString()} (span of the items inside)`}
+      title={`${title}: ${formatLocalDate(span.start)} – ${formatLocalDate(span.end)} (span of the items inside)`}
       className={`absolute h-1.5 rounded-sm bg-cy-gray-600 hover:bg-cy-gray-800 ${
         placement === "top" ? "top-1" : "top-1/2 -translate-y-1/2"
       }`}

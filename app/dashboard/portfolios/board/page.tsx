@@ -7,6 +7,7 @@ import { ViewTabs } from "@/components/views/view-tabs";
 import { ViewHeader } from "@/components/views/view-header";
 import { BoardView } from "@/components/views/board-view";
 import { updatePortfolioOrder } from "../actions";
+import { formatCalendarDate } from "@/lib/dates";
 
 export default async function PortfoliosBoardPage() {
   const ctx = await requireOrgContext();
@@ -53,7 +54,7 @@ export default async function PortfoliosBoardPage() {
                 {portfolio.owner && <p className="mt-2 text-xs text-cy-gray-500">{portfolio.owner.name}</p>}
                 {portfolio.targetEndDate && (
                   <p className="mt-1 text-xs text-cy-gray-400">
-                    Target end {new Date(portfolio.targetEndDate).toLocaleDateString()}
+                    Target end {formatCalendarDate(portfolio.targetEndDate)}
                   </p>
                 )}
               </>

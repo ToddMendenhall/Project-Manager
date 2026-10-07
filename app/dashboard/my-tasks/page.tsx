@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireOrgContext } from "@/lib/org";
 import { getAssignedTasks } from "@/lib/queries";
 import { PriorityBadge, StatusBadge } from "@/components/status-badge";
+import { formatCalendarDate } from "@/lib/dates";
 
 type AssignedTask = Awaited<ReturnType<typeof getAssignedTasks>>["open"][number];
 
@@ -37,7 +38,7 @@ function TaskTable({ tasks }: { tasks: AssignedTask[] }) {
                 <PriorityBadge priority={task.priority} />
               </td>
               <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
-                {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
+                {task.dueDate ? formatCalendarDate(task.dueDate) : "—"}
               </td>
             </tr>
           ))}

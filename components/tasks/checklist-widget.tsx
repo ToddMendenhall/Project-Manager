@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PriorityBadge } from "@/components/status-badge";
+import { formatCalendarDate } from "@/lib/dates";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import {
   createChecklistItem,
@@ -123,7 +124,7 @@ export function ChecklistWidget({
                     {item.assignee && <span className="text-xs text-cy-gray-500">{item.assignee.name}</span>}
                     {item.dueDate && (
                       <span className="font-mono text-xs tabular-nums text-cy-gray-400">
-                        Due {new Date(item.dueDate).toLocaleDateString()}
+                        Due {formatCalendarDate(item.dueDate)}
                       </span>
                     )}
                   </div>

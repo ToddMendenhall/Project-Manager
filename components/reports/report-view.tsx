@@ -3,6 +3,7 @@ import { StatCard } from "@/components/stat-card";
 import { BarChart } from "@/components/reports/bar-chart";
 import { PriorityBadge, STATUS_BAR_COLORS, PRIORITY_BAR_COLORS } from "@/components/status-badge";
 import type { ReportData, ReportTask, ProjectProgressGroup } from "@/lib/reports";
+import { formatCalendarDate } from "@/lib/dates";
 
 const MAX_ROWS = 15;
 
@@ -163,7 +164,7 @@ function TaskTable({ title, tasks, emptyText }: { title: string; tasks: ReportTa
                     <PriorityBadge priority={task.priority} />
                   </td>
                   <td className="px-4 py-3 font-mono tabular-nums text-cy-gray-600">
-                    {task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "—"}
+                    {task.dueDate ? formatCalendarDate(task.dueDate) : "—"}
                   </td>
                 </tr>
               ))}

@@ -2,6 +2,7 @@ import "server-only";
 import { sql, type SQL } from "drizzle-orm";
 import { db } from "@/db";
 import type { ItemHeaderMeta } from "@/components/views/item-header";
+import { formatCalendarDate } from "@/lib/dates";
 
 /**
  * The person + date fields in the header of a Portfolio, Program, Project or
@@ -86,7 +87,7 @@ type HeaderRow = {
   max_d: Date | string | null;
 };
 
-const formatDate = (value: Date | string | null) => (value ? new Date(value).toLocaleDateString() : "");
+const formatDate = (value: Date | string | null) => formatCalendarDate(value);
 
 export async function itemHeaderMeta(level: Level, id: string): Promise<ItemHeaderMeta[]> {
   const result = await db.execute<HeaderRow>(sql`

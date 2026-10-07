@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { STATUS_OPTIONS, PRIORITY_OPTIONS, dateInputValue } from "@/lib/fields";
+import { calendarDateKey, todayKey } from "@/lib/dates";
 import { StatusBadge, STATUS_COLORS, PRIORITY_COLORS, STATUS_TOKENS } from "@/components/status-badge";
 import {
   updateTaskStatus,
@@ -42,9 +43,15 @@ type TaskRow = {
 
 const ROW_GRID = "grid grid-cols-[28px_minmax(200px,1fr)_130px_160px_140px_110px] items-center gap-2";
 
-function isOverdue(dueDate: Date | string | null, status: string) {
-  if (!dueDate || status === "completed" || status === "cancelled") return false;
-  return new Date(dueDate) < new Date(new Date().toDateString());
+/**
+ * Overdue once the due day has passed in the viewer's own day, not at
+ * midnight UTC (which is still the day before, west of UTC). `today` is null
+ * until mount: the server's day can differ from the viewer's, and marking
+ * overdue during the server render would then mismatch on hydration.
+ */
+function isOverdue(dueDate: Date | string | null, status: string, today: string | null) {
+  if (!today || !dueDate || status === "completed" || status === "cancelled") return false;
+  return calendarDateKey(dueDate) < today;
 }
 
 function StatusSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
@@ -148,6 +155,8 @@ export function TaskListView({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
+  const [today, setToday] = useState<string | null>(null);
+  useEffect(() => setToday(todayKey()), []);
 
   // tasks prop changes after the filter form navigates (new search params) —
   // sync local state, same reasoning as ChecklistWidget's identical effect.
@@ -294,7 +303,7 @@ export function TaskListView({
     tasks: sortRows(taskList.filter((t) => t.status === opt.value)),
   })).filter((g) => g.tasks.length > 0);
 
-  const overdueCount = taskList.filter((t) => isOverdue(t.dueDate, t.status)).length;
+  const overdueCount = taskList.filter((t) => isOverdue(t.dueDate, t.status, today)).length;
 
   if (groups.length === 0) {
     return (
@@ -386,7 +395,7 @@ export function TaskListView({
                           />
                           <DueDateInput
                             value={task.dueDate}
-                            overdue={isOverdue(task.dueDate, task.status)}
+                            overdue={isOverdue(task.dueDate, task.status, today)}
                             onChange={(v) => handleTaskDueDateChange(task, v)}
                           />
                           <PrioritySelect value={task.priority} onChange={(v) => handleTaskPriorityChange(task, v)} />
@@ -416,7 +425,7 @@ export function TaskListView({
                               />
                               <DueDateInput
                                 value={item.dueDate}
-                                overdue={isOverdue(item.dueDate, item.status)}
+                                overdue={isOverdue(item.dueDate, item.status, today)}
                                 onChange={(v) => handleItemDueDateChange(task, item, v)}
                               />
                               <PrioritySelect
