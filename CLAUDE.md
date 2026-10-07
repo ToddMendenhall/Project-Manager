@@ -237,8 +237,12 @@ items, and a Program's rolls up its projects too.
   foreign key, for the same reason. Only `programId` cascades.
 - **Retention:** `ACTIVITY_RETENTION_DAYS` (90). Reads filter to the window,
   and roughly one write in 50 prunes the org's older rows. There is no cron
-  job. Pages show the latest 50 events, with the first 10 visible and the
-  rest behind a native `<details>`.
+  job.
+- **Display:** the section is a native `<details>`, collapsed by default,
+  with the event count in its heading. When opened it shows up to the
+  latest 50 events, the first 10 visible and the rest behind a nested
+  "Show N more" `<details>`. The two use named Tailwind groups
+  (`group/activity`, `group/more`) so each toggle only styles itself.
 - When adding a new tracked field or entity, extend `TRACKED_FIELDS` /
   the `activity_entity` enum and `ActivityFeed`'s labels rather than
   writing rows by hand.
