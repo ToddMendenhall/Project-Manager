@@ -4,10 +4,11 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { randomBytes, randomInt } from "crypto";
 import { revalidatePath } from "next/cache";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { invites, orgMembers, users } from "@/db/schema";
 import { requireAdmin, requireOrgContext } from "@/lib/org";
+import { RATE_LIMITS, recordAttempt, retryAfterSeconds } from "@/lib/rate-limit";
 
 const INVITE_TTL_DAYS = 7;
 
@@ -59,6 +60,13 @@ const createInviteSchema = z.object({
 export async function createInvite(formData: FormData): Promise<CreateInviteResult> {
   const ctx = await requireOrgContext();
   requireAdmin(ctx);
+
+  // Throttled per admin: each attempt also reveals whether an email has an
+  // account (below), and invites are otherwise unlimited.
+  if ((await retryAfterSeconds(RATE_LIMITS.inviteCreate, ctx.user.id)) > 0) {
+    return { ok: false, error: "Too many invites in the last hour. Try again later." };
+  }
+  await recordAttempt(RATE_LIMITS.inviteCreate, ctx.user.id);
 
   const parsed = createInviteSchema.safeParse({
     email: formData.get("email"),
@@ -127,13 +135,37 @@ async function getMembership(userId: string, orgId: string) {
   return membership ?? null;
 }
 
-async function countOrgAdmins(orgId: string) {
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * The org's admin memberships, locked until the transaction ends. Two admins
+ * demoting or deleting each other at the same moment both used to see "2
+ * admins" and both succeed, leaving none; with the lock the second waits,
+ * then re-reads and sees only one.
+ */
+async function lockOrgAdmins(tx: Tx, orgId: string) {
+  return tx
+    .select({ id: orgMembers.id })
+    .from(orgMembers)
+    .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.role, "admin")))
+    .for("update");
+}
+
+/**
+ * Password resets and deletes change the global `users` row, which is only
+ * safe while each person belongs to exactly one organization (invites and
+ * registration reject existing emails today). Refuse if that ever stops
+ * being true, so one org's admin can't take over an account used elsewhere.
+ */
+async function belongsToOtherOrg(userId: string, orgId: string) {
   const [row] = await db
     .select({ value: count() })
     .from(orgMembers)
-    .where(and(eq(orgMembers.orgId, orgId), eq(orgMembers.role, "admin")));
-  return row.value;
+    .where(and(eq(orgMembers.userId, userId), ne(orgMembers.orgId, orgId)));
+  return row.value > 0;
 }
+
+const LAST_ADMIN = "The organization must have at least one admin.";
 
 export async function updateMemberRole(userId: string, role: string): Promise<ActionResult> {
   const ctx = await requireOrgContext();
@@ -153,11 +185,16 @@ export async function updateMemberRole(userId: string, role: string): Promise<Ac
     return { ok: false, error: "Member not found." };
   }
 
-  if (membership.role === "admin" && parsedRole.data !== "admin" && (await countOrgAdmins(ctx.org.id)) <= 1) {
-    return { ok: false, error: "The organization must have at least one admin." };
+  const refused = await db.transaction(async (tx) => {
+    const admins = await lockOrgAdmins(tx, ctx.org.id);
+    const isAdmin = admins.some((a) => a.id === membership.id);
+    if (isAdmin && parsedRole.data !== "admin" && admins.length <= 1) return LAST_ADMIN;
+    await tx.update(orgMembers).set({ role: parsedRole.data }).where(eq(orgMembers.id, membership.id));
+    return null;
+  });
+  if (refused) {
+    return { ok: false, error: refused };
   }
-
-  await db.update(orgMembers).set({ role: parsedRole.data }).where(eq(orgMembers.id, membership.id));
 
   revalidatePath("/dashboard/members");
   return { ok: true };
@@ -173,10 +210,19 @@ export async function resetMemberPassword(userId: string): Promise<ResetPassword
     return { ok: false, error: "Member not found." };
   }
 
+  if (await belongsToOtherOrg(userId, ctx.org.id)) {
+    return { ok: false, error: "This person also belongs to another organization, so their password can't be reset here." };
+  }
+
   const password = generatePassword();
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await db.update(users).set({ passwordHash }).where(eq(users.id, userId));
+  // Also ends every session they have, so a reset actually locks out
+  // whoever might be using the old password.
+  await db
+    .update(users)
+    .set({ passwordHash, sessionVersion: sql`${users.sessionVersion} + 1` })
+    .where(eq(users.id, userId));
 
   revalidatePath("/dashboard/members");
   return { ok: true, password };
@@ -195,14 +241,22 @@ export async function deleteMember(userId: string): Promise<ActionResult> {
     return { ok: false, error: "Member not found." };
   }
 
-  if (membership.role === "admin" && (await countOrgAdmins(ctx.org.id)) <= 1) {
-    return { ok: false, error: "The organization must have at least one admin." };
+  if (await belongsToOtherOrg(userId, ctx.org.id)) {
+    return { ok: false, error: "This person also belongs to another organization, so their account can't be deleted here." };
   }
 
   // Deleting the user row cascades to their org membership, comments, and
   // attachments, and clears assignee/owner/lead references elsewhere to
   // null — see the onDelete rules on those foreign keys in db/schema.ts.
-  await db.delete(users).where(eq(users.id, userId));
+  const refused = await db.transaction(async (tx) => {
+    const admins = await lockOrgAdmins(tx, ctx.org.id);
+    if (admins.some((a) => a.id === membership.id) && admins.length <= 1) return LAST_ADMIN;
+    await tx.delete(users).where(eq(users.id, userId));
+    return null;
+  });
+  if (refused) {
+    return { ok: false, error: refused };
+  }
 
   revalidatePath("/dashboard/members");
   return { ok: true };

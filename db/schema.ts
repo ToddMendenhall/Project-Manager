@@ -76,6 +76,12 @@ export const users = pgTable("users", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   passwordHash: varchar("password_hash", { length: 255 }).notNull(),
   name: varchar("name", { length: 255 }).notNull(),
+  /**
+   * Copied into the sign-in token. Bumping it (password change or admin
+   * reset) ends every existing session for this user: requireOrgContext
+   * compares the two on each request. See lib/org.ts.
+   */
+  sessionVersion: integer("session_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

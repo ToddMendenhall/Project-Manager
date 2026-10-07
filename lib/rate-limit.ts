@@ -21,6 +21,8 @@ export const RATE_LIMITS = {
   loginIp: { name: "login-ip", limit: 30, windowSeconds: 15 * 60 },
   /** New organizations registered per client IP. */
   registerIp: { name: "register-ip", limit: 5, windowSeconds: 60 * 60 },
+  /** Invites created per admin (each one also tells them whether an email has an account). */
+  inviteCreate: { name: "invite-create", limit: 30, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitRule>;
 
 const keyFor = (rule: RateLimitRule, id: string) =>

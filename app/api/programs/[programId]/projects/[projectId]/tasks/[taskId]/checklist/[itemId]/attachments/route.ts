@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { attachments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getChecklistItemForTask } from "@/lib/queries";
-import { MAX_ATTACHMENT_SIZE_BYTES } from "@/lib/attachments";
+import { MAX_ATTACHMENT_SIZE_BYTES, declaresBodyOver, storableFileName } from "@/lib/attachments";
 
 export async function POST(
   request: Request,
@@ -18,6 +18,9 @@ export async function POST(
     return NextResponse.json({ error: "Checklist item not found" }, { status: 404 });
   }
 
+  if (declaresBodyOver(request, MAX_ATTACHMENT_SIZE_BYTES)) {
+    return NextResponse.json({ error: "That file is too large." }, { status: 413 });
+  }
   const formData = await request.formData();
   const file = formData.get("file");
 
@@ -38,7 +41,7 @@ export async function POST(
     .values({
       checklistItemId: itemId,
       uploadedById: ctx.user.id,
-      fileName: file.name || "upload",
+      fileName: storableFileName(file.name, "upload"),
       contentType: file.type || null,
       sizeBytes: file.size,
       data,

@@ -4,6 +4,7 @@ import { attachments } from "@/db/schema";
 import { requireOrgContext } from "@/lib/org";
 import { getWhiteboardForOrg } from "@/lib/queries";
 import { MAX_WHITEBOARD_IMAGE_BYTES, sniffImageType } from "@/lib/whiteboard";
+import { declaresBodyOver, storableFileName } from "@/lib/attachments";
 
 /**
  * Uploads an image for a whiteboard canvas. The bytes become an
@@ -20,6 +21,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ whi
     return NextResponse.json({ error: "Whiteboard not found" }, { status: 404 });
   }
 
+  if (declaresBodyOver(request, MAX_WHITEBOARD_IMAGE_BYTES)) {
+    return NextResponse.json({ error: "That file is too large." }, { status: 413 });
+  }
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -43,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ whi
     .values({
       whiteboardId,
       uploadedById: ctx.user.id,
-      fileName: file.name || "image",
+      fileName: storableFileName(file.name, "image"),
       contentType,
       sizeBytes: file.size,
       data,

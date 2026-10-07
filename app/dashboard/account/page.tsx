@@ -29,7 +29,7 @@ export default async function AccountPage() {
 
       <div className="flex flex-col gap-3 border-t border-cy-gray-100 pt-6">
         <h2 className="text-sm font-medium text-cy-gray-700">Change Password</h2>
-        <ChangePasswordForm action={changePassword} />
+        <ChangePasswordForm action={changePassword} email={ctx.user.email} />
       </div>
     </div>
   );
