@@ -44,6 +44,13 @@ function isVisible(node: GanttNode, dates: Record<string, ItemDates>): boolean {
 
 type Row = { node: GanttNode; depth: number; hasVisibleChildren: boolean };
 
+const SPAN_FORMAT: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", year: "numeric" };
+
+/** "Oct 1, 2026 – Dec 12, 2026", for the summary row's label. */
+function formatSpan(span: { start: Date; end: Date }) {
+  return `${span.start.toLocaleDateString(undefined, SPAN_FORMAT)} – ${span.end.toLocaleDateString(undefined, SPAN_FORMAT)}`;
+}
+
 function buildRows(
   nodes: GanttNode[],
   depth: number,
@@ -74,14 +81,22 @@ type DragAnchor = {
   latest?: ItemDates;
 };
 
+/**
+ * The item a Gantt page belongs to (e.g. the Program on its own Gantt tab),
+ * shown as a pinned top row whose summary bar spans every date beneath it.
+ */
+export type GanttSummaryRow = { title: string; href: string };
+
 export function GanttView({
   items,
+  summary,
   onPortfolioDateChange,
   onProgramDateChange,
   onProjectDateChange,
   onTaskDateChange,
 }: {
   items: GanttNode[];
+  summary?: GanttSummaryRow;
   onPortfolioDateChange?: DateChangeHandler;
   onProgramDateChange?: DateChangeHandler;
   onProjectDateChange?: DateChangeHandler;
@@ -200,7 +215,8 @@ export function GanttView({
     });
   }
 
-  const rows = buildRows(items, 0, expanded, dates);
+  // Under a summary row the items are its children, so they indent one level.
+  const rows = buildRows(items, summary ? 1 : 0, expanded, dates);
   const hiddenTopLevel = items.filter((n) => !isVisible(n, dates)).length;
   // Rows with no dates of their own get a summary bar spanning their
   // descendants — computed from the live `dates`, so it follows a drag.
@@ -212,11 +228,16 @@ export function GanttView({
       return span ? [[r.node.id, span] as const] : [];
     }),
   );
+  // The page's own item always summarizes everything beneath it, whatever
+  // its own planned dates (those are in the page header).
+  const summarySpan = summary
+    ? descendantSpan({ id: "", children: items } as GanttNode, (n) => dates[n.id] ?? { start: null, end: null })
+    : null;
   // Include the spans: a collapsed row's children aren't rows, but its
   // summary bar still has to fit on the timeline.
   const allDates = [
     ...rows.flatMap((r) => [dates[r.node.id].start, dates[r.node.id].end].filter((d): d is Date => !!d)),
-    ...[...spans.values()].flatMap((span) => [span.start, span.end]),
+    ...[...spans.values(), ...(summarySpan ? [summarySpan] : [])].flatMap((span) => [span.start, span.end]),
   ];
   const timeline = rows.length > 0 ? buildTimeline(allDates, zoom.level) : null;
   const scroll = useTimelineScroll(timeline, zoom);
@@ -233,6 +254,21 @@ export function GanttView({
       <div className="flex overflow-hidden rounded-card border border-cy-gray-200 bg-white">
         <div className="flex w-56 shrink-0 flex-col border-r border-cy-gray-200">
           <div className="h-[52px] shrink-0 border-b border-cy-gray-200" />
+          {summary && summarySpan && (
+            <div
+              data-gantt-summary-row
+              className="flex h-10 shrink-0 flex-col justify-center border-b border-cy-gray-200 bg-cy-gray-025 pl-3 pr-3"
+            >
+              <Link
+                href={summary.href}
+                className="truncate text-[13px] font-semibold text-cy-gray-900 hover:text-cy-blue-600 hover:underline"
+                title={summary.title}
+              >
+                {summary.title}
+              </Link>
+              <span className="truncate text-[11px] text-cy-gray-500">{formatSpan(summarySpan)}</span>
+            </div>
+          )}
           {rows.map((row) => (
             <div
               key={row.node.id}
@@ -271,6 +307,17 @@ export function GanttView({
             <GanttTimelineHeader timeline={timeline} />
 
             <div className="relative">
+              {summary && summarySpan && (
+                <div className="relative h-10 border-b border-cy-gray-200 bg-cy-gray-025">
+                  <SummaryBar
+                    title={summary.title}
+                    href={summary.href}
+                    span={summarySpan}
+                    rangeStart={rangeStart}
+                    dayWidth={dayWidth}
+                  />
+                </div>
+              )}
               {rows.map((row) => {
                 const { node } = row;
                 const { start, end } = dates[node.id];
