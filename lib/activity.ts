@@ -1,7 +1,7 @@
 import "server-only";
 import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { activityLog, users } from "@/db/schema";
+import { activityLog, checklistItems, programs, projects, tasks, users, whiteboards } from "@/db/schema";
 import { dateInputValue } from "@/lib/fields";
 
 /**
@@ -194,7 +194,86 @@ export async function getActivity(orgId: string, target: ActivityTarget, limit =
     orderBy: [desc(activityLog.createdAt)],
     limit: limit + 1,
   });
-  return { entries: rows.slice(0, limit), hasMore: rows.length > limit };
+  const entries = rows.slice(0, limit);
+  const hrefs = await currentHrefs(orgId, entries);
+  return {
+    entries: entries.map((entry) => ({ ...entry, href: hrefs.get(entry.entityId) ?? null })),
+    hasMore: rows.length > limit,
+  };
+}
+
+/**
+ * Links for the entries' subjects that still exist, keyed by entity id, so
+ * the feed can make names clickable and leave deleted ones as plain text.
+ * Built from each item's current parents (not the row's stored scope), and
+ * every lookup is org-scoped, so a link always points somewhere the viewer
+ * can open. At most one query per entity type.
+ */
+async function currentHrefs(orgId: string, entries: { entityType: ActivityEntityType; entityId: string }[]) {
+  const idsOf = (type: ActivityEntityType) => [
+    ...new Set(entries.filter((e) => e.entityType === type).map((e) => e.entityId)),
+  ];
+  const programIds = idsOf("program");
+  const projectIds = idsOf("project");
+  const taskIds = idsOf("task");
+  const itemIds = idsOf("checklist_item");
+  const boardIds = idsOf("whiteboard");
+
+  const [programRows, projectRows, taskRows, itemRows, boardRows] = await Promise.all([
+    programIds.length
+      ? db
+          .select({ id: programs.id })
+          .from(programs)
+          .where(and(eq(programs.orgId, orgId), inArray(programs.id, programIds)))
+      : [],
+    projectIds.length
+      ? db
+          .select({ id: projects.id, programId: projects.programId })
+          .from(projects)
+          .innerJoin(programs, eq(projects.programId, programs.id))
+          .where(and(eq(programs.orgId, orgId), inArray(projects.id, projectIds)))
+      : [],
+    taskIds.length
+      ? db
+          .select({ id: tasks.id, projectId: tasks.projectId, programId: projects.programId })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(programs, eq(projects.programId, programs.id))
+          .where(and(eq(programs.orgId, orgId), inArray(tasks.id, taskIds)))
+      : [],
+    itemIds.length
+      ? db
+          .select({
+            id: checklistItems.id,
+            taskId: checklistItems.taskId,
+            projectId: tasks.projectId,
+            programId: projects.programId,
+          })
+          .from(checklistItems)
+          .innerJoin(tasks, eq(checklistItems.taskId, tasks.id))
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(programs, eq(projects.programId, programs.id))
+          .where(and(eq(programs.orgId, orgId), inArray(checklistItems.id, itemIds)))
+      : [],
+    boardIds.length
+      ? db
+          .select({ id: whiteboards.id })
+          .from(whiteboards)
+          .where(and(eq(whiteboards.orgId, orgId), inArray(whiteboards.id, boardIds)))
+      : [],
+  ]);
+
+  const hrefs = new Map<string, string>();
+  for (const p of programRows) hrefs.set(p.id, `/dashboard/programs/${p.id}`);
+  for (const p of projectRows) hrefs.set(p.id, `/dashboard/programs/${p.programId}/projects/${p.id}`);
+  for (const t of taskRows) {
+    hrefs.set(t.id, `/dashboard/programs/${t.programId}/projects/${t.projectId}/tasks/${t.id}`);
+  }
+  for (const i of itemRows) {
+    hrefs.set(i.id, `/dashboard/programs/${i.programId}/projects/${i.projectId}/tasks/${i.taskId}/checklist/${i.id}`);
+  }
+  for (const b of boardRows) hrefs.set(b.id, `/dashboard/whiteboards/${b.id}`);
+  return hrefs;
 }
 
 export type ActivityEntry = Awaited<ReturnType<typeof getActivity>>["entries"][number];

@@ -243,6 +243,12 @@ items, and a Program's rolls up its projects too.
   latest 50 events, the first 10 visible and the rest behind a nested
   "Show N more" `<details>`. The two use named Tailwind groups
   (`group/activity`, `group/more`) so each toggle only styles itself.
+- **Links:** names of projects, tasks, checklist items and whiteboards in
+  the feed link to them while they still exist. `getActivity` looks up each
+  entity type's current parents in one org-scoped query (`currentHrefs`), so
+  a deleted item, or an id from another org, renders as plain text. The
+  page's own item is never linked ("this task"), and a rename links only
+  the new name.
 - When adding a new tracked field or entity, extend `TRACKED_FIELDS` /
   the `activity_entity` enum and `ActivityFeed`'s labels rather than
   writing rows by hand.
