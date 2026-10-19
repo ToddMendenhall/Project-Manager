@@ -267,6 +267,28 @@ export async function updateTaskAssignee(
   revalidatePath(`${basePath(programId, projectId)}/board`);
 }
 
+/** Lightweight start-date-only update, used by the List view's inline date input. */
+export async function updateTaskStartDate(
+  programId: string,
+  projectId: string,
+  taskId: string,
+  startDate: string,
+) {
+  const ctx = await requireOrgContext();
+
+  const existing = await getTaskForProject(taskId, projectId, programId, ctx.org.id);
+  if (!existing) {
+    throw new Error("Task not found");
+  }
+
+  const parsedStartDate = toDateOrNull(startDate);
+  await db.update(tasks).set({ startDate: parsedStartDate, updatedAt: new Date() }).where(eq(tasks.id, taskId));
+  await logTaskActivity(ctx, existing, programId, await fieldChanges(existing, { startDate: parsedStartDate }));
+
+  revalidatePath(`${basePath(programId, projectId)}/tasks`);
+  revalidatePath(`${basePath(programId, projectId)}/calendar`);
+}
+
 /** Lightweight due-date-only update, used by the List view's inline editor. */
 export async function updateTaskDueDate(
   programId: string,

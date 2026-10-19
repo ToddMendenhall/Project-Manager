@@ -10,6 +10,7 @@ import {
   updateTaskStatus,
   updateTaskPriority,
   updateTaskAssignee,
+  updateTaskStartDate,
   updateTaskDueDate,
 } from "@/app/dashboard/programs/[programId]/projects/[projectId]/tasks/actions";
 import {
@@ -38,12 +39,13 @@ type TaskRow = {
   title: string;
   status: string;
   priority: string;
+  startDate: Date | string | null;
   dueDate: Date | string | null;
   assignee: Assignee;
   checklistItems: ChecklistItemRow[];
 };
 
-const ROW_GRID = "grid grid-cols-[28px_minmax(200px,1fr)_130px_160px_140px_110px] items-center gap-2";
+const ROW_GRID = "grid grid-cols-[28px_minmax(200px,1fr)_130px_160px_140px_140px_110px] items-center gap-2";
 
 /**
  * Overdue once the due day has passed in the viewer's own day, not at
@@ -134,16 +136,16 @@ function AssigneeSelect({
   );
 }
 
-function DueDateInput({
+function DateInput({
   value,
   label,
   onChange,
-  overdue,
+  overdue = false,
 }: {
   value: Date | string | null;
   label: string;
   onChange: (value: string) => void;
-  overdue: boolean;
+  overdue?: boolean;
 }) {
   return (
     <input
@@ -267,6 +269,19 @@ export function TaskListView({
     });
   }
 
+  function handleTaskStartDateChange(task: TaskRow, startDate: string) {
+    const previous = task.startDate;
+    patchTask(task.id, { startDate: startDate || null });
+    startTransition(async () => {
+      try {
+        await updateTaskStartDate(programId, projectId, task.id, startDate);
+      } catch {
+        patchTask(task.id, { startDate: previous });
+        showNotice(SAVE_FAILED);
+      }
+    });
+  }
+
   function handleTaskDueDateChange(task: TaskRow, dueDate: string) {
     const previous = task.dueDate;
     patchTask(task.id, { dueDate: dueDate || null });
@@ -376,7 +391,7 @@ export function TaskListView({
 
             {!collapsed && (
               <div className="overflow-x-auto rounded-card border border-cy-gray-200 bg-white">
-                <div className="min-w-[760px]">
+                <div className="min-w-[900px]">
                   <div
                     className={`${ROW_GRID} border-b border-cy-gray-200 bg-cy-blue-100 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-label text-cy-blue-800`}
                   >
@@ -384,6 +399,7 @@ export function TaskListView({
                     <span>Name</span>
                     <span>Status</span>
                     <span>Assignee</span>
+                    <span>Start date</span>
                     <span>Due date</span>
                     <span>Priority</span>
                   </div>
@@ -428,7 +444,12 @@ export function TaskListView({
                             orgMembers={orgMembers}
                             onChange={(v) => handleTaskAssigneeChange(task, v)}
                           />
-                          <DueDateInput
+                          <DateInput
+                            value={task.startDate}
+                            label={`Start date of ${task.title}`}
+                            onChange={(v) => handleTaskStartDateChange(task, v)}
+                          />
+                          <DateInput
                             value={task.dueDate}
                             label={`Due date of ${task.title}`}
                             overdue={isOverdue(task.dueDate, task.status, today)}
@@ -461,7 +482,9 @@ export function TaskListView({
                                 orgMembers={orgMembers}
                                 onChange={(v) => handleItemAssigneeChange(task, item, v)}
                               />
-                              <DueDateInput
+                              {/* Checklist items have only a due date — no start date column exists for them. */}
+                              <span />
+                              <DateInput
                                 value={item.dueDate}
                                 label={`Due date of ${item.title}`}
                                 overdue={isOverdue(item.dueDate, item.status, today)}
